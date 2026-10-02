@@ -52,6 +52,28 @@ time you log in).
 
 Refreshes every 30 seconds.
 
+## Industries tab (NSE industry classification)
+
+`public/industry-data.js` holds NSE Indices' *Industry Classification
+Structure* (July 2023), extracted from the official PDF: 12 macro-economic
+sectors > 22 sectors > 59 industries > 197 basic industries, with NSE's
+definition for each basic industry. `public/industry.js` builds the tree.
+
+- Explorer with a tile per macro-economic sector, search across names and
+  definitions (matches highlighted), a "tracked stocks only" filter, and
+  expand/collapse. Links like `#industries/IN050102002` open a node.
+- The 48 Nifty 50 stocks are classified to a basic industry (`STOCK_BASIC`
+  in `industry.js`), so every level shows the average live move of the stocks
+  beneath it. That mapping is mine, based on the PDF's definitions, so
+  check it against NSE before relying on it.
+- Each Sector Knowledge page lists where its sector sits in the structure
+  (`KNOWLEDGE_NSE`), and the NSE nodes link back to that research.
+- **Group by** (Markets tab, India): the heatmap and the Stocks treemap can be
+  grouped by the original labels or by NSE macro-economic sector, sector or
+  industry.
+- The PDF was parsed from word coordinates and checked: every code sits under
+  its parent, names are unique per level, and every definition is present.
+
 ## Indices tab
 
 Catalogue of 150 NSE indices from niftyindices.com across four families:

@@ -28,6 +28,7 @@
   <a class="tab" data-tab="markets" href="#markets">Markets</a>
   <a class="tab" data-tab="stocks" href="#stocks">Stocks</a>
   <a class="tab" data-tab="indices" href="#indices">Indices</a>
+  <a class="tab" data-tab="industries" href="#industries">Industries</a>
   <a class="tab" data-tab="knowledge" href="#knowledge">Sector Knowledge</a>
 </nav>
 
@@ -51,7 +52,15 @@
   </section>
 
   <section class="card">
-    <div class="section-title">SECTOR HEATMAP <span class="muted" id="sector-heatmap-sub">·</span></div>
+    <div class="section-title">
+      <span>SECTOR HEATMAP <span class="muted" id="sector-heatmap-sub">·</span></span>
+      <select id="group-mode" class="sector-filter" aria-label="Group India by" title="Group India's stocks by">
+        <option value="classic">Classic sectors</option>
+        <option value="mes">NSE macro-economic sector</option>
+        <option value="sec">NSE sector</option>
+        <option value="ind">NSE industry</option>
+      </select>
+    </div>
     <div id="sector-heatmap" class="sector-heatmap">
       <div class="ticker-loading">Loading sectors…</div>
     </div>
@@ -90,6 +99,16 @@
     <div id="i-root"></div>
   </div>
 
+  <div class="tab-panel" data-panel="industries" hidden>
+    <section class="card k-head">
+      <div>
+        <h2 class="k-title">Industry Classification</h2>
+        <p class="k-sub">NSE Indices' official structure (July 2023): 12 macro-economic sectors, 22 sectors, 59 industries and 197 basic industries. Your tracked Indian stocks are classified into it with live moves. <a class="i-src" href="https://www.niftyindices.com/docs/default-source/default-document-library/industry-classification/nse-indices_industry-classification-structure-2023-07.pdf?sfvrsn=c89dd39_1" target="_blank" rel="noopener">Source PDF</a></p>
+      </div>
+    </section>
+    <div id="ind-root"></div>
+  </div>
+
   <div class="tab-panel" data-panel="knowledge" hidden>
     <section class="card k-head">
       <div>
@@ -108,8 +127,11 @@
 <script src="data.js"></script>
 <script src="knowledge.js"></script>
 <script src="indices.js"></script>
+<script src="industry-data.js"></script>
+<script src="industry.js"></script>
 <script src="app.js"></script>
 <script src="knowledge-ui.js"></script>
 <script src="indices-ui.js"></script>
+<script src="industry-ui.js"></script>
 </body>
 </html>

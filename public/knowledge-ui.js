@@ -9,6 +9,7 @@
     ["risks", "Risks to watch"],
     ["metrics", "Metrics to track"],
     ["model", "How it makes money"],
+    ["nse", "NSE industry classification"],
     ["react", "How it reacts (what-if)"],
     ["stocks", "Tracked stocks (live)"],
     ["notes", "My notes"],
@@ -306,6 +307,20 @@
       <summary>${title}</summary><div class="k-acc-body">${inner}</div></details>`;
   }
 
+  function nseSection(sec) {
+    const links = KNOWLEDGE_NSE[sec.id];
+    if (!links) {
+      return `<p class="k-p muted">This is a cross-cutting group rather than a single industry, so it has no direct entry in NSE's classification.</p>`;
+    }
+    const items = links.map(([level, name]) => {
+      const node = NSE_IND.byName[level].get(name);
+      const trail = NSE_IND.path(node).map((n) => esc(n.name)).join(" &rsaquo; ");
+      const n = (NSE_STOCKS_BY_NODE.get(node.code) || []).length;
+      return `<li><a href="#industries/${node.code}">${esc(node.name)}</a> <span class="ind-code">${node.code}</span><br><span class="muted">${trail}${n ? ` · ${n} tracked stock${n > 1 ? "s" : ""}` : ""}</span></li>`;
+    });
+    return `<p class="k-p muted">Where this sector sits in NSE's official industry structure:</p><ul class="k-list">${items.join("")}</ul>`;
+  }
+
   function renderFocus(sec) {
     const i = K_SECTORS.indexOf(sec);
     const prev = K_SECTORS[(i - 1 + K_SECTORS.length) % K_SECTORS.length];
@@ -316,6 +331,7 @@
       risks: list(sec.risks),
       metrics: list(sec.metrics),
       model: `<p class="k-p">${esc(sec.model)}</p>`,
+      nse: nseSection(sec),
       react: `<div id="k-react">${reactRows(sec)}</div>`,
       stocks: `<div id="k-live-stocks">${stockTiles(sec)}</div>`,
       notes: `<textarea id="k-notes" class="k-notes" rows="5" placeholder="Your own research notes for ${esc(sec.name)}: thesis, stocks to look at, things to verify. Saved in this browser only."></textarea>

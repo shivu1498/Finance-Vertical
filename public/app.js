@@ -2,6 +2,17 @@ const REFRESH_MS = 30_000;
 
 let activeCountry = COUNTRIES[0];
 
+// How India's stocks are grouped in the heatmap, filter and treemap:
+// "classic" (my original labels) or a level of NSE's industry classification.
+let groupMode = "classic";
+const GROUP_LEVEL = { mes: 0, sec: 1, ind: 2 };
+
+function groupOf(stock) {
+  if (activeCountry.code !== "IN" || groupMode === "classic") return stock.sector;
+  const basic = NSE_IND.byName.bas.get(STOCK_BASIC[stock.name]);
+  return basic ? NSE_IND.path(basic)[GROUP_LEVEL[groupMode]].name : "Unclassified";
+}
+
 function fmtPrice(n, prefix = "") {
   if (n == null || Number.isNaN(n)) return "—";
   return prefix + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -72,6 +83,13 @@ function setCountry(code) {
 // Used by other tabs: open the Stocks tab for an Indian sector or stock.
 function openSectorInStocks(sectorName) {
   setCountry("IN");
+  if (groupMode !== "classic") {
+    // the caller passes a classic label, so rebuild the filter options for that grouping
+    groupMode = "classic";
+    document.getElementById("group-mode").value = "classic";
+    populateSectorFilter();
+    if (window.__lastMap) renderSectorHeatmap(window.__lastMap);
+  }
   const select = document.getElementById("sector-filter");
   select.value = sectorName;
   renderTreemap(window.__lastMap, select.value);
@@ -117,8 +135,9 @@ function renderSectorHeatmap(map) {
   for (const s of activeCountry.stocks) {
     const q = map.get(s.symbol);
     if (!q || q.error) continue;
-    if (!bySector.has(s.sector)) bySector.set(s.sector, []);
-    bySector.get(s.sector).push(q.changePercent);
+    const g = groupOf(s);
+    if (!bySector.has(g)) bySector.set(g, []);
+    bySector.get(g).push(q.changePercent);
   }
 
   const rows = [...bySector.entries()]
@@ -129,7 +148,11 @@ function renderSectorHeatmap(map) {
     }))
     .sort((a, b) => b.avg - a.avg);
 
-  document.getElementById("sector-heatmap-sub").textContent = `· derived from ${activeCountry.name} constituents`;
+  const modeLabel = { classic: "", mes: " · grouped by NSE macro-economic sector", sec: " · grouped by NSE sector", ind: " · grouped by NSE industry" }[activeCountry.code === "IN" ? groupMode : "classic"];
+  document.getElementById("sector-heatmap-sub").textContent = `· derived from ${activeCountry.name} constituents${modeLabel}`;
+  const groupSel = document.getElementById("group-mode");
+  groupSel.hidden = activeCountry.code !== "IN";
+  groupSel.value = groupMode;
 
   const el = document.getElementById("sector-heatmap");
   el.innerHTML = "";
@@ -155,7 +178,7 @@ function renderSectorHeatmap(map) {
 function populateSectorFilter() {
   const select = document.getElementById("sector-filter");
   select.innerHTML = '<option value="">All sectors</option>';
-  const sectors = [...new Set(activeCountry.stocks.map((s) => s.sector))].sort();
+  const sectors = [...new Set(activeCountry.stocks.map(groupOf))].sort();
   for (const sector of sectors) {
     const opt = document.createElement("option");
     opt.value = sector;
@@ -170,7 +193,7 @@ function renderTreemap(map, sectorFilter = "") {
   const el = document.getElementById("treemap");
   el.innerHTML = "";
   const stocks = sectorFilter
-    ? activeCountry.stocks.filter((s) => s.sector === sectorFilter)
+    ? activeCountry.stocks.filter((s) => groupOf(s) === sectorFilter)
     : activeCountry.stocks;
 
   for (const s of stocks) {
@@ -293,5 +316,12 @@ renderClock();
 renderCountryFilter();
 populateSectorFilter();
 document.getElementById("sector-filter").addEventListener("change", (e) => renderTreemap(window.__lastMap, e.target.value));
+document.getElementById("group-mode").addEventListener("change", (e) => {
+  groupMode = e.target.value;
+  populateSectorFilter();
+  document.getElementById("sector-filter").value = "";
+  renderSectorHeatmap(window.__lastMap);
+  renderTreemap(window.__lastMap, "");
+});
 refresh();
 setInterval(refresh, REFRESH_MS);
