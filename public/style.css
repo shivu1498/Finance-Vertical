@@ -1,0 +1,327 @@
+:root {
+  --gold-1: #ffe9a8;
+  --gold-2: #f7c948;
+  --gold-3: #e8a33d;
+  --gold-4: #c97b2e;
+  --brown-petal: #6b3f17;
+  --panel: rgba(46, 30, 14, 0.88);
+  --panel-soft: rgba(58, 38, 15, 0.72);
+  --panel-border: rgba(246, 201, 69, 0.3);
+  --text-main: #fff6e0;
+  --text-muted: #d8b978;
+  --up: #6fbf3f;
+  --up-strong: #2ecc71;
+  --down: #e05d44;
+  --down-strong: #e74c3c;
+  --radius: 10px;
+  font-size: 15px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  color: var(--text-main);
+  font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  position: relative;
+  background: #d98b2e;
+}
+
+/* ---- Sunflower field backdrop (pure CSS, no image assets) ---- */
+.field-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 246, 224, 0.5) 0%, transparent 7%),
+    radial-gradient(circle at 12% 18%, var(--brown-petal) 0%, var(--brown-petal) 3%, transparent 3.2%),
+    radial-gradient(circle at 88% 12%, rgba(255, 246, 224, 0.45) 0%, transparent 6%),
+    radial-gradient(circle at 88% 12%, var(--brown-petal) 0%, var(--brown-petal) 2.6%, transparent 2.8%),
+    radial-gradient(circle at 78% 72%, rgba(255, 246, 224, 0.4) 0%, transparent 8%),
+    radial-gradient(circle at 78% 72%, var(--brown-petal) 0%, var(--brown-petal) 3.4%, transparent 3.6%),
+    radial-gradient(circle at 6% 82%, rgba(255, 246, 224, 0.4) 0%, transparent 7%),
+    radial-gradient(circle at 6% 82%, var(--brown-petal) 0%, var(--brown-petal) 3%, transparent 3.2%),
+    linear-gradient(180deg, var(--gold-1) 0%, var(--gold-2) 32%, var(--gold-3) 65%, var(--gold-4) 100%);
+  opacity: 0.9;
+}
+
+/* ---- Top bar ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 18px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--gold-2);
+  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+.ticker-strip {
+  flex: 1;
+  display: flex;
+  gap: 22px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ticker-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.ticker-item {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+.ticker-label {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.ticker-price {
+  font-weight: 700;
+}
+.ticker-pct {
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.up .ticker-pct,
+.up .stock-pct {
+  color: var(--up-strong);
+}
+.down .ticker-pct,
+.down .stock-pct {
+  color: var(--down-strong);
+}
+.flat .ticker-pct {
+  color: var(--text-muted);
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ---- Tabs ---- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 18px;
+  background: var(--panel-soft);
+  border-bottom: 1px solid var(--panel-border);
+}
+.tab {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.tab.active {
+  color: var(--brown-petal);
+  background: var(--gold-2);
+}
+
+/* ---- Layout ---- */
+.main {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.section-title {
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+  color: var(--gold-2);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.muted {
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: normal;
+  font-size: 0.78rem;
+}
+
+.sector-filter {
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+/* ---- Breadth ---- */
+.breadth-title {
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+  color: var(--gold-2);
+  margin-bottom: 10px;
+}
+.breadth-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-weight: 700;
+}
+.adv {
+  color: var(--up-strong);
+}
+.dec {
+  color: var(--down-strong);
+}
+.ad-ratio {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.breadth-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--down-strong);
+  overflow: hidden;
+}
+.breadth-fill {
+  height: 100%;
+  background: var(--up-strong);
+  width: 50%;
+  transition: width 0.4s ease;
+}
+
+/* ---- Sector heatmap ---- */
+.sector-heatmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+}
+.sector-tile {
+  border-radius: 8px;
+  padding: 10px 10px 8px;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  transition: transform 0.15s ease;
+}
+.sector-tile:hover {
+  transform: translateY(-2px);
+}
+.sector-tile.up {
+  background: color-mix(in srgb, var(--up-strong) calc(20% + 55% * var(--heat)), var(--panel));
+}
+.sector-tile.down {
+  background: color-mix(in srgb, var(--down-strong) calc(20% + 55% * var(--heat)), var(--panel));
+}
+.sector-tile.flat {
+  background: var(--panel-soft);
+}
+.sector-name {
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+.sector-pct {
+  font-weight: 800;
+  font-size: 1rem;
+  margin-top: 4px;
+}
+.sector-count {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 2px;
+}
+
+/* ---- Treemap ---- */
+.treemap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+.stock-tile {
+  border-radius: 8px;
+  padding: 12px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.stock-tile.up {
+  background: color-mix(in srgb, var(--up-strong) calc(15% + 60% * var(--heat)), var(--panel));
+}
+.stock-tile.down {
+  background: color-mix(in srgb, var(--down-strong) calc(15% + 60% * var(--heat)), var(--panel));
+}
+.stock-tile.flat {
+  background: var(--panel-soft);
+}
+.stock-name {
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.stock-price {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+.stock-pct {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+/* ---- Footer / loading ---- */
+.footer {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 10px 0 6px;
+}
+.ticker-loading {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+  .ticker-strip {
+    order: 3;
+    width: 100%;
+  }
+}
