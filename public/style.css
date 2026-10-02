@@ -429,3 +429,10 @@ body {
 [hidden] {
   display: none !important;
 }
+
+/* ---- Tab panels ---- */
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}

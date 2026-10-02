@@ -73,6 +73,20 @@ Notes:
 - Without a cookie the feature stays off and the panel says so.
 - Prices, heatmap and breadth for India still come from Yahoo.
 
+## Adding a new section (tab)
+
+The page is organised as tabs under one roof. **Markets** holds the
+country picker, index, breadth and sector heatmap; **Stocks** holds the
+treemap and fundamentals panel. To attach another section:
+
+1. In `public/index.html`, add a link inside `#tabs`:
+   `<a class="tab" data-tab="news" href="#news">News</a>`
+2. Add a panel inside `<main>`:
+   `<div class="tab-panel" data-panel="news" hidden> ... </div>`
+3. Put its code in `public/app.js` (or a new script). Switching,
+   highlighting and `#news` deep links work automatically; call
+   `showTab("news")` to jump there from code.
+
 ## Notes / extending it
 
 - Every country's data comes through the *same* backend endpoint

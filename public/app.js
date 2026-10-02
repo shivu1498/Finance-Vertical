@@ -128,7 +128,7 @@ function renderSectorHeatmap(map) {
     tile.addEventListener("click", () => {
       document.getElementById("sector-filter").value = row.sector;
       renderTreemap(window.__lastMap, row.sector);
-      document.getElementById("treemap").scrollIntoView({ behavior: "smooth", block: "start" });
+      showTab("stocks");
     });
     el.appendChild(tile);
   }
@@ -148,6 +148,7 @@ function populateSectorFilter() {
 
 function renderTreemap(map, sectorFilter = "") {
   if (!map) return;
+  document.getElementById("treemap-sub").textContent = `· ${activeCountry.flag} ${activeCountry.name}${sectorFilter ? " · " + sectorFilter : ""}`;
   const el = document.getElementById("treemap");
   el.innerHTML = "";
   const stocks = sectorFilter
@@ -248,6 +249,24 @@ async function refresh() {
 document.getElementById("detail-close").addEventListener("click", () => {
   document.getElementById("detail-card").hidden = true;
 });
+
+// ---- Tabs: every <a data-tab> in #tabs shows the matching [data-panel] ----
+function showTab(name) {
+  const tabs = [...document.querySelectorAll("#tabs .tab")];
+  if (!tabs.some((t) => t.dataset.tab === name)) name = tabs[0].dataset.tab;
+  for (const t of tabs) t.classList.toggle("active", t.dataset.tab === name);
+  for (const p of document.querySelectorAll(".tab-panel")) p.hidden = p.dataset.panel !== name;
+  if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
+  window.scrollTo({ top: 0 });
+}
+for (const t of document.querySelectorAll("#tabs .tab")) {
+  t.addEventListener("click", (e) => {
+    e.preventDefault();
+    showTab(t.dataset.tab);
+  });
+}
+window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
+showTab(location.hash.slice(1));
 
 renderClock();
 renderCountryFilter();

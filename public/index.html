@@ -24,15 +24,14 @@
   <div class="clock" id="clock">--:--:--</div>
 </header>
 
-<nav class="tabs">
-  <a class="tab active" href="#">Stocks</a>
-  <a class="tab" href="#">Sectors</a>
-  <a class="tab" href="#">Global</a>
-  <a class="tab" href="#">Watchlist</a>
-  <a class="tab" href="#">Settings</a>
+<nav class="tabs" id="tabs">
+  <a class="tab" data-tab="markets" href="#markets">Markets</a>
+  <a class="tab" data-tab="stocks" href="#stocks">Stocks</a>
 </nav>
 
 <main class="main">
+  <!-- To add a section: add a <a data-tab="x"> link in #tabs and a panel like the ones below. -->
+  <div class="tab-panel" data-panel="markets">
   <section class="card country-card">
     <div class="section-title">MARKET <span class="muted">· pick a country, everything below follows it</span></div>
     <div id="country-filter" class="country-filter"></div>
@@ -55,10 +54,12 @@
       <div class="ticker-loading">Loading sectors…</div>
     </div>
   </section>
+  </div>
 
+  <div class="tab-panel" data-panel="stocks" hidden>
   <section class="card">
     <div class="section-title">
-      STOCK TREEMAP
+      <span>STOCK TREEMAP <span class="muted" id="treemap-sub">·</span></span>
       <select id="sector-filter" class="sector-filter">
         <option value="">All sectors</option>
       </select>
@@ -75,6 +76,7 @@
     </div>
     <div id="detail-body"></div>
   </section>
+  </div>
 
   <footer class="footer">
     Data: Yahoo Finance (free, unauthenticated, ~15s cache) · constituents &amp; sectors mapped locally per country · Not investment advice · Updated <span id="footer-updated">—</span>
