@@ -34,22 +34,17 @@ body {
   background: #d98b2e;
 }
 
-/* ---- Sunflower field backdrop (pure CSS, no image assets) ---- */
+/* ---- Sunflower field backdrop ---- */
 .field-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(circle at 12% 18%, rgba(255, 246, 224, 0.5) 0%, transparent 7%),
-    radial-gradient(circle at 12% 18%, var(--brown-petal) 0%, var(--brown-petal) 3%, transparent 3.2%),
-    radial-gradient(circle at 88% 12%, rgba(255, 246, 224, 0.45) 0%, transparent 6%),
-    radial-gradient(circle at 88% 12%, var(--brown-petal) 0%, var(--brown-petal) 2.6%, transparent 2.8%),
-    radial-gradient(circle at 78% 72%, rgba(255, 246, 224, 0.4) 0%, transparent 8%),
-    radial-gradient(circle at 78% 72%, var(--brown-petal) 0%, var(--brown-petal) 3.4%, transparent 3.6%),
-    radial-gradient(circle at 6% 82%, rgba(255, 246, 224, 0.4) 0%, transparent 7%),
-    radial-gradient(circle at 6% 82%, var(--brown-petal) 0%, var(--brown-petal) 3%, transparent 3.2%),
+    url("sunflower.svg") no-repeat -90px -90px / 420px,
+    url("sunflower.svg") no-repeat calc(100% + 110px) 22% / 520px,
+    url("sunflower.svg") no-repeat -140px calc(100% + 100px) / 480px,
+    url("sunflower.svg") no-repeat calc(100% - 60px) calc(100% + 80px) / 360px,
     linear-gradient(180deg, var(--gold-1) 0%, var(--gold-2) 32%, var(--gold-3) 65%, var(--gold-4) 100%);
-  opacity: 0.9;
 }
 
 /* ---- Top bar ---- */
@@ -106,12 +101,10 @@ body {
   padding: 1px 6px;
   border-radius: 4px;
 }
-.up .ticker-pct,
-.up .stock-pct {
+.up .ticker-pct {
   color: var(--up-strong);
 }
-.down .ticker-pct,
-.down .stock-pct {
+.down .ticker-pct {
   color: var(--down-strong);
 }
 .flat .ticker-pct {
@@ -356,12 +349,14 @@ body {
 .stock-pct {
   font-weight: 800;
   font-size: 0.95rem;
+  color: #fff;
 }
 
 /* ---- Footer / loading ---- */
 .footer {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--brown-petal);
+  font-weight: 600;
   font-size: 0.75rem;
   padding: 10px 0 6px;
 }
