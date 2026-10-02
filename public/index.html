@@ -27,6 +27,7 @@
 <nav class="tabs" id="tabs">
   <a class="tab" data-tab="markets" href="#markets">Markets</a>
   <a class="tab" data-tab="stocks" href="#stocks">Stocks</a>
+  <a class="tab" data-tab="knowledge" href="#knowledge">Sector Knowledge</a>
 </nav>
 
 <main class="main">
@@ -78,12 +79,24 @@
   </section>
   </div>
 
+  <div class="tab-panel" data-panel="knowledge" hidden>
+    <section class="card k-head">
+      <div>
+        <h2 class="k-title">Sector Specific Knowledge</h2>
+        <p class="k-sub">Curated sector research, one sub-tab per sector. Pick a thumbnail to dive in.</p>
+      </div>
+    </section>
+    <div id="k-root"></div>
+  </div>
+
   <footer class="footer">
     Data: Yahoo Finance (free, unauthenticated, ~15s cache) · constituents &amp; sectors mapped locally per country · Not investment advice · Updated <span id="footer-updated">—</span>
   </footer>
 </main>
 
 <script src="data.js"></script>
+<script src="knowledge.js"></script>
 <script src="app.js"></script>
+<script src="knowledge-ui.js"></script>
 </body>
 </html>

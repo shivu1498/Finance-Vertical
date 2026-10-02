@@ -34,7 +34,7 @@ const NIFTY50 = [
   { symbol: "BAJAJ-AUTO.NS", name: "BAJAJ-AUTO", sector: "Auto" },
   { symbol: "BAJFINANCE.NS", name: "BAJFINANCE", sector: "Fin Services" },
   { symbol: "BAJAJFINSV.NS", name: "BAJAJFINSV", sector: "Fin Services" },
-  { symbol: "BEL.NS", name: "BEL", sector: "Capital Mkts" },
+  { symbol: "BEL.NS", name: "BEL", sector: "Infra" },
   { symbol: "BHARTIARTL.NS", name: "BHARTIARTL", sector: "Telecom" },
   { symbol: "CIPLA.NS", name: "CIPLA", sector: "Pharma" },
   { symbol: "COALINDIA.NS", name: "COALINDIA", sector: "Energy" },
@@ -71,7 +71,7 @@ const NIFTY50 = [
   { symbol: "TCS.NS", name: "TCS", sector: "IT" },
   { symbol: "TECHM.NS", name: "TECHM", sector: "IT" },
   { symbol: "TITAN.NS", name: "TITAN", sector: "Consumer Durables" },
-  { symbol: "TRENT.NS", name: "TRENT", sector: "Realty" },
+  { symbol: "TRENT.NS", name: "TRENT", sector: "Services" },
   { symbol: "ULTRACEMCO.NS", name: "ULTRACEMCO", sector: "Commodities" },
   { symbol: "WIPRO.NS", name: "WIPRO", sector: "IT" },
 ];

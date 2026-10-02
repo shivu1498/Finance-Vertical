@@ -59,6 +59,31 @@ function renderTicker(map) {
   }
 }
 
+function setCountry(code) {
+  const country = COUNTRIES.find((c) => c.code === code);
+  if (!country || country.code === activeCountry.code) return;
+  activeCountry = country;
+  document.getElementById("detail-card").hidden = true;
+  renderCountryFilter();
+  populateSectorFilter();
+  refresh();
+}
+
+// Used by other tabs: open the Stocks tab for an Indian sector or stock.
+function openSectorInStocks(sectorName) {
+  setCountry("IN");
+  const select = document.getElementById("sector-filter");
+  select.value = sectorName;
+  renderTreemap(window.__lastMap, select.value);
+  showTab("stocks");
+}
+
+function openStockFundamentals(stock) {
+  setCountry("IN");
+  showTab("stocks");
+  showFundamentals(stock);
+}
+
 function renderCountryFilter() {
   const el = document.getElementById("country-filter");
   el.innerHTML = "";
@@ -68,14 +93,7 @@ function renderCountryFilter() {
     btn.className = "country-pill" + (country.code === activeCountry.code ? " active" : "");
     btn.innerHTML = `${country.flag} ${country.name}`;
     btn.title = country.exchange;
-    btn.addEventListener("click", () => {
-      if (activeCountry.code === country.code) return;
-      activeCountry = country;
-      document.getElementById("detail-card").hidden = true;
-      renderCountryFilter();
-      populateSectorFilter();
-      refresh();
-    });
+    btn.addEventListener("click", () => setCountry(country.code));
     el.appendChild(btn);
   }
 }
@@ -251,13 +269,16 @@ document.getElementById("detail-close").addEventListener("click", () => {
 });
 
 // ---- Tabs: every <a data-tab> in #tabs shows the matching [data-panel] ----
-function showTab(name) {
+// Hashes look like "#tab" or "#tab/sub" (sub is handled by the tab's own code).
+function showTab(raw) {
+  let [name] = String(raw || "").split("/");
   const tabs = [...document.querySelectorAll("#tabs .tab")];
   if (!tabs.some((t) => t.dataset.tab === name)) name = tabs[0].dataset.tab;
   for (const t of tabs) t.classList.toggle("active", t.dataset.tab === name);
   for (const p of document.querySelectorAll(".tab-panel")) p.hidden = p.dataset.panel !== name;
-  if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
+  if (location.hash.slice(1).split("/")[0] !== name) history.replaceState(null, "", `#${name}`);
   window.scrollTo({ top: 0 });
+  document.dispatchEvent(new CustomEvent("tabchange", { detail: { name } }));
 }
 for (const t of document.querySelectorAll("#tabs .tab")) {
   t.addEventListener("click", (e) => {
