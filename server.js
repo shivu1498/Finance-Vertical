@@ -1,4 +1,4 @@
-// Finance Vertical — simple stock dashboard server.
+// StalkingStocks — simple stock dashboard server.
 // Proxies Yahoo Finance's public chart endpoint (free, no API key) so the
 // browser never hits a foreign origin directly (avoids CORS + hides nothing
 // sensitive, since Yahoo's endpoint is unauthenticated).
@@ -93,6 +93,6 @@ function openBrowser(url) {
 
 app.listen(PORT, HOST, () => {
   const url = `http://localhost:${PORT}`;
-  console.log(`Sunflower Markets running at ${url} (this PC only)`);
+  console.log(`StalkingStocks running at ${url} (this PC only)`);
   if (process.env.NO_OPEN !== "1") openBrowser(url);
 });

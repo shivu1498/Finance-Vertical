@@ -1,4 +1,4 @@
-# Sunflower Markets
+# StalkingStocks
 
 A simple, live stock market dashboard: a global indices ticker, a
 country filter spanning 14 major markets, a sector heatmap, an

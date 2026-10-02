@@ -4,5 +4,5 @@ if [ ! -d node_modules ]; then
   echo "Installing dependencies, this only happens once..."
   npm install
 fi
-echo "Starting Sunflower Markets..."
+echo "Starting StalkingStocks..."
 npm start
