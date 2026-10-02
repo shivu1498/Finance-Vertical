@@ -1857,3 +1857,111 @@ body.mf-lock {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ---- Mutual Funds: sidebar forms, compare ---- */
+.mf-form {
+  display: flex;
+  gap: 6px;
+}
+.mf-form-col {
+  flex-direction: column;
+}
+.mf-form .mf-input {
+  min-width: 0;
+}
+.mf-form .k-btn {
+  white-space: nowrap;
+}
+.mf-form select {
+  width: 100%;
+}
+.mf-out {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  word-break: break-word;
+}
+.mf-res {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.mf-res span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mf-res small {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.mf-res:hover {
+  border-color: var(--accent);
+}
+.mf-banner {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 210, 74, 0.12);
+  border: 1px solid rgba(255, 210, 74, 0.4);
+  font-size: 0.82rem;
+}
+.mf-d-cmp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.mf-cmp {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+.mf-cmp th,
+.mf-cmp td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--panel-border);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.mf-cmp th:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.mf-cmp-h {
+  text-align: right;
+  font-weight: 800;
+  line-height: 1.3;
+  vertical-align: bottom;
+}
+.mf-cmp-h small {
+  display: block;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.mf-cmp-h i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+.mf-cmp td.win {
+  color: var(--up-strong);
+  font-weight: 800;
+  background: rgba(46, 204, 113, 0.1);
+}

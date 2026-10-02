@@ -52,6 +52,45 @@ time you log in).
 
 Refreshes every 30 seconds.
 
+## Mutual Funds tab
+
+Ranks Large, Mid and Small Cap equity funds against their peers, using NAV
+history from [mfapi.in](https://www.mfapi.in/) (free, no API key).
+
+- **Universe:** a curated list of about 20 funds per category in
+  `mf-universe.js` (Direct Plan, Growth). Funds that can't be found are listed
+  in the page footnote instead of being guessed.
+- **Metrics** (computed in `mf-metrics.js`): 3Y/5Y/10Y CAGR, 5Y monthly-SIP
+  XIRR, 3Y Sharpe ratio (risk-free rate 6.5%), 5Y max drawdown, consistency
+  (share of rolling 1Y windows that beat the peer average) and alpha (3Y CAGR
+  minus the peer average).
+- **Score:** each metric becomes a percentile among the screened peers, then a
+  weighted average (3Y 20, 5Y 20, SIP 10, Sharpe 15, drawdown 15, consistency
+  10, alpha 10). 70+ is BUY, 50-70 HOLD, below 50 AVOID. These labels are a
+  mechanical screen of past performance, relative to the screened list only.
+  They are not advice.
+- **UI:** ranked cards, filter/sort, a detail panel (score breakdown,
+  interactive chart against the peer average, calendar-year returns), compare
+  two funds, search any fund on mfapi.in, and a command line (`/top`, `/fund`,
+  `/compare A | B`, `/refresh`, `/help`).
+- **Polite by design:** one request at a time, 1.5s apart, retried on 429/5xx,
+  clicks jump the queue, results cached in `data/mf-cache.json` and refreshed
+  every 24h (manual refresh at most every 10 minutes).
+- **Settings (env vars):** `MFAPI_BASE`, `MFAPI_GAP_MS`, `MF_CACHE`,
+  `MF_DISABLE=1`.
+- `npm test` runs the metrics tests and backend tests against a local mock of
+  mfapi.in (`test/mock-mfapi.js`).
+
+Limits to know about:
+- The response shapes follow mfapi.in's documented `/mf/search` and
+  `/mf/{code}` endpoints. They were verified against the mock only, because the
+  build sandbox couldn't reach mfapi.in. If a field differs, the tab shows an
+  error state rather than wrong numbers; tell me and I'll adjust.
+- Not used: finvesto.in, Finnworlds, multibagg and AmitEMV/MutualFundsTracker
+  (the last is just a front end for the author's private API). Portfolio
+  overlap and fund holdings need a holdings source such as a Finnworlds API
+  key, which isn't configured.
+
 ## Industries tab (NSE industry classification)
 
 `public/industry-data.js` holds NSE Indices' *Industry Classification
