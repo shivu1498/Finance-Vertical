@@ -27,6 +27,7 @@
 <nav class="tabs" id="tabs">
   <a class="tab" data-tab="markets" href="#markets">Markets</a>
   <a class="tab" data-tab="stocks" href="#stocks">Stocks</a>
+  <a class="tab" data-tab="indices" href="#indices">Indices</a>
   <a class="tab" data-tab="knowledge" href="#knowledge">Sector Knowledge</a>
 </nav>
 
@@ -79,6 +80,16 @@
   </section>
   </div>
 
+  <div class="tab-panel" data-panel="indices" hidden>
+    <section class="card k-head">
+      <div>
+        <h2 class="k-title">NSE Indices</h2>
+        <p class="k-sub">Every index family from <a class="i-src" href="https://www.niftyindices.com/home" target="_blank" rel="noopener">niftyindices.com</a>: broad based, sectoral, strategy and thematic. Search, filter, and jump to sector research.</p>
+      </div>
+    </section>
+    <div id="i-root"></div>
+  </div>
+
   <div class="tab-panel" data-panel="knowledge" hidden>
     <section class="card k-head">
       <div>
@@ -96,7 +107,9 @@
 
 <script src="data.js"></script>
 <script src="knowledge.js"></script>
+<script src="indices.js"></script>
 <script src="app.js"></script>
 <script src="knowledge-ui.js"></script>
+<script src="indices-ui.js"></script>
 </body>
 </html>

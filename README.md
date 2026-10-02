@@ -52,6 +52,25 @@ time you log in).
 
 Refreshes every 30 seconds.
 
+## Indices tab
+
+Catalogue of 150 NSE indices from niftyindices.com across four families:
+Broad Based (22), Sectoral (27), Strategy (50) and Thematic (51), in
+`public/indices.js`.
+
+- Search (multi-word), family filter, style tags (factor, equal weight,
+  leveraged/inverse, ESG, corporate group...), sorting, and live-only mode.
+- 23 indices have live prices via Yahoo Finance symbols (Nifty 50, Bank,
+  IT, Auto, Pharma and so on). Those symbols could not be tested from the
+  build sandbox, so one that does not resolve just shows "unavailable".
+  The rest show "No free live feed".
+- Sectoral and a few thematic indices link to the matching Sector
+  Knowledge page. Every tile links to its official family page.
+- The source printouts were truncated (their footers read "1/3", "2/3" with
+  the last pages missing), so some indices may be absent. To add one, append
+  its name to the right list in `INDEX_NAMES`; optionally add a Yahoo symbol
+  to `INDEX_LIVE` or a sector id to `INDEX_RESEARCH`.
+
 ## Sector Knowledge tab
 
 Curated research for 20 Indian sectors (`public/knowledge.js`): overview,

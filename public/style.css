@@ -1014,3 +1014,127 @@ kbd {
   flex-direction: column;
   gap: 16px;
 }
+
+/* ---- Indices tab ---- */
+.i-src {
+  color: var(--accent);
+}
+#i-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.i-n {
+  opacity: 0.7;
+  font-weight: 600;
+  margin-left: 2px;
+}
+.i-blurb {
+  line-height: 1.55;
+}
+.i-blurb a {
+  color: var(--accent);
+  white-space: nowrap;
+}
+.i-group {
+  margin: 8px 0 10px;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.i-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.i-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  animation: k-fade 0.25s ease;
+}
+.i-tile:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: 0 10px 26px rgba(2, 8, 40, 0.5);
+}
+.i-tile.has-live.up {
+  background: color-mix(in srgb, var(--up-strong) calc(14% + 50% * var(--heat)), var(--panel));
+}
+.i-tile.has-live.down {
+  background: color-mix(in srgb, var(--down-strong) calc(14% + 50% * var(--heat)), var(--panel));
+}
+.i-tile-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.i-fam {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fff;
+}
+.fam-broad { background: #2f6fe0; }
+.fam-sectoral { background: #0f9d8a; }
+.fam-strategy { background: #8a5cf0; }
+.fam-thematic { background: #d9772b; }
+.i-live {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--up-strong);
+}
+.i-name {
+  font-weight: 800;
+  line-height: 1.3;
+  min-height: 2.6em;
+}
+.i-quote {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.i-price {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+.i-pct {
+  font-weight: 800;
+}
+.i-nolive {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.i-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 1px;
+}
+.i-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: auto;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.i-links a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.i-links a:hover {
+  text-decoration: underline;
+}
+.i-research {
+  color: #ffd24a !important;
+}
