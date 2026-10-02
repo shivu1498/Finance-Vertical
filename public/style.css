@@ -1,18 +1,19 @@
 :root {
-  --gold-1: #ffe9a8;
-  --gold-2: #f7c948;
-  --gold-3: #e8a33d;
-  --gold-4: #c97b2e;
-  --brown-petal: #6b3f17;
-  --panel: rgba(46, 30, 14, 0.88);
-  --panel-soft: rgba(58, 38, 15, 0.72);
-  --panel-border: rgba(246, 201, 69, 0.3);
-  --text-main: #fff6e0;
-  --text-muted: #d8b978;
+  --blue-1: #0a1a52;
+  --blue-2: #0f2a7a;
+  --blue-3: #1a3fa3;
+  --blue-4: #2a56d4;
+  --accent: #8fb4ff;
+  --on-accent: #06143f;
+  --panel: rgba(7, 20, 70, 0.78);
+  --panel-soft: rgba(20, 44, 120, 0.55);
+  --panel-border: rgba(143, 180, 255, 0.24);
+  --text-main: #eef3ff;
+  --text-muted: #9db4e8;
   --up: #6fbf3f;
   --up-strong: #2ecc71;
   --down: #e05d44;
-  --down-strong: #e74c3c;
+  --down-strong: #ff5a4a;
   --radius: 10px;
   font-size: 15px;
 }
@@ -23,6 +24,8 @@
 
 html,
 body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   margin: 0;
   min-height: 100%;
   color: var(--text-main);
@@ -31,20 +34,21 @@ body {
 
 body {
   position: relative;
-  background: #d98b2e;
+  background: var(--blue-1);
 }
 
-/* ---- Sunflower field backdrop ---- */
+/* ---- Trypan blue backdrop ---- */
 .field-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   background:
-    url("sunflower.svg") no-repeat -90px -90px / 420px,
-    url("sunflower.svg") no-repeat calc(100% + 110px) 22% / 520px,
-    url("sunflower.svg") no-repeat -140px calc(100% + 100px) / 480px,
-    url("sunflower.svg") no-repeat calc(100% - 60px) calc(100% + 80px) / 360px,
-    linear-gradient(180deg, var(--gold-1) 0%, var(--gold-2) 32%, var(--gold-3) 65%, var(--gold-4) 100%);
+    radial-gradient(1200px 700px at 12% -10%, rgba(94, 140, 255, 0.45), transparent 60%),
+    radial-gradient(900px 600px at 95% 15%, rgba(60, 90, 220, 0.35), transparent 60%),
+    radial-gradient(1000px 700px at 50% 120%, rgba(30, 70, 190, 0.45), transparent 65%),
+    linear-gradient(rgba(143, 180, 255, 0.045) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgba(143, 180, 255, 0.045) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(160deg, var(--blue-1) 0%, var(--blue-2) 45%, var(--blue-3) 100%);
 }
 
 /* ---- Top bar ---- */
@@ -66,7 +70,7 @@ body {
   gap: 8px;
   font-weight: 800;
   letter-spacing: 0.06em;
-  color: var(--gold-2);
+  color: var(--accent);
   white-space: nowrap;
   font-size: 0.95rem;
 }
@@ -134,8 +138,8 @@ body {
   font-weight: 600;
 }
 .tab.active {
-  color: var(--brown-petal);
-  background: var(--gold-2);
+  color: var(--on-accent);
+  background: var(--accent);
 }
 
 /* ---- Layout ---- */
@@ -150,6 +154,9 @@ body {
 
 .card {
   background: var(--panel);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: 0 8px 30px rgba(2, 8, 40, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 14px 16px;
@@ -159,7 +166,7 @@ body {
   font-weight: 800;
   letter-spacing: 0.05em;
   font-size: 0.85rem;
-  color: var(--gold-2);
+  color: var(--accent);
   margin-bottom: 12px;
   display: flex;
   align-items: center;
@@ -203,12 +210,12 @@ body {
   white-space: nowrap;
 }
 .country-pill:hover {
-  border-color: var(--gold-2);
+  border-color: var(--accent);
 }
 .country-pill.active {
-  background: var(--gold-2);
-  color: var(--brown-petal);
-  border-color: var(--gold-2);
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
 }
 .country-index {
   display: flex;
@@ -240,7 +247,7 @@ body {
   font-weight: 800;
   letter-spacing: 0.05em;
   font-size: 0.85rem;
-  color: var(--gold-2);
+  color: var(--accent);
   margin-bottom: 10px;
 }
 .breadth-row {
@@ -355,8 +362,8 @@ body {
 /* ---- Footer / loading ---- */
 .footer {
   text-align: center;
-  color: var(--brown-petal);
-  font-weight: 600;
+  color: var(--text-muted);
+  font-weight: 500;
   font-size: 0.75rem;
   padding: 10px 0 6px;
 }
@@ -416,7 +423,7 @@ body {
 .detail-link {
   display: inline-block;
   margin-top: 12px;
-  color: var(--gold-2);
+  color: var(--accent);
   font-size: 0.85rem;
 }
 [hidden] {

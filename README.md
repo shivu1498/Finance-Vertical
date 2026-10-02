@@ -3,7 +3,7 @@
 A simple, live stock market dashboard: a global indices ticker, a
 country filter spanning 14 major markets, a sector heatmap, an
 advance/decline breadth strip, and a stock treemap — all in a
-sunflower-field theme.
+trypan-blue theme.
 
 Data comes from Yahoo Finance's free, unauthenticated chart endpoint
 (`query1.finance.yahoo.com`). A small Node/Express server proxies the
