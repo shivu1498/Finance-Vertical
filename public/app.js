@@ -71,6 +71,7 @@ function renderCountryFilter() {
     btn.addEventListener("click", () => {
       if (activeCountry.code === country.code) return;
       activeCountry = country;
+      document.getElementById("detail-card").hidden = true;
       renderCountryFilter();
       populateSectorFilter();
       refresh();
@@ -164,6 +165,11 @@ function renderTreemap(map, sectorFilter = "") {
       <div class="stock-price">${q && !q.error ? fmtPrice(q.price) : "—"}</div>
       <div class="stock-pct">${pct != null ? fmtPct(pct) : "n/a"}</div>
     `;
+    if (activeCountry.code === "IN") {
+      tile.classList.add("clickable");
+      tile.title = "Click for Screener.in fundamentals";
+      tile.addEventListener("click", () => showFundamentals(s));
+    }
     el.appendChild(tile);
   }
 }
@@ -183,6 +189,38 @@ function renderBreadth(map) {
   document.getElementById("dec-count").textContent = `▼ ${dec}`;
   document.getElementById("ad-ratio").textContent = `A/D ${(adv / (dec || 1)).toFixed(2)}`;
   document.getElementById("breadth-fill").style.width = `${(adv / total) * 100}%`;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function showFundamentals(stock) {
+  const card = document.getElementById("detail-card");
+  const body = document.getElementById("detail-body");
+  document.getElementById("detail-title").textContent = `${stock.name} · FUNDAMENTALS (SCREENER.IN)`;
+  card.hidden = false;
+  body.innerHTML = '<div class="ticker-loading">Loading from Screener.in…</div>';
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  try {
+    const res = await fetch(`/api/screener/${encodeURIComponent(stock.symbol.replace(/\.NS$/, ""))}`);
+    const json = await res.json();
+    if (!res.ok) {
+      body.innerHTML = `<div class="muted">${escapeHtml(json.message || json.error || "Request failed")}</div>`;
+      return;
+    }
+    const items = json.ratios
+      .map((r) => `<div class="ratio"><div class="ratio-name">${escapeHtml(r.name)}</div><div class="ratio-value">${escapeHtml(r.value)}</div></div>`)
+      .join("");
+    body.innerHTML = `
+      <div class="detail-company">${escapeHtml(json.companyName || stock.name)}</div>
+      <div class="ratio-grid">${items}</div>
+      <a class="detail-link" href="${escapeHtml(json.url)}" target="_blank" rel="noopener">Open on Screener.in &rarr;</a>
+    `;
+  } catch (err) {
+    body.innerHTML = '<div class="muted">Could not reach the server.</div>';
+  }
 }
 
 async function refresh() {
@@ -206,6 +244,10 @@ async function refresh() {
     document.getElementById("footer-updated").textContent = "error — retrying…";
   }
 }
+
+document.getElementById("detail-close").addEventListener("click", () => {
+  document.getElementById("detail-card").hidden = true;
+});
 
 renderClock();
 renderCountryFilter();

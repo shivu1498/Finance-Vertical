@@ -52,6 +52,27 @@ time you log in).
 
 Refreshes every 30 seconds.
 
+## Indian stock fundamentals from Screener.in (optional)
+
+Click any stock tile while **India** is selected to see Market Cap, P/E,
+ROCE, etc. from Screener.in. Screener has no public API, so the server
+reads the company page using **your own logged-in session cookie**.
+
+1. Log in to screener.in in your browser.
+2. DevTools (F12) -> Application -> Cookies -> `screener.in` -> copy the
+   value of `sessionid`.
+3. Copy `.env.example` to `.env` and paste it: `SCREENER_SESSIONID=...`
+4. Restart the app.
+
+Notes:
+- Treat the cookie like a password. `.env` is git-ignored; never commit it.
+- Screener's terms restrict automated access, so this is intended for
+  light personal use. The server fetches one page at a time, at least
+  1.5s apart, and caches each company for 6 hours.
+- It parses Screener's HTML, so it can break if their markup changes.
+- Without a cookie the feature stays off and the panel says so.
+- Prices, heatmap and breadth for India still come from Yahoo.
+
 ## Notes / extending it
 
 - Every country's data comes through the *same* backend endpoint

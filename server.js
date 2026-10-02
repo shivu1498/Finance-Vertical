@@ -4,7 +4,19 @@
 // sensitive, since Yahoo's endpoint is unauthenticated).
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
 const { exec } = require("child_process");
+const { createScreenerHandler } = require("./screener");
+
+// Minimal .env loader so the Screener session cookie never lives in code.
+try {
+  for (const line of fs.readFileSync(path.join(__dirname, ".env"), "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+} catch {
+  // no .env file: Screener integration simply stays disabled
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -81,6 +93,11 @@ app.get("/api/quotes", async (req, res) => {
 
   res.json({ quotes, updatedAt: new Date().toISOString() });
 });
+
+app.get(
+  "/api/screener/:symbol",
+  createScreenerHandler({ sessionId: process.env.SCREENER_SESSIONID })
+);
 
 function openBrowser(url) {
   const platform = process.platform;

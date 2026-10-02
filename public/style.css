@@ -374,3 +374,51 @@ body {
     width: 100%;
   }
 }
+
+/* ---- Fundamentals panel ---- */
+.stock-tile.clickable {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.stock-tile.clickable:hover {
+  transform: translateY(-2px);
+}
+.detail-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.3rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.detail-company {
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.ratio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.ratio {
+  background: var(--panel-soft);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.ratio-name {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+.ratio-value {
+  font-weight: 700;
+  margin-top: 2px;
+}
+.detail-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: var(--gold-2);
+  font-size: 0.85rem;
+}
+[hidden] {
+  display: none !important;
+}
