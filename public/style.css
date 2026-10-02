@@ -53,17 +53,20 @@ body {
 
 /* ---- Top bar ---- */
 .topbar {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 10px 18px;
-  background: var(--panel);
+  background: color-mix(in srgb, var(--blue-1) 96%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--panel-border);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 20;
 }
-
+.topbar-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 18px 4px;
+}
 .brand {
   display: flex;
   align-items: center;
@@ -75,44 +78,159 @@ body {
   font-size: 0.95rem;
 }
 
-.ticker-strip {
+/* ---- Asset-class filter ---- */
+.asset-filter {
   flex: 1;
   display: flex;
-  gap: 22px;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.asset-chip-wrap {
+  position: relative;
+}
+.asset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.asset-chip:hover {
+  color: var(--text-main);
+  border-color: var(--accent);
+}
+.asset-chip.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.asset-chip .chev {
+  font-size: 0.7rem;
+  transition: transform 0.15s ease;
+}
+.asset-chip[aria-expanded="true"] .chev {
+  transform: rotate(180deg);
+}
+.asset-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: color-mix(in srgb, var(--blue-1) 88%, #000);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  animation: k-fade 0.15s ease;
+}
+.asset-menu[hidden] {
+  display: none;
+}
+.asset-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: none;
+  color: var(--text-main);
+  border: none;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.asset-menu button:hover,
+.asset-menu button:focus-visible {
+  background: var(--panel-soft);
+  outline: none;
+}
+.asset-menu button.on::after {
+  content: "\2713";
+  color: var(--accent);
+}
+
+/* ---- Ticker strip ---- */
+.ticker-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px 6px;
+}
+.ticker-nav {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.ticker-nav:hover:not(:disabled) {
+  background: var(--panel-soft);
+}
+.ticker-nav:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.ticker-strip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 26px;
   overflow-x: auto;
+  scroll-behavior: smooth;
   scrollbar-width: none;
+  padding: 2px 4px;
 }
 .ticker-strip::-webkit-scrollbar {
   display: none;
 }
-
-.ticker-item {
+.tk {
   display: flex;
   align-items: baseline;
   gap: 7px;
   white-space: nowrap;
-  font-size: 0.85rem;
+  font-size: 0.86rem;
+  cursor: default;
 }
-.ticker-label {
-  color: var(--text-muted);
+.tk-name {
+  font-weight: 800;
+}
+.tk-val,
+.tk-pct,
+.tk-arrow {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.tk.up .tk-val, .tk.up .tk-pct, .tk.up .tk-arrow { color: var(--up-strong); }
+.tk.down .tk-val, .tk.down .tk-pct, .tk.down .tk-arrow { color: var(--down-strong); }
+.tk.flat .tk-val, .tk.flat .tk-pct, .tk.flat .tk-arrow { color: var(--text-muted); }
+.tk.na .tk-val { color: var(--text-muted); }
+.tk-pct {
   font-weight: 600;
 }
-.ticker-price {
-  font-weight: 700;
-}
-.ticker-pct {
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-.up .ticker-pct {
-  color: var(--up-strong);
-}
-.down .ticker-pct {
-  color: var(--down-strong);
-}
-.flat .ticker-pct {
-  color: var(--text-muted);
+.tk-arrow {
+  font-size: 0.95rem;
 }
 
 .clock {
@@ -1541,7 +1659,7 @@ mark {
 }
 .mf-side {
   position: sticky;
-  top: 70px;
+  top: 110px;
   display: flex;
   flex-direction: column;
   gap: 6px;

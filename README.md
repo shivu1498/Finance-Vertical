@@ -52,6 +52,30 @@ time you log in).
 
 Refreshes every 30 seconds.
 
+## Top ticker (asset classes)
+
+The header ticker is filtered by four asset classes, each with a dropdown:
+
+| Class | Dropdown options | Instruments |
+|---|---|---|
+| Equity | India, US, Asia, Europe | Nifty 50, Sensex, Bank Nifty, S&P 500, DJIA, Nasdaq, Russell 2000, VIX, Hang Seng, Nikkei, FTSE, DAX, CAC |
+| Cash | Dollar, Euro | Dollar Index, USD/INR, USD/JPY, EUR/USD, EUR/INR, EUR/GBP |
+| Commodity | Gold, Silver, Crude Oil | Gold, Silver, WTI, Brent (futures, USD) |
+| Bond | Treasury yields, Bond ETFs | US 3M/5Y/10Y/30Y yields (change in basis points), TLT, AGG, LQD, HYG |
+
+- Scroll with the arrows; your choice is remembered in the browser.
+- Only the visible instruments are fetched, every 30 seconds.
+- Edit the list in `ASSET_CLASSES` and `TICKERS` in `public/data.js`.
+- The symbols are Yahoo Finance tickers. They could not be tested live from the
+  build sandbox, so an instrument that doesn't resolve shows "—". Indian
+  government bond yields have no reliable free Yahoo symbol, so the bond class
+  is US Treasuries and bond ETFs.
+- Day changes are measured against the previous session's close. An earlier
+  version used Yahoo's `chartPreviousClose`, which is the close from before the
+  5-day window, so changes were roughly a week's move. `quotes.js` now parses
+  this using the bar timestamps (tests in `test/quotes.test.js` and
+  `test/server-quotes.test.js`). `YAHOO_BASE` overrides the Yahoo host for testing.
+
 ## Mutual Funds tab
 
 Ranks Large, Mid and Small Cap equity funds against their peers, using NAV

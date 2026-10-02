@@ -13,15 +13,52 @@
 // ones especially) don't publish any free real-time data anywhere, from any
 // provider — this covers the major, liquid markets where free data exists.
 
-const INDICES = [
-  { symbol: "^NSEI", label: "NIFTY 50" },
-  { symbol: "^BSESN", label: "SENSEX" },
-  { symbol: "^GSPC", label: "S&P 500" },
-  { symbol: "^DJI", label: "DOW JONES" },
-  { symbol: "^IXIC", label: "NASDAQ" },
-  { symbol: "CL=F", label: "CRUDE OIL", prefix: "$" },
-  { symbol: "^HSI", label: "HANG SENG" },
-  { symbol: "^FTSE", label: "FTSE 100" },
+// Top ticker: four asset classes, each with optional sub-filters.
+// `dp` = decimals shown, `prefix` = currency symbol, `kind: "yield"` = shown as a
+// percentage yield with the day change in basis points.
+const ASSET_CLASSES = [
+  { id: "equity", label: "Equity", subs: [["india", "India"], ["us", "US"], ["asia", "Asia"], ["europe", "Europe"]] },
+  { id: "cash", label: "Cash", subs: [["usd", "Dollar"], ["eur", "Euro"]] },
+  { id: "commodity", label: "Commodity", subs: [["gold", "Gold"], ["silver", "Silver"], ["energy", "Crude Oil"]] },
+  { id: "bond", label: "Bond", subs: [["yield", "Treasury yields"], ["etf", "Bond ETFs"]] },
+];
+
+const TICKERS = [
+  // Equity
+  { symbol: "^NSEI", label: "NIFTY 50", name: "Nifty 50", cls: "equity", sub: "india" },
+  { symbol: "^BSESN", label: "SENSEX", name: "BSE Sensex", cls: "equity", sub: "india" },
+  { symbol: "^NSEBANK", label: "BANK NIFTY", name: "Nifty Bank", cls: "equity", sub: "india" },
+  { symbol: "^GSPC", label: "S&P 500", name: "S&P 500", cls: "equity", sub: "us" },
+  { symbol: "^DJI", label: "DJIA", name: "Dow Jones Industrial Average", cls: "equity", sub: "us" },
+  { symbol: "^IXIC", label: "NASDAQ", name: "Nasdaq Composite", cls: "equity", sub: "us" },
+  { symbol: "^RUT", label: "RUSSELL 2000", name: "Russell 2000", cls: "equity", sub: "us" },
+  { symbol: "^VIX", label: "VIX", name: "CBOE Volatility Index", cls: "equity", sub: "us" },
+  { symbol: "^HSI", label: "HANG SENG", name: "Hang Seng Index", cls: "equity", sub: "asia" },
+  { symbol: "^N225", label: "NIKKEI 225", name: "Nikkei 225", cls: "equity", sub: "asia" },
+  { symbol: "^FTSE", label: "FTSE 100", name: "FTSE 100", cls: "equity", sub: "europe" },
+  { symbol: "^GDAXI", label: "DAX", name: "DAX", cls: "equity", sub: "europe" },
+  { symbol: "^FCHI", label: "CAC 40", name: "CAC 40", cls: "equity", sub: "europe" },
+  // Cash (currencies)
+  { symbol: "DX-Y.NYB", label: "DOLLAR INDEX", name: "US Dollar Index", cls: "cash", sub: "usd" },
+  { symbol: "INR=X", label: "USD/INR", name: "US dollar to Indian rupee", cls: "cash", sub: "usd" },
+  { symbol: "JPY=X", label: "USD/JPY", name: "US dollar to Japanese yen", cls: "cash", sub: "usd", dp: 2 },
+  { symbol: "EURUSD=X", label: "EUR/USD", name: "Euro to US dollar", cls: "cash", sub: "eur", dp: 4 },
+  { symbol: "EURINR=X", label: "EUR/INR", name: "Euro to Indian rupee", cls: "cash", sub: "eur" },
+  { symbol: "EURGBP=X", label: "EUR/GBP", name: "Euro to British pound", cls: "cash", sub: "eur", dp: 4 },
+  // Commodity
+  { symbol: "GC=F", label: "GOLD", name: "Gold futures (per troy oz)", cls: "commodity", sub: "gold", prefix: "$" },
+  { symbol: "SI=F", label: "SILVER", name: "Silver futures (per troy oz)", cls: "commodity", sub: "silver", prefix: "$" },
+  { symbol: "CL=F", label: "CRUDE (WTI)", name: "WTI crude oil futures", cls: "commodity", sub: "energy", prefix: "$" },
+  { symbol: "BZ=F", label: "BRENT", name: "Brent crude oil futures", cls: "commodity", sub: "energy", prefix: "$" },
+  // Bond
+  { symbol: "^IRX", label: "US 3M", name: "US 13-week Treasury bill yield", cls: "bond", sub: "yield", kind: "yield" },
+  { symbol: "^FVX", label: "US 5Y", name: "US 5-year Treasury yield", cls: "bond", sub: "yield", kind: "yield" },
+  { symbol: "^TNX", label: "US 10Y", name: "US 10-year Treasury yield", cls: "bond", sub: "yield", kind: "yield" },
+  { symbol: "^TYX", label: "US 30Y", name: "US 30-year Treasury yield", cls: "bond", sub: "yield", kind: "yield" },
+  { symbol: "TLT", label: "TLT", name: "iShares 20+ Year Treasury Bond ETF", cls: "bond", sub: "etf", prefix: "$" },
+  { symbol: "AGG", label: "AGG", name: "iShares Core US Aggregate Bond ETF", cls: "bond", sub: "etf", prefix: "$" },
+  { symbol: "LQD", label: "LQD", name: "iShares Investment Grade Corporate Bond ETF", cls: "bond", sub: "etf", prefix: "$" },
+  { symbol: "HYG", label: "HYG", name: "iShares High Yield Corporate Bond ETF", cls: "bond", sub: "etf", prefix: "$" },
 ];
 
 // Nifty 50 constituents with an approximate sector grouping.

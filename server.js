@@ -8,6 +8,7 @@ const fs = require("fs");
 const { exec } = require("child_process");
 const { createScreenerHandler } = require("./screener");
 const { createMf } = require("./mf");
+const { parseChart } = require("./quotes");
 
 // Minimal .env loader so the Screener session cookie never lives in code.
 try {
@@ -28,14 +29,13 @@ const HOST = process.env.HOST || "127.0.0.1";
 // symbol -> { data, ts }
 const cache = new Map();
 const CACHE_MS = 15_000;
+const YAHOO_BASE = process.env.YAHOO_BASE || "https://query1.finance.yahoo.com";
 
 async function fetchQuote(symbol) {
   const cached = cache.get(symbol);
   if (cached && Date.now() - cached.ts < CACHE_MS) return cached.data;
 
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-    symbol
-  )}?interval=1d&range=5d`;
+  const url = `${YAHOO_BASE}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
 
   const res = await fetch(url, {
     headers: {
@@ -46,26 +46,7 @@ async function fetchQuote(symbol) {
   });
 
   if (!res.ok) throw new Error(`upstream ${res.status} for ${symbol}`);
-  const json = await res.json();
-  const result = json?.chart?.result?.[0];
-  if (!result) throw new Error(`no data for ${symbol}`);
-
-  const meta = result.meta;
-  const price = meta.regularMarketPrice;
-  const prevClose = meta.chartPreviousClose ?? meta.previousClose;
-  const change = price - prevClose;
-  const changePercent = prevClose ? (change / prevClose) * 100 : 0;
-
-  const data = {
-    symbol,
-    price,
-    prevClose,
-    change,
-    changePercent,
-    currency: meta.currency,
-    marketState: meta.marketState,
-    name: meta.symbol,
-  };
+  const data = parseChart(await res.json(), symbol);
 
   cache.set(symbol, { data, ts: Date.now() });
   return data;

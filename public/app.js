@@ -20,8 +20,9 @@ function fmtPrice(n, prefix = "") {
 
 function fmtPct(n) {
   if (n == null || Number.isNaN(n)) return "—";
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
+  const s = n.toFixed(2);
+  if (Number(s) === 0) return "0.00%";
+  return `${n > 0 ? "+" : ""}${s}%`;
 }
 
 function changeClass(pct) {
@@ -53,22 +54,147 @@ function renderClock() {
   setInterval(tick, 1000);
 }
 
-function renderTicker(map) {
-  const strip = document.getElementById("ticker-strip");
-  strip.innerHTML = "";
-  for (const idx of INDICES) {
-    const q = map.get(idx.symbol);
-    const pct = q && !q.error ? q.changePercent : null;
-    const item = document.createElement("div");
-    item.className = `ticker-item ${changeClass(pct)}`;
-    item.innerHTML = `
-      <span class="ticker-label">${idx.label}</span>
-      <span class="ticker-price">${q && !q.error ? fmtPrice(q.price, idx.prefix) : "—"}</span>
-      <span class="ticker-pct">${pct != null ? fmtPct(pct) : "—"}</span>
-    `;
-    strip.appendChild(item);
+// ---- Top ticker: asset-class filter + scrollable strip ----
+const ASSET_KEY = "stalkingstocks.asset";
+let assetFilter = loadAssetFilter();
+const tickerQuotes = new Map();
+
+function loadAssetFilter() {
+  try {
+    const v = JSON.parse(localStorage.getItem(ASSET_KEY));
+    const cls = ASSET_CLASSES.find((c) => c.id === v?.cls);
+    if (cls) return { cls: cls.id, sub: cls.subs.some((s) => s[0] === v.sub) ? v.sub : "" };
+  } catch {
+    // no saved filter, or storage unavailable
+  }
+  return { cls: "", sub: "" };
+}
+
+function saveAssetFilter() {
+  try {
+    localStorage.setItem(ASSET_KEY, JSON.stringify(assetFilter));
+  } catch {
+    // the filter just won't persist
   }
 }
+
+const visibleTickers = () =>
+  TICKERS.filter((t) => (!assetFilter.cls || t.cls === assetFilter.cls) && (!assetFilter.sub || t.sub === assetFilter.sub));
+
+function renderAssetFilter() {
+  const chip = (cls, label, active, extra = "") =>
+    `<button type="button" class="asset-chip${active ? " active" : ""}" data-asset-cls="${cls}" ${extra}>${label}${extra ? ' <span class="chev" aria-hidden="true">&#9662;</span>' : ""}</button>`;
+  const all = chip("", "All", assetFilter.cls === "");
+  const classes = ASSET_CLASSES.map((c) => {
+    const active = assetFilter.cls === c.id;
+    const subLabel = active && assetFilter.sub ? ` &middot; ${c.subs.find((s) => s[0] === assetFilter.sub)[1]}` : "";
+    const items = [["", `All ${c.label.toLowerCase()}`], ...c.subs]
+      .map(([id, label]) => `<button type="button" role="menuitem" data-asset-cls="${c.id}" data-asset-sub="${id}" class="${active && assetFilter.sub === id ? "on" : ""}">${label}</button>`)
+      .join("");
+    return `<div class="asset-chip-wrap">${chip(c.id, `${c.label}${subLabel}`, active, 'aria-haspopup="menu" aria-expanded="false" data-asset-toggle')}<div class="asset-menu" role="menu" aria-label="${c.label} filter" hidden>${items}</div></div>`;
+  }).join("");
+  document.getElementById("asset-filter").innerHTML = all + classes;
+}
+
+function closeAssetMenus(except = null) {
+  for (const wrap of document.querySelectorAll(".asset-chip-wrap")) {
+    if (wrap === except) continue;
+    wrap.querySelector(".asset-menu").hidden = true;
+    wrap.querySelector("[data-asset-toggle]").setAttribute("aria-expanded", "false");
+  }
+}
+
+function setAssetFilter(cls, sub = "") {
+  assetFilter = { cls, sub };
+  saveAssetFilter();
+  renderAssetFilter();
+  renderTicker();
+  document.getElementById("ticker-strip").scrollTo({ left: 0, behavior: "auto" });
+  refreshTicker();
+}
+
+// Yahoo has quoted the yield indices both as the yield (4.28) and as 10x (42.8); a
+// real yield above 20% is implausible here, so treat such values as 10x.
+function tickerQuote(t) {
+  const q = tickerQuotes.get(t.symbol);
+  if (!q || q.error) return null;
+  const scale = t.kind === "yield" && q.price > 20 ? 10 : 1;
+  const price = q.price / scale;
+  const prev = q.prevClose == null ? null : q.prevClose / scale;
+  return { price, change: prev == null ? 0 : price - prev, pct: q.changePercent, prev };
+}
+
+function renderTicker() {
+  const strip = document.getElementById("ticker-strip");
+  const list = visibleTickers();
+  strip.innerHTML = list
+    .map((t) => {
+      const q = tickerQuote(t);
+      const dp = t.dp ?? 2;
+      // a move that rounds to zero in the displayed unit reads as flat
+      const shown = !q ? 0 : t.kind === "yield" ? Number((q.change * 100).toFixed(1)) : Number(q.pct.toFixed(2));
+      const dir = q ? changeClass(shown) : "flat";
+      const val = !q ? "—" : t.kind === "yield" ? `${q.price.toFixed(3)}%` : `${t.prefix || ""}${q.price.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
+      const move = !q ? "" : t.kind === "yield" ? `${shown > 0 ? "+" : ""}${shown.toFixed(1)} bp` : fmtPct(q.pct);
+      const arrow = !q || dir === "flat" ? "" : dir === "up" ? "&uarr;" : "&darr;";
+      const tip = q ? `${t.name} (${t.symbol}) · previous close ${q.prev == null ? "n/a" : q.prev.toLocaleString("en-US", { maximumFractionDigits: 4 })}` : `${t.name} (${t.symbol}) · price unavailable`;
+      return `<div class="tk ${dir}${q ? "" : " na"}" role="listitem" title="${tip.replace(/"/g, "&quot;")}"><span class="tk-name">${t.label}</span><span class="tk-val">${val}</span><span class="tk-pct">${move}</span><span class="tk-arrow">${arrow}</span></div>`;
+    })
+    .join("");
+  updateTickerNav();
+}
+
+function updateTickerNav() {
+  const strip = document.getElementById("ticker-strip");
+  document.getElementById("ticker-prev").disabled = strip.scrollLeft <= 2;
+  document.getElementById("ticker-next").disabled = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 2;
+}
+
+async function refreshTicker() {
+  const symbols = visibleTickers().map((t) => t.symbol);
+  try {
+    const { map } = await fetchQuotes(symbols);
+    for (const [k, v] of map) tickerQuotes.set(k, v);
+    renderTicker();
+  } catch (err) {
+    console.error("ticker refresh failed", err);
+  }
+}
+
+document.getElementById("asset-filter").addEventListener("click", (e) => {
+  const toggle = e.target.closest("[data-asset-toggle]");
+  const item = e.target.closest(".asset-menu button");
+  if (item) {
+    closeAssetMenus();
+    return setAssetFilter(item.dataset.assetCls, item.dataset.assetSub);
+  }
+  if (toggle) {
+    const wrap = toggle.closest(".asset-chip-wrap");
+    const menu = wrap.querySelector(".asset-menu");
+    closeAssetMenus(wrap);
+    menu.hidden = !menu.hidden;
+    toggle.setAttribute("aria-expanded", String(!menu.hidden));
+    if (!menu.hidden) menu.querySelector("button").focus({ preventScroll: true });
+    return;
+  }
+  const chip = e.target.closest("[data-asset-cls]");
+  if (chip) setAssetFilter(chip.dataset.assetCls);
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".asset-chip-wrap")) closeAssetMenus();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const open = [...document.querySelectorAll(".asset-menu")].find((m) => !m.hidden);
+  if (!open) return;
+  closeAssetMenus();
+  open.parentElement.querySelector("[data-asset-toggle]").focus();
+});
+const tickerStrip = document.getElementById("ticker-strip");
+tickerStrip.addEventListener("scroll", updateTickerNav, { passive: true });
+window.addEventListener("resize", updateTickerNav);
+document.getElementById("ticker-prev").addEventListener("click", () => tickerStrip.scrollBy({ left: -tickerStrip.clientWidth * 0.8 }));
+document.getElementById("ticker-next").addEventListener("click", () => tickerStrip.scrollBy({ left: tickerStrip.clientWidth * 0.8 }));
 
 function setCountry(code) {
   const country = COUNTRIES.find((c) => c.code === code);
@@ -268,11 +394,10 @@ async function showFundamentals(stock) {
 async function refresh() {
   try {
     const countrySymbols = [activeCountry.indexSymbol, ...new Set(activeCountry.stocks.map((s) => s.symbol))];
-    const allSymbols = [...new Set([...INDICES.map((i) => i.symbol), ...countrySymbols])];
+    const allSymbols = [...new Set(countrySymbols)];
     const { map, updatedAt } = await fetchQuotes(allSymbols);
     window.__lastMap = map;
 
-    renderTicker(map);
     renderCountryIndex(map);
     renderSectorHeatmap(map);
     renderTreemap(map, document.getElementById("sector-filter").value);
@@ -313,6 +438,10 @@ window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
 showTab(location.hash.slice(1));
 
 renderClock();
+renderAssetFilter();
+renderTicker();
+refreshTicker();
+setInterval(refreshTicker, REFRESH_MS);
 renderCountryFilter();
 populateSectorFilter();
 document.getElementById("sector-filter").addEventListener("change", (e) => renderTreemap(window.__lastMap, e.target.value));
