@@ -52,6 +52,25 @@ time you log in).
 
 Refreshes every 30 seconds.
 
+## Sector Knowledge tab
+
+Curated research for 20 Indian sectors (`public/knowledge.js`): overview,
+key drivers, risks, metrics to track and how the sector makes money,
+shown as a thumbnail gallery with a focus page per sector.
+
+- **Live:** each thumbnail shows the day's move, averaged over the sector's
+  Nifty 50 stocks. Stock tiles on a sector page open Screener fundamentals.
+- **What-if:** toggle Rates up / Crude up / Rupee weaker / Good monsoon /
+  Global risk-off and the thumbnails re-rank by estimated impact. The
+  sensitivities are hand-set rules of thumb for exploring, not forecasts.
+- **Search, sort, favorites, notes:** search across sector text and stock
+  names, four sort modes, a favorites filter, and per-sector notes. Favorites
+  and notes are saved in your browser (localStorage) only.
+- **Keys:** `/` search, `1`-`5` scenarios, left/right arrows to switch sector,
+  `Esc` to go back. Links like `#knowledge/auto` open a sector directly.
+- To edit or add a sector, change its entry in `public/knowledge.js`.
+  This content is general industry knowledge, not investment advice.
+
 ## Indian stock fundamentals from Screener.in (optional)
 
 Click any stock tile while **India** is selected to see Market Cap, P/E,
@@ -77,7 +96,7 @@ Notes:
 
 The page is organised as tabs under one roof. **Markets** holds the
 country picker, index, breadth and sector heatmap; **Stocks** holds the
-treemap and fundamentals panel. To attach another section:
+treemap and fundamentals panel; **Sector Knowledge** holds the research gallery. To attach another section:
 
 1. In `public/index.html`, add a link inside `#tabs`:
    `<a class="tab" data-tab="news" href="#news">News</a>`

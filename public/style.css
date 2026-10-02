@@ -749,3 +749,268 @@ button.k-stock:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Sector Knowledge: toolbar, scenarios, impact ---- */
+.k-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.k-tools-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.k-search {
+  flex: 1 1 280px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-soft);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 6px 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.k-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(143, 180, 255, 0.25);
+}
+.k-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-main);
+  font: inherit;
+}
+.k-search-icon {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  transform: rotate(-45deg);
+}
+kbd {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  border: 1px solid var(--panel-border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0 5px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.k-seg {
+  display: inline-flex;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.k-seg button {
+  background: var(--panel-soft);
+  color: var(--text-muted);
+  border: none;
+  border-right: 1px solid var(--panel-border);
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.k-seg button:last-child {
+  border-right: none;
+}
+.k-seg button:hover {
+  color: var(--text-main);
+}
+.k-seg button.active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.k-scn-label {
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.03em;
+}
+.k-scn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.k-scn:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+.k-scn.on {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.k-scn.on kbd {
+  color: var(--on-accent);
+  border-color: rgba(6, 20, 63, 0.4);
+  background: rgba(255, 255, 255, 0.35);
+}
+.k-summary {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  min-height: 0;
+}
+.k-summary:empty {
+  display: none;
+}
+.k-summary .up {
+  color: var(--up-strong);
+  margin-left: 10px;
+}
+.k-summary .down {
+  color: var(--down-strong);
+  margin-left: 10px;
+}
+.k-hint {
+  font-size: 0.76rem;
+}
+.k-count {
+  font-size: 0.82rem;
+  margin: 0 0 0 4px;
+}
+.k-empty {
+  text-align: center;
+  color: var(--text-muted);
+}
+.k-card[hidden] {
+  display: none;
+}
+.k-impact-slot {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+}
+.k-impact {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(5, 14, 52, 0.72);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: k-pop 0.25s ease;
+}
+.k-impact.up {
+  color: var(--up-strong);
+}
+.k-impact.down {
+  color: var(--down-strong);
+}
+.k-impact.flat {
+  color: var(--text-muted);
+}
+@keyframes k-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* ---- Reaction (what-if) rows in the focus view ---- */
+.k-react-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 40px;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.k-react-row:hover {
+  background: var(--panel-soft);
+}
+.k-react-row.on {
+  border-color: var(--accent);
+  background: var(--panel-soft);
+}
+.k-react-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.k-react-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.k-react-bar::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.35);
+}
+.k-react-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+.k-react-fill.up {
+  background: var(--up-strong);
+}
+.k-react-fill.down {
+  background: var(--down-strong);
+}
+.k-react-val {
+  font-weight: 800;
+  text-align: right;
+}
+.k-react-val.up {
+  color: var(--up-strong);
+}
+.k-react-val.down {
+  color: var(--down-strong);
+}
+.k-react-val.flat {
+  color: var(--text-muted);
+}
+.k-react-total {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--panel-border);
+  font-weight: 700;
+}
+.k-react-total .k-impact {
+  animation: none;
+}
+@media (max-width: 760px) {
+  .k-react-row {
+    grid-template-columns: 110px 1fr 34px;
+  }
+}
+
+#k-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
