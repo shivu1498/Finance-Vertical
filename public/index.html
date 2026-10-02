@@ -28,6 +28,7 @@
   <a class="tab" data-tab="markets" href="#markets">Markets</a>
   <a class="tab" data-tab="stocks" href="#stocks">Stocks</a>
   <a class="tab" data-tab="indices" href="#indices">Indices</a>
+  <a class="tab" data-tab="funds" href="#funds">Mutual Funds</a>
   <a class="tab" data-tab="industries" href="#industries">Industries</a>
   <a class="tab" data-tab="knowledge" href="#knowledge">Sector Knowledge</a>
 </nav>
@@ -99,6 +100,16 @@
     <div id="i-root"></div>
   </div>
 
+  <div class="tab-panel" data-panel="funds" hidden>
+    <section class="card k-head">
+      <div>
+        <h2 class="k-title">Mutual Funds</h2>
+        <p class="k-sub">Large, Mid and Small Cap equity funds ranked against their peers from NAV history (Direct Plan, Growth), via <a class="i-src" href="https://www.mfapi.in/" target="_blank" rel="noopener">mfapi.in</a>. A mechanical screen of past performance, not investment advice.</p>
+      </div>
+    </section>
+    <div id="mf-root"></div>
+  </div>
+
   <div class="tab-panel" data-panel="industries" hidden>
     <section class="card k-head">
       <div>
@@ -133,5 +144,6 @@
 <script src="knowledge-ui.js"></script>
 <script src="indices-ui.js"></script>
 <script src="industry-ui.js"></script>
+<script src="mf-ui.js"></script>
 </body>
 </html>

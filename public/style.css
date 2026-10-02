@@ -1336,3 +1336,265 @@ mark {
   color: var(--accent);
   font-weight: 700;
 }
+
+/* ---- Mutual Funds tab ---- */
+#mf-root {
+  display: block;
+}
+.mf-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  gap: 16px;
+  align-items: start;
+}
+.mf-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.mf-tab {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.mf-tab:hover {
+  color: var(--text-main);
+}
+.mf-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.mf-hint {
+  margin-left: auto;
+  font-size: 0.78rem;
+}
+.mf-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.mf-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+}
+.mf-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.mf-sort {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.mf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
+.mf-card {
+  --tone: var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-top: 3px solid var(--tone);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.mf-card.buy { --tone: var(--up-strong); }
+.mf-card.hold { --tone: #ffd24a; }
+.mf-card.avoid { --tone: var(--down-strong); }
+.mf-card:hover,
+.mf-card:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px rgba(2, 8, 40, 0.55), 0 0 0 1px var(--tone);
+  outline: none;
+}
+.mf-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mf-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tone);
+  box-shadow: 0 0 8px var(--tone);
+}
+.mf-rank {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+.mf-rating {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--tone);
+  color: var(--tone);
+}
+.mf-score {
+  margin-left: auto;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--tone);
+}
+.mf-name {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+.mf-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.mf-bar > div {
+  height: 100%;
+  background: var(--tone);
+  border-radius: 2px;
+}
+.mf-verdict {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  min-height: 2.9em;
+}
+.mf-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 10px;
+  margin: 0;
+}
+.mf-m dt {
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.mf-m dd {
+  margin: 1px 0 0;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pos { color: var(--up-strong); }
+.neg { color: var(--down-strong); }
+.mf-nav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--panel-border);
+  padding-top: 7px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.mf-foot {
+  margin-top: 12px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.mf-state {
+  text-align: center;
+  padding: 28px 18px;
+}
+.mf-state p {
+  margin: 8px auto 14px;
+  max-width: 56ch;
+}
+.mf-progress {
+  height: 8px;
+  max-width: 420px;
+  margin: 0 auto;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.mf-progress > div {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.mf-side {
+  position: sticky;
+  top: 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mf-side-h {
+  margin-top: 10px;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+.mf-cmd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mf-cmd code {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.mf-cmd:hover,
+.mf-cmd.active {
+  border-color: var(--accent);
+}
+.mf-status {
+  font-size: 0.76rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.mf-ok { color: var(--up-strong); font-weight: 700; }
+.mf-wait { color: #ffd24a; font-weight: 700; }
+.mf-bad { color: var(--down-strong); font-weight: 700; }
+.mf-note {
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+@media (max-width: 980px) {
+  .mf-layout {
+    grid-template-columns: 1fr;
+  }
+  .mf-side {
+    position: static;
+  }
+}
