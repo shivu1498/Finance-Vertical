@@ -1,6 +1,17 @@
 // Static reference data: which symbols to pull and how to label/group them.
-// Yahoo Finance ticker conventions: NSE stocks use a ".NS" suffix, indices
-// use a "^" prefix, futures use "=F".
+//
+// Everything here is fetched through the same free, unauthenticated Yahoo
+// Finance chart endpoint (see server.js). Yahoo already covers most major
+// exchanges worldwide through ticker suffixes, so one backend serves every
+// country below — no per-exchange API integration needed. Suffix reference:
+//   India NSE .NS · India BSE .BO · UK .L · Germany .DE · France .PA
+//   Japan .T · Hong Kong .HK · China Shanghai .SS / Shenzhen .SZ
+//   Canada .TO · Australia .AX · Singapore .SI · South Korea .KS
+//   Brazil .SA · Switzerland .SW · US (no suffix) · indices use "^", futures "=F"
+//
+// Most of the 100+ exchanges on a "regulated markets" list (small/regional
+// ones especially) don't publish any free real-time data anywhere, from any
+// provider — this covers the major, liquid markets where free data exists.
 
 const INDICES = [
   { symbol: "^NSEI", label: "NIFTY 50" },
@@ -13,8 +24,7 @@ const INDICES = [
   { symbol: "^FTSE", label: "FTSE 100" },
 ];
 
-// Nifty 50 constituents with an approximate sector grouping, used to build
-// the sector heatmap and the treemap. Symbols use Yahoo's ".NS" suffix.
+// Nifty 50 constituents with an approximate sector grouping.
 const NIFTY50 = [
   { symbol: "ADANIENT.NS", name: "ADANIENT", sector: "Metal & Mining" },
   { symbol: "ADANIPORTS.NS", name: "ADANIPORTS", sector: "Infra" },
@@ -64,4 +74,215 @@ const NIFTY50 = [
   { symbol: "TRENT.NS", name: "TRENT", sector: "Realty" },
   { symbol: "ULTRACEMCO.NS", name: "ULTRACEMCO", sector: "Commodities" },
   { symbol: "WIPRO.NS", name: "WIPRO", sector: "IT" },
+];
+
+// One country = one exchange's headline index + a basket of its largest,
+// most liquid listings, grouped into rough sectors for the heatmap.
+const COUNTRIES = [
+  { code: "IN", flag: "🇮🇳", name: "India", exchange: "NSE", indexSymbol: "^NSEI", indexLabel: "NIFTY 50", stocks: NIFTY50 },
+  {
+    code: "US", flag: "🇺🇸", name: "United States", exchange: "NASDAQ / NYSE", indexSymbol: "^GSPC", indexLabel: "S&P 500",
+    stocks: [
+      { symbol: "AAPL", name: "AAPL", sector: "Tech" },
+      { symbol: "MSFT", name: "MSFT", sector: "Tech" },
+      { symbol: "GOOGL", name: "GOOGL", sector: "Tech" },
+      { symbol: "AMZN", name: "AMZN", sector: "Consumer" },
+      { symbol: "NVDA", name: "NVDA", sector: "Tech" },
+      { symbol: "META", name: "META", sector: "Tech" },
+      { symbol: "TSLA", name: "TSLA", sector: "Auto" },
+      { symbol: "JPM", name: "JPM", sector: "Bank" },
+      { symbol: "UNH", name: "UNH", sector: "Healthcare" },
+      { symbol: "XOM", name: "XOM", sector: "Energy" },
+      { symbol: "V", name: "V", sector: "Financials" },
+      { symbol: "WMT", name: "WMT", sector: "Retail" },
+      { symbol: "JNJ", name: "JNJ", sector: "Healthcare" },
+      { symbol: "PG", name: "PG", sector: "Consumer" },
+      { symbol: "MA", name: "MA", sector: "Financials" },
+      { symbol: "HD", name: "HD", sector: "Retail" },
+      { symbol: "BAC", name: "BAC", sector: "Bank" },
+      { symbol: "DIS", name: "DIS", sector: "Media" },
+      { symbol: "KO", name: "KO", sector: "Consumer" },
+      { symbol: "PEP", name: "PEP", sector: "Consumer" },
+    ],
+  },
+  {
+    code: "GB", flag: "🇬🇧", name: "United Kingdom", exchange: "LSE", indexSymbol: "^FTSE", indexLabel: "FTSE 100",
+    stocks: [
+      { symbol: "SHEL.L", name: "SHELL", sector: "Energy" },
+      { symbol: "AZN.L", name: "ASTRAZENECA", sector: "Pharma" },
+      { symbol: "HSBA.L", name: "HSBC", sector: "Bank" },
+      { symbol: "ULVR.L", name: "UNILEVER", sector: "Consumer" },
+      { symbol: "BP.L", name: "BP", sector: "Energy" },
+      { symbol: "GSK.L", name: "GSK", sector: "Pharma" },
+      { symbol: "DGE.L", name: "DIAGEO", sector: "Consumer" },
+      { symbol: "RIO.L", name: "RIO TINTO", sector: "Metal & Mining" },
+      { symbol: "BATS.L", name: "BAT", sector: "Consumer" },
+      { symbol: "VOD.L", name: "VODAFONE", sector: "Telecom" },
+    ],
+  },
+  {
+    code: "DE", flag: "🇩🇪", name: "Germany", exchange: "Xetra / Frankfurt", indexSymbol: "^GDAXI", indexLabel: "DAX",
+    stocks: [
+      { symbol: "SAP.DE", name: "SAP", sector: "Tech" },
+      { symbol: "SIE.DE", name: "SIEMENS", sector: "Industrial" },
+      { symbol: "ALV.DE", name: "ALLIANZ", sector: "Financials" },
+      { symbol: "DTE.DE", name: "DT TELEKOM", sector: "Telecom" },
+      { symbol: "VOW3.DE", name: "VOLKSWAGEN", sector: "Auto" },
+      { symbol: "BAS.DE", name: "BASF", sector: "Materials" },
+      { symbol: "BMW.DE", name: "BMW", sector: "Auto" },
+      { symbol: "MBG.DE", name: "MERCEDES-BENZ", sector: "Auto" },
+      { symbol: "BAYN.DE", name: "BAYER", sector: "Pharma" },
+      { symbol: "ADS.DE", name: "ADIDAS", sector: "Consumer" },
+    ],
+  },
+  {
+    code: "FR", flag: "🇫🇷", name: "France", exchange: "Euronext Paris", indexSymbol: "^FCHI", indexLabel: "CAC 40",
+    stocks: [
+      { symbol: "MC.PA", name: "LVMH", sector: "Consumer" },
+      { symbol: "OR.PA", name: "L'OREAL", sector: "Consumer" },
+      { symbol: "SAN.PA", name: "SANOFI", sector: "Pharma" },
+      { symbol: "TTE.PA", name: "TOTALENERGIES", sector: "Energy" },
+      { symbol: "AIR.PA", name: "AIRBUS", sector: "Industrial" },
+      { symbol: "BNP.PA", name: "BNP PARIBAS", sector: "Bank" },
+      { symbol: "SU.PA", name: "SCHNEIDER ELEC", sector: "Industrial" },
+      { symbol: "DG.PA", name: "VINCI", sector: "Infra" },
+      { symbol: "AI.PA", name: "AIR LIQUIDE", sector: "Materials" },
+      { symbol: "KER.PA", name: "KERING", sector: "Consumer" },
+    ],
+  },
+  {
+    code: "JP", flag: "🇯🇵", name: "Japan", exchange: "Tokyo SE", indexSymbol: "^N225", indexLabel: "NIKKEI 225",
+    stocks: [
+      { symbol: "7203.T", name: "TOYOTA", sector: "Auto" },
+      { symbol: "6758.T", name: "SONY", sector: "Tech" },
+      { symbol: "9984.T", name: "SOFTBANK GRP", sector: "Telecom" },
+      { symbol: "6861.T", name: "KEYENCE", sector: "Tech" },
+      { symbol: "8306.T", name: "MITSUBISHI UFJ", sector: "Bank" },
+      { symbol: "9432.T", name: "NTT", sector: "Telecom" },
+      { symbol: "7267.T", name: "HONDA", sector: "Auto" },
+      { symbol: "6098.T", name: "RECRUIT", sector: "Services" },
+      { symbol: "4063.T", name: "SHIN-ETSU CHEM", sector: "Materials" },
+      { symbol: "8035.T", name: "TOKYO ELECTRON", sector: "Tech" },
+    ],
+  },
+  {
+    code: "HK", flag: "🇭🇰", name: "Hong Kong", exchange: "HKEX", indexSymbol: "^HSI", indexLabel: "HANG SENG",
+    stocks: [
+      { symbol: "0700.HK", name: "TENCENT", sector: "Tech" },
+      { symbol: "9988.HK", name: "ALIBABA", sector: "Tech" },
+      { symbol: "0941.HK", name: "CHINA MOBILE", sector: "Telecom" },
+      { symbol: "1299.HK", name: "AIA GROUP", sector: "Financials" },
+      { symbol: "0005.HK", name: "HSBC", sector: "Bank" },
+      { symbol: "0388.HK", name: "HKEX", sector: "Financials" },
+      { symbol: "1398.HK", name: "ICBC", sector: "Bank" },
+      { symbol: "2318.HK", name: "PING AN", sector: "Financials" },
+      { symbol: "0003.HK", name: "HK & CHINA GAS", sector: "Energy" },
+      { symbol: "0027.HK", name: "GALAXY ENT", sector: "Consumer" },
+    ],
+  },
+  {
+    code: "CN", flag: "🇨🇳", name: "China", exchange: "Shanghai / Shenzhen", indexSymbol: "000001.SS", indexLabel: "SSE COMPOSITE",
+    stocks: [
+      { symbol: "600519.SS", name: "KWEICHOW MOUTAI", sector: "Consumer" },
+      { symbol: "601318.SS", name: "PING AN", sector: "Financials" },
+      { symbol: "600036.SS", name: "CHINA MERCH BANK", sector: "Bank" },
+      { symbol: "000858.SZ", name: "WULIANGYE", sector: "Consumer" },
+      { symbol: "300750.SZ", name: "CATL", sector: "Industrial" },
+      { symbol: "601988.SS", name: "BANK OF CHINA", sector: "Bank" },
+      { symbol: "600900.SS", name: "YANGTZE POWER", sector: "Energy" },
+      { symbol: "000333.SZ", name: "MIDEA GROUP", sector: "Consumer" },
+      { symbol: "601166.SS", name: "INDUSTRIAL BANK", sector: "Bank" },
+      { symbol: "600028.SS", name: "SINOPEC", sector: "Energy" },
+    ],
+  },
+  {
+    code: "CA", flag: "🇨🇦", name: "Canada", exchange: "TSX", indexSymbol: "^GSPTSE", indexLabel: "S&P/TSX",
+    stocks: [
+      { symbol: "RY.TO", name: "ROYAL BANK", sector: "Bank" },
+      { symbol: "TD.TO", name: "TD BANK", sector: "Bank" },
+      { symbol: "ENB.TO", name: "ENBRIDGE", sector: "Energy" },
+      { symbol: "CNR.TO", name: "CN RAIL", sector: "Infra" },
+      { symbol: "SHOP.TO", name: "SHOPIFY", sector: "Tech" },
+      { symbol: "BNS.TO", name: "SCOTIABANK", sector: "Bank" },
+      { symbol: "BMO.TO", name: "BMO", sector: "Bank" },
+      { symbol: "CP.TO", name: "CPKC", sector: "Infra" },
+      { symbol: "TRI.TO", name: "THOMSON REUTERS", sector: "Media" },
+      { symbol: "SU.TO", name: "SUNCOR", sector: "Energy" },
+    ],
+  },
+  {
+    code: "AU", flag: "🇦🇺", name: "Australia", exchange: "ASX", indexSymbol: "^AXJO", indexLabel: "ASX 200",
+    stocks: [
+      { symbol: "BHP.AX", name: "BHP GROUP", sector: "Metal & Mining" },
+      { symbol: "CBA.AX", name: "COMMBANK", sector: "Bank" },
+      { symbol: "CSL.AX", name: "CSL", sector: "Healthcare" },
+      { symbol: "NAB.AX", name: "NAB", sector: "Bank" },
+      { symbol: "WBC.AX", name: "WESTPAC", sector: "Bank" },
+      { symbol: "ANZ.AX", name: "ANZ", sector: "Bank" },
+      { symbol: "WES.AX", name: "WESFARMERS", sector: "Retail" },
+      { symbol: "MQG.AX", name: "MACQUARIE", sector: "Financials" },
+      { symbol: "TLS.AX", name: "TELSTRA", sector: "Telecom" },
+      { symbol: "WOW.AX", name: "WOOLWORTHS", sector: "Retail" },
+    ],
+  },
+  {
+    code: "SG", flag: "🇸🇬", name: "Singapore", exchange: "SGX", indexSymbol: "^STI", indexLabel: "STRAITS TIMES",
+    stocks: [
+      { symbol: "D05.SI", name: "DBS GROUP", sector: "Bank" },
+      { symbol: "O39.SI", name: "OCBC", sector: "Bank" },
+      { symbol: "U11.SI", name: "UOB", sector: "Bank" },
+      { symbol: "C6L.SI", name: "SINGAPORE AIR", sector: "Infra" },
+      { symbol: "Z74.SI", name: "SINGTEL", sector: "Telecom" },
+      { symbol: "A17U.SI", name: "ASCENDAS REIT", sector: "Realty" },
+      { symbol: "S68.SI", name: "SGX", sector: "Financials" },
+      { symbol: "C38U.SI", name: "CAPITALAND INT", sector: "Realty" },
+      { symbol: "BN4.SI", name: "KEPPEL", sector: "Infra" },
+      { symbol: "F34.SI", name: "WILMAR", sector: "Consumer" },
+    ],
+  },
+  {
+    code: "KR", flag: "🇰🇷", name: "South Korea", exchange: "KRX", indexSymbol: "^KS11", indexLabel: "KOSPI",
+    stocks: [
+      { symbol: "005930.KS", name: "SAMSUNG ELEC", sector: "Tech" },
+      { symbol: "000660.KS", name: "SK HYNIX", sector: "Tech" },
+      { symbol: "005380.KS", name: "HYUNDAI MOTOR", sector: "Auto" },
+      { symbol: "051910.KS", name: "LG CHEM", sector: "Materials" },
+      { symbol: "035420.KS", name: "NAVER", sector: "Tech" },
+      { symbol: "006400.KS", name: "SAMSUNG SDI", sector: "Industrial" },
+      { symbol: "035720.KS", name: "KAKAO", sector: "Tech" },
+      { symbol: "005490.KS", name: "POSCO HOLDINGS", sector: "Metal & Mining" },
+      { symbol: "012330.KS", name: "HYUNDAI MOBIS", sector: "Auto" },
+      { symbol: "066570.KS", name: "LG ELECTRONICS", sector: "Consumer" },
+    ],
+  },
+  {
+    code: "BR", flag: "🇧🇷", name: "Brazil", exchange: "B3", indexSymbol: "^BVSP", indexLabel: "IBOVESPA",
+    stocks: [
+      { symbol: "PETR4.SA", name: "PETROBRAS", sector: "Energy" },
+      { symbol: "VALE3.SA", name: "VALE", sector: "Metal & Mining" },
+      { symbol: "ITUB4.SA", name: "ITAU UNIBANCO", sector: "Bank" },
+      { symbol: "BBDC4.SA", name: "BRADESCO", sector: "Bank" },
+      { symbol: "ABEV3.SA", name: "AMBEV", sector: "Consumer" },
+      { symbol: "B3SA3.SA", name: "B3", sector: "Financials" },
+      { symbol: "WEGE3.SA", name: "WEG", sector: "Industrial" },
+      { symbol: "RENT3.SA", name: "LOCALIZA", sector: "Services" },
+      { symbol: "BBAS3.SA", name: "BANCO DO BRASIL", sector: "Bank" },
+      { symbol: "SUZB3.SA", name: "SUZANO", sector: "Materials" },
+    ],
+  },
+  {
+    code: "CH", flag: "🇨🇭", name: "Switzerland", exchange: "SIX", indexSymbol: "^SSMI", indexLabel: "SMI",
+    stocks: [
+      { symbol: "NESN.SW", name: "NESTLE", sector: "Consumer" },
+      { symbol: "ROG.SW", name: "ROCHE", sector: "Pharma" },
+      { symbol: "NOVN.SW", name: "NOVARTIS", sector: "Pharma" },
+      { symbol: "UHR.SW", name: "SWATCH GROUP", sector: "Consumer" },
+      { symbol: "ZURN.SW", name: "ZURICH INS", sector: "Financials" },
+      { symbol: "ABBN.SW", name: "ABB", sector: "Industrial" },
+      { symbol: "CFR.SW", name: "RICHEMONT", sector: "Consumer" },
+      { symbol: "UBSG.SW", name: "UBS", sector: "Bank" },
+      { symbol: "SIKA.SW", name: "SIKA", sector: "Materials" },
+      { symbol: "LONN.SW", name: "LONZA GROUP", sector: "Pharma" },
+    ],
+  },
 ];

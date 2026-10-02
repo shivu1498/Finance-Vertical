@@ -1,5 +1,7 @@
 const REFRESH_MS = 30_000;
 
+let activeCountry = COUNTRIES[0];
+
 function fmtPrice(n, prefix = "") {
   if (n == null || Number.isNaN(n)) return "—";
   return prefix + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -57,9 +59,43 @@ function renderTicker(map) {
   }
 }
 
+function renderCountryFilter() {
+  const el = document.getElementById("country-filter");
+  el.innerHTML = "";
+  for (const country of COUNTRIES) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "country-pill" + (country.code === activeCountry.code ? " active" : "");
+    btn.innerHTML = `${country.flag} ${country.name}`;
+    btn.title = country.exchange;
+    btn.addEventListener("click", () => {
+      if (activeCountry.code === country.code) return;
+      activeCountry = country;
+      renderCountryFilter();
+      populateSectorFilter();
+      refresh();
+    });
+    el.appendChild(btn);
+  }
+}
+
+function renderCountryIndex(map) {
+  const el = document.getElementById("country-index");
+  const q = map.get(activeCountry.indexSymbol);
+  if (!q || q.error) {
+    el.innerHTML = `<span class="muted">${activeCountry.indexLabel} — data unavailable</span>`;
+    return;
+  }
+  el.innerHTML = `
+    <span class="country-index-label">${activeCountry.flag} ${activeCountry.indexLabel} <span class="muted">(${activeCountry.exchange})</span></span>
+    <span class="country-index-price">${fmtPrice(q.price)}</span>
+    <span class="country-index-pct ${changeClass(q.changePercent)}">${fmtPct(q.changePercent)}</span>
+  `;
+}
+
 function renderSectorHeatmap(map) {
   const bySector = new Map();
-  for (const s of NIFTY50) {
+  for (const s of activeCountry.stocks) {
     const q = map.get(s.symbol);
     if (!q || q.error) continue;
     if (!bySector.has(s.sector)) bySector.set(s.sector, []);
@@ -73,6 +109,8 @@ function renderSectorHeatmap(map) {
       count: pcts.length,
     }))
     .sort((a, b) => b.avg - a.avg);
+
+  document.getElementById("sector-heatmap-sub").textContent = `· derived from ${activeCountry.name} constituents`;
 
   const el = document.getElementById("sector-heatmap");
   el.innerHTML = "";
@@ -97,21 +135,23 @@ function renderSectorHeatmap(map) {
 
 function populateSectorFilter() {
   const select = document.getElementById("sector-filter");
-  const sectors = [...new Set(NIFTY50.map((s) => s.sector))].sort();
+  select.innerHTML = '<option value="">All sectors</option>';
+  const sectors = [...new Set(activeCountry.stocks.map((s) => s.sector))].sort();
   for (const sector of sectors) {
     const opt = document.createElement("option");
     opt.value = sector;
     opt.textContent = sector;
     select.appendChild(opt);
   }
-  select.addEventListener("change", () => renderTreemap(window.__lastMap, select.value));
 }
 
 function renderTreemap(map, sectorFilter = "") {
   if (!map) return;
   const el = document.getElementById("treemap");
   el.innerHTML = "";
-  const stocks = sectorFilter ? NIFTY50.filter((s) => s.sector === sectorFilter) : NIFTY50;
+  const stocks = sectorFilter
+    ? activeCountry.stocks.filter((s) => s.sector === sectorFilter)
+    : activeCountry.stocks;
 
   for (const s of stocks) {
     const q = map.get(s.symbol);
@@ -121,7 +161,7 @@ function renderTreemap(map, sectorFilter = "") {
     tile.style.setProperty("--heat", heat(pct).toFixed(2));
     tile.innerHTML = `
       <div class="stock-name">${s.name}</div>
-      <div class="stock-price">${q && !q.error ? fmtPrice(q.price, "₹") : "—"}</div>
+      <div class="stock-price">${q && !q.error ? fmtPrice(q.price) : "—"}</div>
       <div class="stock-pct">${pct != null ? fmtPct(pct) : "n/a"}</div>
     `;
     el.appendChild(tile);
@@ -129,9 +169,10 @@ function renderTreemap(map, sectorFilter = "") {
 }
 
 function renderBreadth(map) {
+  document.getElementById("breadth-title-text").textContent = `${activeCountry.name.toUpperCase()} BREADTH`;
   let adv = 0,
     dec = 0;
-  for (const s of NIFTY50) {
+  for (const s of activeCountry.stocks) {
     const q = map.get(s.symbol);
     if (!q || q.error) continue;
     if (q.changePercent > 0) adv++;
@@ -146,11 +187,13 @@ function renderBreadth(map) {
 
 async function refresh() {
   try {
-    const allSymbols = [...INDICES.map((i) => i.symbol), ...new Set(NIFTY50.map((s) => s.symbol))];
+    const countrySymbols = [activeCountry.indexSymbol, ...new Set(activeCountry.stocks.map((s) => s.symbol))];
+    const allSymbols = [...new Set([...INDICES.map((i) => i.symbol), ...countrySymbols])];
     const { map, updatedAt } = await fetchQuotes(allSymbols);
     window.__lastMap = map;
 
     renderTicker(map);
+    renderCountryIndex(map);
     renderSectorHeatmap(map);
     renderTreemap(map, document.getElementById("sector-filter").value);
     renderBreadth(map);
@@ -165,6 +208,8 @@ async function refresh() {
 }
 
 renderClock();
+renderCountryFilter();
 populateSectorFilter();
+document.getElementById("sector-filter").addEventListener("change", (e) => renderTreemap(window.__lastMap, e.target.value));
 refresh();
 setInterval(refresh, REFRESH_MS);

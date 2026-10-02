@@ -41,8 +41,14 @@
 </nav>
 
 <main class="main">
+  <section class="card country-card">
+    <div class="section-title">MARKET <span class="muted">· pick a country, everything below follows it</span></div>
+    <div id="country-filter" class="country-filter"></div>
+    <div id="country-index" class="country-index">Loading market index…</div>
+  </section>
+
   <section class="breadth-card card">
-    <div class="breadth-title">NIFTY 50 BREADTH <span class="muted" id="breadth-updated">·</span></div>
+    <div class="breadth-title"><span id="breadth-title-text">BREADTH</span> <span class="muted" id="breadth-updated">·</span></div>
     <div class="breadth-row">
       <span class="adv" id="adv-count">— ▲</span>
       <span class="dec" id="dec-count">▼ —</span>
@@ -52,7 +58,7 @@
   </section>
 
   <section class="card">
-    <div class="section-title">SECTOR HEATMAP <span class="muted">· derived from Nifty 50 constituents</span></div>
+    <div class="section-title">SECTOR HEATMAP <span class="muted" id="sector-heatmap-sub">·</span></div>
     <div id="sector-heatmap" class="sector-heatmap">
       <div class="ticker-loading">Loading sectors…</div>
     </div>
@@ -71,7 +77,7 @@
   </section>
 
   <footer class="footer">
-    Data: Yahoo Finance (free, unauthenticated, ~15s cache) · Nifty 50 constituents, sector-mapped locally · Not investment advice · Updated <span id="footer-updated">—</span>
+    Data: Yahoo Finance (free, unauthenticated, ~15s cache) · constituents &amp; sectors mapped locally per country · Not investment advice · Updated <span id="footer-updated">—</span>
   </footer>
 </main>
 

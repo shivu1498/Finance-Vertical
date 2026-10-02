@@ -188,6 +188,60 @@ body {
   font-size: 0.8rem;
 }
 
+/* ---- Country filter ---- */
+.country-card {
+  padding-bottom: 12px;
+}
+.country-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.country-pill {
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.country-pill:hover {
+  border-color: var(--gold-2);
+}
+.country-pill.active {
+  background: var(--gold-2);
+  color: var(--brown-petal);
+  border-color: var(--gold-2);
+}
+.country-index {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.country-index-label {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.country-index-price {
+  font-size: 1.1rem;
+}
+.country-index-pct.up {
+  color: var(--up-strong);
+}
+.country-index-pct.down {
+  color: var(--down-strong);
+}
+.country-index-pct.flat {
+  color: var(--text-muted);
+}
+
 /* ---- Breadth ---- */
 .breadth-title {
   font-weight: 800;
