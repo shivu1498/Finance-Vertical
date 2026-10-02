@@ -4,9 +4,13 @@
 // sensitive, since Yahoo's endpoint is unauthenticated).
 const express = require("express");
 const path = require("path");
+const { exec } = require("child_process");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// Bind to localhost only: this server is reachable from this machine alone,
+// never from other devices on the network.
+const HOST = process.env.HOST || "127.0.0.1";
 
 // symbol -> { data, ts }
 const cache = new Map();
@@ -78,6 +82,17 @@ app.get("/api/quotes", async (req, res) => {
   res.json({ quotes, updatedAt: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-  console.log(`Finance Vertical running at http://localhost:${PORT}`);
+function openBrowser(url) {
+  const platform = process.platform;
+  const cmd =
+    platform === "win32" ? `start "" "${url}"` : platform === "darwin" ? `open "${url}"` : `xdg-open "${url}"`;
+  exec(cmd, (err) => {
+    if (err) console.log(`Open ${url} in your browser manually.`);
+  });
+}
+
+app.listen(PORT, HOST, () => {
+  const url = `http://localhost:${PORT}`;
+  console.log(`Sunflower Markets running at ${url} (this PC only)`);
+  if (process.env.NO_OPEN !== "1") openBrowser(url);
 });

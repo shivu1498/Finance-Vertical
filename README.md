@@ -11,12 +11,27 @@ each symbol for 15 seconds.
 
 ## Run it
 
+**One-click (after the first `npm install`):**
+- Windows: double-click `start.bat`
+- Mac/Linux: double-click `start.sh` (or run `./start.sh` in a terminal)
+
+It installs dependencies on first run, starts the server, and opens your
+default browser to the dashboard automatically.
+
+**Manual:**
 ```bash
 npm install
 npm start
 ```
-
 Then open http://localhost:3000.
+
+The server binds to `127.0.0.1` (localhost) only — it's reachable from
+this machine alone, not from other devices on your network.
+
+**Optional: launch on startup / from your desktop**
+Right-click `start.bat` → *Create shortcut*, then drag that shortcut to
+your Desktop (or to `shell:startup` via Windows Run, to launch it every
+time you log in).
 
 ## What's covered
 
