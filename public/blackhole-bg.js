@@ -418,6 +418,18 @@
     }, 120);
   });
 
+  // Lets video-bg.js turn this canvas off while a video background is showing.
+  window.StalkingCanvasBg = {
+    start: function () {
+      if (reduceMotion) render(t);
+      else start();
+    },
+    stop: function () {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    }
+  };
+
   layout();
   if (reduceMotion) {
     t = 6;

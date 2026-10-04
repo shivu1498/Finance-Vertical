@@ -493,7 +493,7 @@ body {
   color: var(--text-muted);
   font-weight: 500;
   font-size: 0.75rem;
-  padding: 10px 0 6px;
+  padding: 10px 0 64px; /* clears the background switcher */
   text-shadow: 0 1px 8px #000, 0 0 3px #000;
 }
 .ticker-loading {
@@ -2708,4 +2708,90 @@ body.mf-lock {
 .kc-tools {
   position: relative;
   z-index: 5; /* keeps the suggestion dropdown above the cards below */
+}
+
+/* ---- Video backgrounds (video-bg.js) ---- */
+.bgv {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #01030f;
+}
+.bgv[hidden],
+.bgv-v[hidden] {
+  display: none;
+}
+.bgv-v {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.bgv-v1 {
+  z-index: 1;
+}
+.bgv-v2 {
+  z-index: 2;
+}
+/* Both playing: the second loop is screen-blended over the first. */
+.bgv.is-both .bgv-v2 {
+  mix-blend-mode: screen;
+  opacity: 0.6;
+}
+/* Keeps the cards and text legible over bright footage. */
+.bgv-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(2, 6, 30, 0), rgba(2, 6, 30, 0.5) 85%),
+    rgba(2, 6, 30, 0.2);
+}
+.bgv-switch {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(6, 16, 60, 0.82);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  box-shadow: 0 6px 22px rgba(2, 8, 40, 0.5);
+  font-size: 0.72rem;
+}
+.bgv-label {
+  padding: 0 8px 0 10px;
+  color: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.64rem;
+}
+.bgv-switch button {
+  background: transparent;
+  color: var(--text-main);
+  border: none;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bgv-switch button:hover {
+  background: var(--panel-soft);
+}
+.bgv-switch button.active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+@media (max-width: 700px) {
+  .bgv-label {
+    display: none;
+  }
 }
