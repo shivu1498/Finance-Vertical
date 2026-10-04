@@ -87,6 +87,9 @@ body {
   white-space: nowrap;
   font-size: 0.95rem;
 }
+.brand-logo { flex: none; display: block; filter: drop-shadow(0 0 6px rgba(143,180,255,.35)); }
+.brand-name { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; color: #dfe8ff; }
+.brand-name b { font-weight: 800; color: var(--accent); margin-left: 0.18em; }
 
 /* ---- Asset-class filter ---- */
 .asset-filter {
