@@ -17,7 +17,8 @@
 
   var PERIOD = 1000;      // ms between flashes
   var RAY_MS = 560;       // how long a ray takes to cross the screen
-  var WASH_PEAK = 1;   // peak opacity of the wash layer
+  var INTENSITY = 0.6; // overall flash strength (1 = original; 0.6 = 40% softer)
+  var WASH_PEAK = INTENSITY; // peak opacity of the wash layer
 
   // Each flash is one colour, cycling red -> trypan blue -> green. While a ray
   // passes, the page's accent, text and borders take that colour for a blink.
@@ -64,7 +65,7 @@
 
   // A ray enters from a random edge point and crosses the screen at an angle.
   function spawn(now) {
-    var n = 2 + Math.floor(Math.random() * 3); // 2-4 rays
+    var n = 1; // a single ray per flash
     var diag = Math.sqrt(w * w + h * h);
     var cx = rand(0.2, 0.8) * w, cy = rand(0.15, 0.7) * h;
     flashAt = now;
@@ -119,12 +120,12 @@
 
       var g = ctx.createLinearGradient(tx, ty, hx, hy);
       g.addColorStop(0, "rgba(" + pal.rgb + ",0)");
-      g.addColorStop(0.75, "rgba(" + pal.rgb + "," + (0.85 * fade).toFixed(3) + ")");
-      g.addColorStop(1, "rgba(" + (r.hot ? pal.hot : pal.head) + "," + fade.toFixed(3) + ")");
+      g.addColorStop(0.75, "rgba(" + pal.rgb + "," + (0.85 * INTENSITY * fade).toFixed(3) + ")");
+      g.addColorStop(1, "rgba(" + (r.hot ? pal.hot : pal.head) + "," + (INTENSITY * fade).toFixed(3) + ")");
       ctx.strokeStyle = g;
       ctx.lineCap = "round";
-      ctx.shadowColor = "rgba(" + pal.rgb + "," + (0.9 * fade).toFixed(3) + ")";
-      ctx.shadowBlur = 22;
+      ctx.shadowColor = "rgba(" + pal.rgb + "," + (0.9 * INTENSITY * fade).toFixed(3) + ")";
+      ctx.shadowBlur = 22 * INTENSITY;
       ctx.lineWidth = r.width;
       ctx.beginPath();
       ctx.moveTo(tx, ty);
