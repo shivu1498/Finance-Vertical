@@ -200,6 +200,33 @@
   }
   const listedAu = () => (aud.status === "ready" ? aud.rows.length : null);
 
+  // Live prices via the shared /api/quotes (Yahoo Finance) endpoint, keyed by
+  // plain ASX code ("BHP"); the Yahoo symbol is the code plus ".AX". Only the
+  // page currently on screen is fetched, and only when that set changes.
+  const auQuotes = new Map(); // ticker -> { price, pct, ok }
+  let auQuoteKey = "", auQuoteTimer = 0;
+
+  async function syncAuQuotes(tickers, force) {
+    const key = tickers.join(",");
+    if (!force && key === auQuoteKey) return;
+    auQuoteKey = key;
+    if (!tickers.length || typeof fetchQuotes !== "function") return;
+    try {
+      const { map } = await fetchQuotes(tickers.map((t) => `${t}.AX`));
+      tickers.forEach((t) => {
+        const q = map.get(`${t}.AX`);
+        auQuotes.set(t, q && !q.error && Number.isFinite(q.price) ? { price: q.price, pct: q.changePercent, ok: true } : { ok: false });
+      });
+    } catch {
+      tickers.forEach((t) => { if (!auQuotes.has(t)) auQuotes.set(t, { ok: false }); });
+    }
+    if (state.market === "AU" && !state.company && isActive()) {
+      const y = window.scrollY;
+      render();
+      window.scrollTo({ top: y });
+    }
+  }
+
   const audCap = (v) => {
     if (v == null) return "—";
     if (v >= 1e12) return `$${dec(v / 1e12, 2)} Tn`;
@@ -232,13 +259,20 @@
     const chips = [`<button type="button" class="ur-chip ${auGroup ? "" : "active"}" data-asector="">All <i>${fmt(aud.rows.length)}</i></button>`]
       .concat(aud.sectors.map((s) => `<button type="button" class="ur-chip ${auGroup === s ? "active" : ""}" data-asector="${esc(s)}">${esc(s)} <i>${secCounts.get(s) || 0}</i></button>`))
       .join("");
-    const trs = page.map((r) => `<tr>
+    const trs = page.map((r) => {
+      const q = auQuotes.get(r.t);
+      const price = q === undefined ? `<span class="ur-dim">…</span>` : q.ok ? `$${dec(q.price, q.price < 10 ? 3 : 2)}` : `<span class="ur-dim">—</span>`;
+      const chg = q === undefined ? "" : q.ok ? pctCell(q.pct, true) : "";
+      return `<tr>
       <td class="ur-sticky"><b>${esc(r.n)}</b><small class="ur-tk">${esc(r.t)}</small></td>
+      <td class="ur-num">${price}</td>
+      <td class="ur-num">${chg}</td>
       <td class="ur-dim">${esc(r.sector)}</td>
       <td class="ur-num">${audCap(r.mc)}</td>
       <td class="ur-num">${r.w == null ? "—" : `<em class="pc">${dec(r.w, 3)}%</em>`}</td>
       <td class="ur-act"><a class="kc-src" href="#chart/${encodeURIComponent(`ASX:${r.t}`)}">Chart</a></td>
-    </tr>`).join("");
+    </tr>`;
+    }).join("");
     return `
       <section class="card">
         <div class="section-title"><span><button type="button" class="ur-back" id="ur-back">← All markets</button></span></div>
@@ -246,14 +280,14 @@
           <span class="ur-flag big">${c.flag}</span>
           <div><h3>${esc(c.name)}</h3><p>${esc(c.exchange)} · AUD ($) · ${fmt(aud.rows.length)} companies (full ASX list)</p></div>
         </div>
-        <div class="ur-note"><b>Snapshot.</b> Market cap and index weight are from an ASX export dated ${esc(aud.asOf || "unknown")} — names and tickers are current, but the figures are not live. No per-company page or SEC/annual-report lookup is available for Australia yet; "Chart" opens the live TradingView chart.</div>
+        <div class="ur-note"><b>Mixed freshness.</b> Price and change are live (Yahoo Finance, ~15s cache). Market cap and index weight are from an ASX export dated ${esc(aud.asOf || "unknown")} and are not live. No per-company page or SEC/annual-report lookup is available for Australia yet; "Chart" opens the live TradingView chart.</div>
         <div class="ur-find"><input id="ur-q" type="search" placeholder="Search ASX companies by name or ticker…" value="${esc(state.q)}" autocomplete="off"></div>
         <div class="ur-subhead">Sector</div>
         <div class="ur-chips ur-chips-wrap">${chips}</div>
         <div class="ur-scroll">
           <table class="ur-table ur-au">
-            <thead><tr>${th("n", "Company", "ur-sticky")}${th("sector", "Sector")}${th("mc", "Market cap", "ur-num")}${th("w", "Index weight", "ur-num")}<th></th></tr></thead>
-            <tbody>${trs || `<tr><td colspan="5" class="f-empty">No companies match.</td></tr>`}</tbody>
+            <thead><tr>${th("n", "Company", "ur-sticky")}<th class="ur-num">Price</th><th class="ur-num">Change</th>${th("sector", "Sector")}${th("mc", "Market cap", "ur-num")}${th("w", "Index weight", "ur-num")}<th></th></tr></thead>
+            <tbody>${trs || `<tr><td colspan="7" class="f-empty">No companies match.</td></tr>`}</tbody>
           </table>
         </div>
         <div class="ur-foot">Showing ${fmt(page.length)} of ${fmt(total)}${total > page.length ? ` <button type="button" class="ur-browse ghost" id="ur-more">Show more</button>` : ""}</div>
@@ -430,6 +464,10 @@
   }
 
   /* ---------- render + events ---------- */
+  function currentAuTickers() {
+    return [...root.querySelectorAll(".ur-au tbody tr td.ur-sticky small.ur-tk")].map((el) => el.textContent.trim());
+  }
+
   function render() {
     if (state.view === "reports") return;
     const c = state.market ? COUNTRIES.find((x) => x.code === state.market) : null;
@@ -441,6 +479,14 @@
     if (focus) {
       const el = document.getElementById("ur-q");
       if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    }
+    if (c && c.code === "AU") {
+      syncAuQuotes(currentAuTickers());
+      if (!auQuoteTimer) {
+        auQuoteTimer = setInterval(() => {
+          if (state.market === "AU" && !state.company && isActive()) syncAuQuotes(currentAuTickers(), true);
+        }, 15000);
+      }
     }
   }
 
