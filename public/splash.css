@@ -1,0 +1,133 @@
+/* Intro (splash.js): a scanner sweeps a screener-style table while a detective
+ * peers through a magnifying glass and "Stalking Stocks" is revealed. Plays in
+ * 1.65 s, then fades out over the app. Pure CSS timing: it removes itself even
+ * if the script fails. Hidden for reduced-motion users. */
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #0b0b0c;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: sp-out 0.3s ease-in 1.35s forwards;
+}
+#splash.sp-skip { animation: sp-out 0.18s ease-in forwards; }
+@keyframes sp-out {
+  to { opacity: 0; visibility: hidden; transform: scale(1.025); }
+}
+@media (prefers-reduced-motion: reduce) { #splash { display: none; } }
+
+/* faint screener table behind everything */
+.sp-table {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  padding: 3vh 6vw;
+  opacity: 0.9;
+}
+.sp-row {
+  --c: 255, 77, 67;
+  display: grid;
+  grid-template-columns: 1.3fr repeat(5, 1fr);
+  gap: 3vw;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 6px;
+  animation: sp-hit 0.42s ease-out calc(0.12s + var(--i) * 0.065s) both;
+}
+.sp-row:nth-child(3n + 2) { --c: 77, 134, 255; }
+.sp-row:nth-child(3n + 3) { --c: 46, 228, 118; }
+.sp-row b { font: 700 0.78rem ui-monospace, Menlo, Consolas, monospace; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.22); }
+.sp-row i { display: block; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.09); }
+@keyframes sp-hit {
+  0% { background: rgba(var(--c), 0); }
+  25% { background: rgba(var(--c), 0.22); box-shadow: 0 0 22px rgba(var(--c), 0.35); }
+  100% { background: rgba(var(--c), 0); }
+}
+.sp-row.sp-hold { animation-fill-mode: both; }
+
+/* the scanner beam */
+.sp-beam {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 77, 67, 0.9) 18%, #fff 50%, rgba(255, 77, 67, 0.9) 82%, transparent);
+  box-shadow: 0 0 18px 4px rgba(255, 60, 50, 0.65), 0 -40px 60px 6px rgba(255, 60, 50, 0.12);
+  transform: translateY(-4vh);
+  animation: sp-scan 1s cubic-bezier(0.45, 0.05, 0.4, 1) 0.12s both;
+}
+@keyframes sp-scan {
+  0% { transform: translateY(-4vh); opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { transform: translateY(104vh); opacity: 0; }
+}
+
+/* detective + wordmark + lens */
+.sp-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 2vw, 22px);
+}
+.sp-logo {
+  width: clamp(64px, 11vw, 120px);
+  height: clamp(64px, 11vw, 120px);
+  color: #ff4d43;
+  filter: drop-shadow(0 0 14px rgba(255, 77, 67, 0.5));
+  animation: sp-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) 0.1s both;
+}
+@keyframes sp-pop {
+  from { opacity: 0; transform: scale(0.7) translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.sp-word {
+  position: relative;
+  font-size: clamp(2rem, 7.2vw, 4.6rem);
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-weight: 600;
+  color: #f2f2f3;
+}
+.sp-word b { font-weight: 800; color: #ff4d43; margin-left: 0.18em; text-shadow: 0 0 28px rgba(255, 77, 67, 0.45); }
+.sp-text {
+  display: inline-block;
+  clip-path: inset(-10% 100% -10% 0);
+  animation: sp-reveal 0.75s cubic-bezier(0.4, 0.1, 0.35, 1) 0.35s both;
+}
+@keyframes sp-reveal { to { clip-path: inset(-10% -2% -10% 0); } }
+.sp-lens {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1.5em;
+  height: 1.5em;
+  margin: -0.62em 0 0 -0.55em;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.7));
+  animation: sp-sweep 0.75s cubic-bezier(0.4, 0.1, 0.35, 1) 0.35s both, sp-fade 0.25s ease 1.15s forwards;
+}
+@keyframes sp-sweep {
+  0% { left: 0; transform: rotate(-8deg) translateY(2%); }
+  50% { transform: rotate(6deg) translateY(-6%); }
+  100% { left: 100%; transform: rotate(-4deg) translateY(2%); }
+}
+@keyframes sp-fade { to { opacity: 0; transform: scale(0.9); } }
+
+.sp-status {
+  position: absolute;
+  left: 0; right: 0; bottom: 9vh;
+  text-align: center;
+  font: 700 0.95rem ui-monospace, Menlo, Consolas, monospace;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  animation: sp-pop 0.3s ease 0.2s both;
+}
+.sp-status em { font-style: normal; color: #fff; }
+.sp-status span { color: #2ee476; margin-left: 0.6em; }
