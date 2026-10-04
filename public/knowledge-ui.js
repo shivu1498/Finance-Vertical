@@ -77,15 +77,15 @@
       </defs>
       <rect width="320" height="180" fill="url(#kg-${id})"/>
       <rect width="320" height="180" fill="url(#kr-${id})"/>
-      <g fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="1.5">
+      <g class="k-rings" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="1.5">
         <circle cx="270" cy="30" r="62"/><circle cx="270" cy="30" r="95"/><circle cx="40" cy="170" r="70"/>
       </g>
-      <g fill="#fff" fill-opacity=".16">
+      <g class="k-dots" fill="#fff" fill-opacity=".16">
         ${Array.from({ length: 14 }, (_, i) => `<circle cx="${20 + (i % 7) * 18}" cy="${20 + Math.floor(i / 7) * 18}" r="1.6"/>`).join("")}
       </g>
-      <g transform="translate(160 90) scale(4.6) translate(-12 -12)" fill="none" stroke="#fff" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">
+      <g transform="translate(160 90) scale(4.6) translate(-12 -12)"><g class="k-ico" fill="none" stroke="#fff" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">
         ${K_ICONS[sec.icon]}
-      </g>
+      </g></g>
     </svg>`;
   }
 

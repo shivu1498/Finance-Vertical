@@ -3099,3 +3099,85 @@ body.mf-lock {
 
 /* Every percentage figure is italic (pct-italic.js wraps them). */
 em.pc { font-style: italic; }
+
+/* ---- Sector cards: hover animation (all sector/research cards) ---- */
+.k-card { position: relative; }
+.k-thumb::after {            /* diagonal shine that sweeps across on hover */
+  content: "";
+  position: absolute;
+  top: -20%; bottom: -20%;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  transform: skewX(-18deg);
+  pointer-events: none;
+  opacity: 0;
+}
+.k-card:hover .k-thumb::after,
+.k-card:focus-visible .k-thumb::after {
+  opacity: 1;
+  animation: k-shine 0.9s ease-out;
+}
+@keyframes k-shine { from { left: -60%; } to { left: 130%; } }
+
+.k-ico { transform-box: fill-box; transform-origin: center; }
+.k-card:hover .k-ico,
+.k-card:focus-visible .k-ico { animation: k-float 2.4s ease-in-out 0.9s infinite; }
+.k-card:hover .k-ico > *,
+.k-card:focus-visible .k-ico > * {   /* the icon draws itself */
+  stroke-dasharray: 90;
+  stroke-dashoffset: 90;
+  animation: k-draw 0.9s ease-out forwards;
+}
+@keyframes k-draw { to { stroke-dashoffset: 0; } }
+@keyframes k-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-1.6px) rotate(2.5deg); }
+}
+.k-rings circle { transform-box: fill-box; transform-origin: center; }
+.k-card:hover .k-rings circle,
+.k-card:focus-visible .k-rings circle { animation: k-ring 1.8s ease-out infinite; }
+.k-card:hover .k-rings circle:nth-child(2) { animation-delay: 0.3s; }
+.k-card:hover .k-rings circle:nth-child(3) { animation-delay: 0.6s; }
+@keyframes k-ring {
+  0% { transform: scale(0.85); opacity: 0.9; }
+  100% { transform: scale(1.12); opacity: 0.25; }
+}
+.k-dots { transform-box: fill-box; transform-origin: center; }
+.k-card:hover .k-dots,
+.k-card:focus-visible .k-dots { animation: k-drift 3s linear infinite; }
+@keyframes k-drift { from { transform: translate(0, 0); } to { transform: translate(18px, 18px); } }
+.k-card .k-card-name { transition: color 0.2s ease, letter-spacing 0.25s ease; }
+.k-card:hover .k-card-name { color: var(--accent); letter-spacing: 0.015em; }
+.k-card:hover .k-chip { animation: k-chip 0.5s ease both; }
+@keyframes k-chip { 0% { transform: translateY(4px); opacity: 0.4; } 100% { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .k-card *, .k-card::after, .k-thumb::after { animation: none !important; }
+  .k-card:hover .k-ico > * { stroke-dasharray: none; stroke-dashoffset: 0; }
+}
+
+/* ---- Sheet sectors (sector-groups-ui.js) ---- */
+.kg-modebar { margin: 0 0 14px; }
+.kg-seg button span { margin-left: 6px; opacity: 0.7; font-weight: 500; }
+.kg-card { text-decoration: none; color: inherit; display: block; }
+.kg-card .k-card-body { display: block; }
+.kg-badge {
+  position: absolute; top: 8px; right: 8px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  background: rgba(8, 8, 9, 0.62); border: 1px solid rgba(255, 255, 255, 0.35); color: #fff;
+}
+.kg-hero {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c1) 35%, #0b0b0c), color-mix(in srgb, var(--c2) 45%, #0b0b0c));
+  border-color: color-mix(in srgb, var(--c1) 55%, transparent);
+}
+.kg-hero-row { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+.kg-hero-row h2 { margin: 0; font-size: 1.7rem; }
+.kg-hero-row p { margin: 4px 0 0; color: var(--text-muted); }
+.kg-hero-ico { width: 64px; height: 64px; flex: none; color: #fff; border-radius: 16px; padding: 12px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.25); animation: kg-ico-in 0.6s ease both; }
+@keyframes kg-ico-in { from { transform: scale(0.6) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.kg-research-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.kg-research { display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--panel-border); border-radius: 12px; text-decoration: none; color: var(--text-main); background: var(--panel-soft); transition: transform 0.18s ease, border-color 0.18s ease; }
+.kg-research:hover { transform: translateY(-3px); border-color: var(--accent); }
+.kg-research span { color: var(--text-muted); font-size: 0.85rem; line-height: 1.45; }
+.kg-research em { font-style: normal; color: var(--accent); font-weight: 700; font-size: 0.85rem; }
