@@ -2,8 +2,10 @@
 // coverage table (market, exchange, currency, companies, index, annual reports)
 // and a Browse view per market. India browses the full NSE/BSE company list
 // (companies.json) grouped by industry; every other market browses its tracked
-// basket grouped by sector. The Annual Reports lookup lives under the second
-// switch (filings-ui.js).
+// basket grouped by sector. Clicking an Indian company opens a Screener-style
+// company page (company-page.js). Routes: #universe, #universe/IN (browse),
+// #universe/IN/SYMBOL (company). The Annual Reports lookup lives under the
+// second switch (filings-ui.js).
 (function () {
   const root = document.getElementById("ur-root");
   const reportsBox = document.getElementById("ur-reports");
@@ -44,14 +46,15 @@
     view: "markets",
     region: "All",
     sort: "name",
-    market: null,        // null = coverage table, else a country code
+    market: null,        // null = coverage table, else a country code (from the hash)
+    company: null,       // NSE ticker / BSE code when a company page is open
     group: "",           // sector / industry-group filter inside Browse
     q: "",
     shown: 100,
   };
 
   /* ---------- India universe (companies.json) ---------- */
-  const dir = { status: "idle", rows: [], groups: [] };
+  const dir = { status: "idle", rows: [], groups: [], byCode: new Map() };
   async function loadDir() {
     if (dir.status !== "idle") return;
     dir.status = "loading";
@@ -63,7 +66,10 @@
       for (const [name, nse, bse, isin, ind] of d.rows) {
         const [industry, g] = d.industries[ind] || ["Unclassified", -1];
         const group = d.groups[g] || "Unclassified";
-        dir.rows.push({ name, nse, bse, group, industry, code: nse || bse, hay: `${name} ${nse} ${bse}`.toLowerCase() });
+        const rec = { name, nse, bse, isin, group, industry, code: nse || bse, nameL: name.toLowerCase(), codeL: (nse || bse).toLowerCase(), hay: `${name} ${nse} ${bse}`.toLowerCase() };
+        dir.rows.push(rec);
+        if (nse) dir.byCode.set(nse.toUpperCase(), rec);
+        if (bse) dir.byCode.set(String(bse), rec);
         counts.set(group, (counts.get(group) || 0) + 1);
       }
       dir.groups = [...counts].sort((a, b) => b[1] - a[1]);
@@ -74,6 +80,30 @@
     }
     render();
   }
+
+  // Name/ticker search over the India universe: ticker prefix > name prefix > contains.
+  function searchIndia(q) {
+    const t = q.trim().toLowerCase();
+    if (!t || dir.status !== "ready") return [];
+    const scored = [];
+    for (const r of dir.rows) {
+      let sc = 0;
+      if (r.codeL === t) sc = 100;
+      else if (r.codeL.startsWith(t)) sc = 80;
+      else if (r.nameL.startsWith(t)) sc = 70;
+      else if (r.nameL.includes(t) || r.hay.includes(t)) sc = 40;
+      if (sc) scored.push([sc, r]);
+    }
+    scored.sort((a, b) => b[0] - a[0] || a[1].name.localeCompare(b[1].name));
+    return scored.slice(0, 8).map((x) => x[1]);
+  }
+  const gresHtml = (list) =>
+    list.map((r) => `<a class="ur-gr" href="#universe/IN/${encodeURIComponent(r.code)}"><b>${esc(r.name)}</b><span class="ur-tk">${esc(r.code)}</span><small>${esc(r.industry)}</small></a>`).join("") ||
+    `<div class="ur-gr none">No match</div>`;
+  const searchBar = () => `<div class="ur-gsearch">
+      <input id="ur-gsearch" type="search" placeholder="Search any Indian company by name or ticker…" autocomplete="off" aria-label="Search companies">
+      <div class="ur-gres" id="ur-gres" hidden></div>
+    </div>`;
 
   function trackedCount(c) { return c.stocks.length; }
   function listedIndia() { return dir.status === "ready" ? dir.rows.length : null; }
@@ -130,6 +160,7 @@
       .join("");
     const list = rowsFor();
     return `
+      ${searchBar()}
       ${statsHtml()}
       <div class="ur-note"><b>Data quality.</b> India lists the full NSE/BSE company universe with the official industry classification. Every other market shows a tracked basket of its largest listings. Annual reports are available for the US (SEC EDGAR, complete) and India (NSE feed, recent filings only). Other exchanges restrict automated access to filings.</div>
       <section class="card">
@@ -182,10 +213,10 @@
       .concat(d.groups.map(([g, n]) => `<button type="button" class="ur-chip ${state.group === g ? "active" : ""}" data-group="${esc(g)}">${esc(g)} <i>${n}</i></button>`))
       .join("");
     const trs = page.map((r) => `<tr>
-      <td><b>${esc(r.name)}</b></td>
+      <td>${c.code === "IN" ? `<a class="ur-co" href="#universe/IN/${encodeURIComponent(r.code)}">${esc(r.name)}</a>` : `<b>${esc(r.name)}</b>`}</td>
       <td class="ur-dim"><span class="ur-tk">${esc(r.code)}</span>${r.extra ? ` <small>${esc(r.extra)}</small>` : ""}</td>
       <td class="ur-dim">${esc(r.sub)}</td>
-      <td class="ur-act"><a class="kc-src" href="#chart/${encodeURIComponent(r.chart)}">Chart</a></td>
+      <td class="ur-act">${c.code === "IN" ? `<a class="kc-src" href="#universe/IN/${encodeURIComponent(r.code)}">View</a> ` : ""}<a class="kc-src" href="#chart/${encodeURIComponent(r.chart)}">Chart</a></td>
     </tr>`).join("");
     const reportsBtn = m.reports ? `<button type="button" class="ur-browse ghost" data-reports="${c.code}">Annual reports →</button>` : "";
     return `
@@ -198,6 +229,7 @@
           <span class="ur-flag big">${c.flag}</span>
           <div><h3>${esc(c.name)}</h3><p>${esc(c.exchange)} · ${m.cur} · ${esc(c.indexLabel)} · ${fmt(d.rows.length)} companies${c.code === "IN" ? " (full NSE/BSE list)" : " (tracked basket)"}</p></div>
         </div>
+        ${c.code === "IN" ? searchBar() : ""}
         <div class="ur-find"><input id="ur-q" type="search" placeholder="Search ${esc(c.name)} companies by name or ticker…" value="${esc(state.q)}" autocomplete="off"></div>
         <div class="ur-subhead">${esc(d.label)}</div>
         <div class="ur-chips ur-chips-wrap">${chips}</div>
@@ -215,12 +247,31 @@
   function render() {
     if (state.view === "reports") return;
     const c = state.market ? COUNTRIES.find((x) => x.code === state.market) : null;
+    if (state.company) return renderCompany();
+    if (window.CompanyPage) window.CompanyPage.close(document.getElementById("ur-company"));
     const focus = document.activeElement && document.activeElement.id === "ur-q";
     root.innerHTML = c ? browseHtml(c) : marketsHtml();
     if (focus) {
       const el = document.getElementById("ur-q");
       if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
     }
+  }
+
+  function renderCompany() {
+    if (dir.status === "idle" || dir.status === "loading") {
+      root.innerHTML = `<section class="card"><p class="f-empty">Loading the company list…</p></section>`;
+      loadDir();
+      return;
+    }
+    const rec = dir.byCode.get(String(state.company).toUpperCase());
+    if (!rec) {
+      root.innerHTML = `<section class="card"><p class="f-error">“${esc(state.company)}” isn't in the company list.</p><p><a class="ur-back" href="#universe/IN">← Back to India</a></p></section>`;
+      return;
+    }
+    root.innerHTML = `<div class="ur-crumb"><a class="ur-back" href="#universe/IN">← India</a><span>/</span><span>${esc(rec.group)}</span></div>
+      ${searchBar()}<div id="ur-company"></div>`;
+    document.title = `${rec.name} · StalkingStocks`;
+    window.CompanyPage.open(document.getElementById("ur-company"), rec);
   }
 
   function setView(v) {
@@ -237,13 +288,29 @@
   }
 
   function openMarket(code) {
-    state.market = code;
     state.group = "";
     state.q = "";
     state.shown = 100;
     if (code === "IN") loadDir();
-    render();
-    window.scrollTo({ top: 0 });
+    location.hash = `#universe/${code}`; // route() renders via tabchange
+  }
+
+  // The hash is the source of truth: #universe[/MARKET[/SYMBOL]].
+  function route() {
+    if (!isActive()) return;
+    const [, market, sym] = location.hash.slice(1).split("/");
+    const valid = market && COUNTRIES.some((c) => c.code === market) ? market : null;
+    let company = null;
+    if (valid === "IN" && sym) {
+      try { company = decodeURIComponent(sym); } catch { company = null; }
+    }
+    if (valid !== state.market || company !== state.company) { state.group = ""; state.q = ""; state.shown = 100; }
+    state.market = valid;
+    state.company = company;
+    if (!state.company) document.title = "StalkingStocks";
+    if ((valid || company) && state.view === "reports") setView("markets");
+    else if (state.view === "markets") render();
+    if (valid === "IN") loadDir();
   }
 
   sw.addEventListener("click", (e) => {
@@ -259,7 +326,7 @@
     if (rg) { state.region = rg.dataset.region; return render(); }
     const gr = t.closest("[data-group]");
     if (gr) { state.group = gr.dataset.group; state.shown = 100; return render(); }
-    if (t.closest("#ur-back")) { state.market = null; return render(); }
+    if (t.closest("#ur-back")) { location.hash = "#universe"; return; }
     if (t.closest("#ur-more")) { state.shown += 200; return render(); }
     const rp = t.closest("[data-reports]");
     if (rp) {
@@ -273,13 +340,33 @@
   });
   root.addEventListener("input", (e) => {
     if (e.target.id === "ur-q") { state.q = e.target.value; state.shown = 100; render(); }
+    if (e.target.id === "ur-gsearch") {
+      loadDir();
+      const box = document.getElementById("ur-gres");
+      const q = e.target.value.trim();
+      box.hidden = !q;
+      if (q) box.innerHTML = dir.status === "ready" ? gresHtml(searchIndia(q)) : `<div class="ur-gr none">Loading the company list…</div>`;
+    }
+  });
+  root.addEventListener("keydown", (e) => {
+    if (e.target.id !== "ur-gsearch") return;
+    if (e.key === "Enter") {
+      const first = document.querySelector("#ur-gres a.ur-gr");
+      if (first) location.hash = first.getAttribute("href");
+    } else if (e.key === "Escape") {
+      document.getElementById("ur-gres").hidden = true;
+    }
+  });
+  document.addEventListener("click", (e) => {
+    const res = document.getElementById("ur-gres");
+    if (res && !res.hidden && !e.target.closest(".ur-gsearch")) res.hidden = true;
   });
 
   document.addEventListener("tabchange", () => {
     if (!isActive()) return;
     loadDir();
-    if (state.view === "markets") render();
+    route();
   });
-  if (isActive()) loadDir();
+  if (isActive()) { loadDir(); route(); }
   render();
 })();

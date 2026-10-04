@@ -196,6 +196,26 @@ Notes:
 - Without a cookie the feature stays off and the panel says so.
 - Prices, heatmap and breadth for India still come from Yahoo.
 
+## Company pages in the Universe tab (Screener-style)
+
+**Universe -> India** lists the full NSE/BSE company list (`public/companies.json`)
+by industry group, with a search bar (name or ticker). Click any company to
+open a page laid out like Screener.in: price, key ratios, about, a TradingView
+chart, pros and cons, peer comparison, quarterly results, profit and loss,
+balance sheet, cash flows, ratios and shareholding. Deep links look like
+`#universe/IN/ABBOTINDIA`.
+
+The figures come from Screener.in through `GET /api/screener/company/:symbol`
+(`screener.js` + `screener-page.js`). It uses the same `SCREENER_SESSIONID`
+setup as above, and the same rules: one request at a time, 1.5s apart, cached
+for 6 hours. Only companies in `companies.json` are served, so the endpoint
+can't be used to relay arbitrary Screener pages. Without the cookie the page
+still opens with the company's industry, codes, chart and a link to Screener.
+
+On Vercel, add `SCREENER_SESSIONID` under Project Settings -> Environment
+Variables and redeploy. Anyone who can open your site can then trigger these
+requests with your session, so keep that in mind before sharing the URL.
+
 ## Adding a new section (tab)
 
 The page is organised as tabs under one roof. **Markets** holds the

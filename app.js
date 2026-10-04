@@ -85,7 +85,8 @@ app.get("/api/quotes", async (req, res) => {
   res.json({ quotes, updatedAt: new Date().toISOString() });
 });
 
-const screenerHandler = createScreenerHandler({ sessionId: process.env.SCREENER_SESSIONID });
+const screenerHandler = createScreenerHandler({ sessionId: process.env.SCREENER_SESSIONID, directory: companies.loadDefault() });
+app.get("/api/screener/company/:symbol", screenerHandler.company);
 app.get("/api/screener/:symbol", screenerHandler);
 
 // Ticker -> Tijori Finance company page (name from Screener if configured,
