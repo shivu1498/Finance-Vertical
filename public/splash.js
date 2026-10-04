@@ -1,61 +1,75 @@
-/* Builds the intro's number bunches, letters and tagline words, and removes the
- * overlay. Markup lives in index.html (#splash); all timing is in splash.css.
- * The numbers are decorative (random, not market data). */
+/* Builds the intro's scattered numbers, 3D "100", letters and tagline words,
+ * drives the counters, and removes the overlay. Markup lives in index.html
+ * (#splash); nearly all timing is in splash.css (the counting here is
+ * scheduled to match). The numbers are decorative, not market data. */
 (function () {
   "use strict";
   var el = document.getElementById("splash");
   if (!el) return;
 
-  // Small seeded generator so the layout is the same every load.
-  var seed = 7;
+  var T0 = performance.now();
+  var seed = 11;
   function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
   function pick(a) { return a[Math.floor(rnd() * a.length)]; }
-  function fix(n, d) { return n.toFixed(d); }
+  function fx(n, d) { return n.toFixed(d); }
   function commas(n) { return Math.round(n).toLocaleString("en-IN"); }
 
-  // Each bunch is a themed cluster on a small grid (so numbers never overlap):
-  // [x%, y%, width%, columns, rows, colour, number maker]. Top and bottom rows
-  // plus two narrow side bunches keep the middle clear for the wordmark.
-  var BUNCHES = [
-    [1, 3, 30, 2, 4, "g", function () { return "+" + fix(1 + rnd() * 28, 1) + "%"; }],
-    [35, 2, 30, 2, 4, "w", function () { return "\u20B9" + commas(100 + rnd() * 3900) + "." + (10 + Math.floor(rnd() * 89)); }],
-    [69, 3, 30, 2, 4, "r", function () { return "\u2212" + fix(0.2 + rnd() * 6, 1) + "%"; }],
-    [0, 35, 15, 1, 5, "b", function () { return fix(8 + rnd() * 40, 1) + "x"; }],
-    [86, 35, 14, 1, 5, "w", function () { return commas(20000 + rnd() * 62000); }],
-    [1, 68, 30, 2, 4, "r", function () { return "\u20B9" + commas(50 + rnd() * 9000) + " Cr"; }],
-    [35, 70, 30, 2, 4, "g", function () { return "+" + fix(0.3 + rnd() * 9, 2) + "%"; }],
-    [69, 68, 30, 2, 4, "b", function () { return pick(["1.2M", "48.6K", "3.4M", "912K", "7.8M", "260K", "5.1M"]); }],
-  ];
+  // colour class -> [text, numeric value] makers
+  var MAKE = {
+    g: function () { var v = 1 + rnd() * 28; return ["+" + fx(v, 1) + "%", v]; },
+    r: function () { var v = 0.2 + rnd() * 7; return ["−" + fx(v, 1) + "%", v]; },
+    b: function () { var v = 8 + rnd() * 40; return [fx(v, 1) + "x", v]; },
+    w: function () { var v = 100 + rnd() * 3900; return ["₹" + commas(v), v]; },
+    a: function () { var v = 40 + rnd() * 9000; return ["₹" + commas(v) + " Cr", v]; },
+    v: function () { var v = 1 + rnd() * 90; return [pick(["1.2M", "48.6K", "3.4M", "912K", "7.8M", "260K"]), v]; },
+    c: function () { var v = 20000 + rnd() * 62000; return [commas(v), v]; },
+  };
+  var KEYS = ["g", "r", "b", "w", "a", "v", "c", "g", "r", "b"];
+
+  // ---- scattered numbers: an 8x8 jittered grid in 3D space ----
   var holder = el.querySelector(".sp-nums");
+  var items = [];
   if (holder) {
-    var h = "";
-    BUNCHES.forEach(function (b, bi) {
-      var items = "", cols = b[3], rows = b[4], slots = cols * rows, count = Math.min(slots - 1, 7);
-      for (var i = 0; i < count; i++) {
-        var col = i % cols, row = Math.floor(i / cols);
-        var x = (col / cols) * 100 + rnd() * (50 / cols), y = (row / rows) * 100 + rnd() * 6;
-        var size = 0.8 + rnd() * 0.6 + (i === 0 ? 0.45 : 0);
-        var d = 0.1 + bi * 0.27 + i * 0.07 + rnd() * 0.12;
-        items +=
-          '<span class="sp-n c-' + b[5] + '" style="left:' + fix(x, 1) + "%;top:" + fix(y, 1) + "%;font-size:" + fix(size, 2) + "rem;--d:" + fix(d, 2) + "s;--rot:" + fix(rnd() * 12 - 6, 1) + 'deg;--fl:' + fix(rnd() * 10 + 5, 0) + "px;--fd:" + fix(rnd() * 1.4, 2) + 's">' + b[6]() + "</span>";
+    var COLS = 9, ROWS = 7, html = "";
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        var k = pick(KEYS), m = MAKE[k]();
+        var x = ((c + 0.15 + rnd() * 0.7) / COLS) * 100;
+        var y = ((r + 0.15 + rnd() * 0.7) / ROWS) * 96 + 1;
+        var z = Math.round(-650 + rnd() * 850);
+        var depth = (z + 650) / 850; // 0 far .. 1 near
+        var size = 0.85 + depth * 1.15 + rnd() * 0.3;
+        var pop = 0.1 + rnd() * 1.35, gd = rnd() * 0.18;
+        var o = 0.38 + depth * 0.55;
+        html +=
+          '<span class="sp-n" style="left:' + fx(x, 1) + "%;top:" + fx(y, 1) + "%;--z:" + z + "px;--dx:" + fx(50 - x, 1) + "vw;--dy:" + fx(46 - y, 1) + "vh;--cd:" + fx(rnd() * 0.22, 2) + 's">' +
+          '<b class="c-' + k + '" style="font-size:' + fx(size, 2) + "rem;--d:" + fx(pop, 2) + "s;--o:" + fx(o, 2) + ";--hit:" + fx(1.3 + (x / 100) * 1.2, 2) + "s;--gd:" + fx(gd, 2) + "s;--fl:" + fx(6 + rnd() * 12, 0) + "px;--fd:" + fx(rnd() * 1.4, 2) + 's">' + m[0] + "</b></span>";
+        items.push({ v: m[1], gd: gd, node: null });
       }
-      h += '<div class="sp-bunch" style="left:' + b[0] + "%;top:" + b[1] + "%;width:" + b[2] + "%;height:" + (rows * 6.2) + '%">' + items + "</div>";
-    });
-    holder.innerHTML = h;
+    }
+    holder.innerHTML = html;
+    var bs = holder.querySelectorAll("b");
+    for (var i = 0; i < bs.length; i++) items[i].node = bs[i];
   }
 
-  // Wordmark letters, so each can bounce in on its own beat.
+  // ---- the big 3D "100": stacked layers give real depth when it spins ----
+  var h3d = el.querySelector(".sp-h3d");
+  if (h3d) {
+    var layers = "";
+    for (var q = 13; q >= 0; q--) layers += '<span class="hl' + (q === 0 ? " front" : "") + '" style="--k:' + q + '">100</span>';
+    h3d.innerHTML = layers;
+  }
+
+  // ---- wordmark letters + tagline words ----
   var n = 0;
   el.querySelectorAll("[data-letters]").forEach(function (w) {
     var out = "";
     w.getAttribute("data-letters").split("").forEach(function (ch) {
-      out += '<span class="sp-l" style="--i:' + n + ";--rot:" + (n % 2 ? 1 : -1) * (8 + (n * 7) % 14) + 'deg">' + ch + "</span>";
+      out += '<span class="sp-l" style="--i:' + n + ";--ry:" + (n % 2 ? 1 : -1) * (25 + ((n * 13) % 30)) + 'deg">' + ch + "</span>";
       n++;
     });
     w.innerHTML = out;
   });
-
-  // Tagline: one word at a time. "Alpha" gets its own colour.
   var tag = el.querySelector("[data-words]");
   if (tag) {
     tag.innerHTML = tag.getAttribute("data-words").split(" ").map(function (wd, i) {
@@ -63,9 +77,32 @@
     }).join(" ");
   }
 
+  // ---- counters (times in ms from page start; match splash.css) ----
+  var counter = el.querySelector("[data-count]");
+  var SCAN_AT = 1300, SCAN_DUR = 1300, CONV_AT = 2600, CONV_DUR = 850, TOTAL = 3933;
+  function ease(p) { return 1 - Math.pow(1 - p, 3); }
+  function tick(now) {
+    if (!el.isConnected) return;
+    var t = now - T0;
+    if (counter) {
+      var p = Math.min(Math.max((t - SCAN_AT) / SCAN_DUR, 0), 1);
+      counter.textContent = Math.round(TOTAL * ease(p)).toLocaleString("en-IN");
+    }
+    if (t >= CONV_AT) {
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        var q = Math.min(Math.max((t - CONV_AT - it.gd * 1000) / CONV_DUR, 0), 1);
+        if (q <= 0) continue;
+        it.node.textContent = q >= 1 ? "100" : Math.round(it.v + (100 - it.v) * ease(q)).toLocaleString("en-IN");
+      }
+    }
+    if (t < CONV_AT + CONV_DUR + 400) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
   function remove() { if (el.parentNode) el.parentNode.removeChild(el); }
   el.addEventListener("animationend", function (e) { if (e.animationName === "sp-out" && e.target === el) remove(); });
-  setTimeout(remove, 5800); // failsafe
+  setTimeout(remove, 8000); // failsafe
   el.addEventListener("click", function () { el.classList.add("sp-skip"); });
   window.addEventListener("keydown", function once() { window.removeEventListener("keydown", once); el.classList.add("sp-skip"); });
 })();
