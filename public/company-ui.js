@@ -6,7 +6,9 @@
 // from the BSE/NSE company-list CSV), see the company's industry group and
 // industry, and let /api/tijori/resolve find its verified Tijori Finance page.
 // If we have a curated link list for that ticker (company-knowledge.js) it is
-// shown inline; otherwise the Tijori Knowledge Base is one click away. A
+// shown inline; otherwise the list is read live from the company's Tijori page
+// (resolve returns it as `knowledge`) and shown the same way, falling back to
+// the Tijori Knowledge Base link if Tijori can't be read from our server. A
 // "Browse by industry" panel lists the whole universe by that classification.
 (function () {
   const sectorRoot = document.getElementById("k-root");
@@ -279,16 +281,30 @@
       </div>
       <h2 class="kc-section">Discussions &amp; Analysis</h2>
       ${groups || `<p class="kc-empty">No links match “${esc(state.query)}”.</p>`}
-      <p class="kc-foot">Curated from Tijori Finance's knowledge base. Links open the original author's content; we don't host or republish it.</p>
+      <p class="kc-foot">${c.live ? "Read live from" : "Curated from"} Tijori Finance's knowledge base. Links open the original author's content; we don't host or republish it.</p>
     </section>`;
+  }
+
+  // Live list read from the company's Tijori page by /api/tijori/resolve.
+  function liveCompany() {
+    const l = state.lookup;
+    if (l.status !== "done" || !l.data.knowledge) return null;
+    const d = l.data;
+    return {
+      name: d.legalName || d.name || state.ticker,
+      sector: d.industryGroup || "",
+      source: d.tijori.url,
+      live: true,
+      groups: d.knowledge.groups.map((g) => ({ title: g.title || "Links", links: g.links })),
+    };
   }
 
   function noListNote() {
     const l = state.lookup;
-    if (l.status !== "done" || curated()) return "";
+    if (l.status !== "done" || curated() || liveCompany()) return "";
     const s = l.data.tijori.status;
     if (s === "verified" || s === "unverified") {
-      return `<section class="card kc-card"><p class="kc-empty">We haven't copied this company's link list into the app yet. Use <b>Knowledge Base on Tijori</b> above to read it on Tijori Finance.</p></section>`;
+      return `<section class="card kc-card"><p class="kc-empty">We couldn't read this company's link list from Tijori just now. Use <b>Knowledge Base on Tijori</b> above to read it on Tijori Finance.</p></section>`;
     }
     return "";
   }
@@ -297,7 +313,8 @@
     const out = document.getElementById("kc-out");
     if (!out) return;
     const c = curated();
-    out.innerHTML = connectCard() + (c ? listCard(c) : noListNote());
+    const live = c ? null : liveCompany();
+    out.innerHTML = connectCard() + (c ? listCard(c) : live ? listCard(live) : noListNote());
   }
 
   /* ---------- browse by industry ---------- */

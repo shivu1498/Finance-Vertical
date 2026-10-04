@@ -1,5 +1,5 @@
 // Unit tests for tijori.js. No network and no express needed: fetch is mocked.
-const { createResolver, normalizeTicker, slugCandidates, pageMatches } = require("../tijori");
+const { createResolver, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase } = require("../tijori");
 const { createDirectory } = require("../companies");
 const { build, parseCsv } = require("../scripts/import-companies");
 
@@ -156,6 +156,57 @@ const htmlRes = (url, body, finalUrl) => ({ ok: true, status: 200, url: finalUrl
   f = mockFetch([["https://t/company/grasim-inds-limited/", (u) => htmlRes(u, page("Grasim GRASIM"))]]);
   r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t", directory: dir }).resolve("GRASIM");
   check("falls back to the list name when Screener/Yahoo have none", r.nameSource === "list" && r.tijori.status === "verified" && r.industry === "Cement & Cement Products");
+
+  // ---- Knowledge Base parsing (markup shaped like Tijori's company page) ----
+  const KB = page(`
+    <nav><a href="#kb">Discussions &amp; Analysis</a> <p>Promo</p> <a href="https://promo.example/x">Promo link</a> <a href="https://www.tijorifinance.com/">Home</a> <a href="https://twitter.com/tijori">Tijori on X</a></nav>
+    <h1>Grasim Industries Ltd.</h1> NSE: GRASIM
+    <section id="knowledgebase">
+      <h2>Knowledge Base</h2>
+      <h3>Discussions &amp; Analysis</h3>
+      <div class="kb-group">
+        <div class="kb-title">Grasim Industries Ltd.</div>
+        <div class="kb-link"><a href="https://x.com/zerodhamarkets/status/1" target="_blank">Grasim &lt;&gt; Spring Energy Analysis</a> - Zerodha Markets</div>
+        <div class="kb-link"><a href="https://www.youtube.com/watch?v=e6FqC4pWy8I"><img src="/static/yt.svg"></a><a href="https://www.youtube.com/watch?v=e6FqC4pWy8I">Nikhil Kamath x Kumar Birla | People by WTF</a> <span>- Nikhil Kamath</span></div>
+        <div class="kb-link"><a href="http://forum.valuepickr.com/t/grasim/6649">View the discussion on ValuePickr</a></div>
+      </div>
+      <div class="kb-group">
+        <p>Cement</p>
+        <ul>
+          <li><a href='https://soic.in/blog/cement'>Is Cement the Hidden Hero of India&#39;s Growth Story?</a></li>
+          <li>- SOIC</li>
+          <li><a href="https://www.youtube.com/watch?v=Slt7IxMSt5E">The Basics: Cement Sector</a> &ndash; Omkara Capital</li>
+          <li><a href="/company/acc-limited/">ACC (internal link, ignored)</a></li>
+          <li><a href="javascript:void(0)">Show more</a></li>
+        </ul>
+      </div>
+      <div class="kb-group"><h4>Empty group</h4></div>
+      <button>Submit your Links</button>
+      <div class="modal">Submit a link <a href="https://evil.example/after-the-section">after</a></div>
+    </section>
+    <footer><a href="https://www.youtube.com/c/tijori">Tijori YouTube</a></footer>`);
+  const kb = parseKnowledgeBase(KB, { tijoriBase: "https://www.tijorifinance.com" });
+  check("kb: groups in page order, empty group dropped", eq(kb.map((g) => g.title), ["Grasim Industries Ltd.", "Cement"]), JSON.stringify(kb.map((g) => g.title)));
+  check("kb: title, author and url of a plain row", eq(kb[0].links[0], { title: "Grasim <> Spring Energy Analysis", by: "Zerodha Markets", url: "https://x.com/zerodhamarkets/status/1" }), JSON.stringify(kb[0].links[0]));
+  check("kb: icon + title anchors to one url count once, author in a span", kb[0].links.length === 3 && kb[0].links[1].title === "Nikhil Kamath x Kumar Birla | People by WTF" && kb[0].links[1].by === "Nikhil Kamath", JSON.stringify(kb[0].links[1]));
+  check("kb: row without author", kb[0].links[2].by === "" && kb[0].links[2].url === "http://forum.valuepickr.com/t/grasim/6649");
+  check("kb: author in its own element attaches to the previous link", kb[1].links[0].by === "SOIC" && kb[1].links[0].title === "Is Cement the Hidden Hero of India's Growth Story?", JSON.stringify(kb[1].links[0]));
+  check("kb: en dash author", kb[1].links[1].by === "Omkara Capital");
+  check("kb: internal, javascript and post-section links are skipped", kb[1].links.length === 2 && !JSON.stringify(kb).includes("evil.example") && !JSON.stringify(kb).includes("tijori"), JSON.stringify(kb[1].links));
+  check("kb: page without a knowledge base -> []", eq(parseKnowledgeBase(page("Grasim GRASIM <a href='https://x.com/a'>x</a>")), []));
+
+  f = mockFetch([
+    ["https://y/v8/finance/chart/GRASIM.NS", () => yahoo("Grasim Industries Limited")],
+    ["https://t/company/grasim-industries-limited/", (u) => htmlRes(u, KB)],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t", now: () => 0 }).resolve("GRASIM");
+  check("resolver: verified page carries its knowledge base", r.knowledge && r.knowledge.count === 5 && r.knowledge.groups[1].title === "Cement" && r.knowledge.fetchedAt === "1970-01-01T00:00:00.000Z", JSON.stringify(r.knowledge));
+  f = mockFetch([
+    ["https://y/v8/finance/chart/GRASIM.NS", () => yahoo("Grasim Industries Limited")],
+    ["https://t/company/grasim-industries-limited/", (u) => htmlRes(u, page("Grasim GRASIM"))],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("GRASIM");
+  check("resolver: verified page without a knowledge base -> knowledge null", r.tijori.status === "verified" && r.knowledge === null);
 
   console.log(fails ? `\n${fails} FAILED` : "\nall passed");
   process.exit(fails ? 1 : 0);

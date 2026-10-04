@@ -12,7 +12,9 @@
 // page rather than a 404, so a candidate only counts as a match when it stays
 // on /company/... AND the page mentions both the ticker and the company name.
 //
-// Nothing here copies Tijori's content; it only finds and verifies the link.
+// From the verified page we also read the Knowledge Base link list (titles,
+// authors and outbound URLs only, see parseKnowledgeBase) so the app can show
+// it inline; results are cached for a day per ticker.
 
 const TIJORI_BASE = process.env.TIJORI_BASE || "https://www.tijorifinance.com";
 const YAHOO_BASE = process.env.YAHOO_BASE || "https://query1.finance.yahoo.com";
@@ -66,6 +68,161 @@ function pageMatches(html, tickers, name) {
     .split(/[^a-z0-9]+/)
     .filter(Boolean)[0];
   return hasId && (!core || text.toLowerCase().includes(core));
+}
+
+// ---- Knowledge Base links ----
+//
+// The company page is server-rendered. Its Knowledge Base section reads, in
+// document order:
+//   Discussions & Analysis
+//   <group title>                       e.g. "Cement"
+//   <a href="https://...">Title</a> - Author
+//   ...
+//   Submit your Links                   (end of section)
+// We don't depend on Tijori's class names: the section is cut out between
+// those markers and split into blocks at block-level tags. A block with an
+// outbound link is a link row (the rest of its text is the author); a short
+// block of plain text is a group title. Only titles, authors and URLs are
+// kept, and every link points at the original author's content.
+
+const MAX_KB_LINKS = 400;
+const BLOCK_TAGS = new Set(
+  "div p li ul ol h1 h2 h3 h4 h5 h6 section article header footer nav br hr tr td th table tbody thead dl dt dd button form label aside main figure".split(" ")
+);
+const SKIP_TITLES = /^(knowledge\s*base|discussions\s*&\s*analysis|discussions and analysis|submit.*|show (more|less)|view (more|all)|load more)$/i;
+
+function decodeEntities(s) {
+  return String(s)
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&ndash;/g, "–")
+    .replace(/&mdash;/g, "—")
+    .replace(/&amp;/g, "&");
+}
+const clean = (s) => decodeEntities(s).replace(/\s+/g, " ").trim();
+
+// The Knowledge Base slice of the page, or "" when the page has none.
+function kbSlice(html) {
+  const src = String(html || "");
+  const anchor = Math.max(src.search(/id=["']knowledge-?base["']/i), 0);
+  const endAt = src.slice(anchor).search(/Submit\s+(your\s+links|a\s+link)/i);
+  const end = endAt >= 0 ? anchor + endAt : Math.min(src.length, anchor + 300000);
+  // The last "Discussions & Analysis" before the end marker, so a nav tab
+  // with the same words earlier on the page doesn't widen the slice.
+  const re = /Discussions\s*(&amp;|&|and)\s*Analysis/gi;
+  let start = -1;
+  let m;
+  while ((m = re.exec(src)) && m.index < end) start = m.index;
+  if (start < 0 || start >= end) return "";
+  return src.slice(start, end);
+}
+
+function outbound(href, tijoriHost) {
+  try {
+    const u = new URL(decodeEntities(href));
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    if (tijoriHost && u.hostname.replace(/^www\./, "") === tijoriHost) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function parseKnowledgeBase(html, { tijoriBase = TIJORI_BASE } = {}) {
+  let tijoriHost = "";
+  try {
+    tijoriHost = new URL(tijoriBase).hostname.replace(/^www\./, "");
+  } catch {
+    // relative/odd base: only scheme filtering applies
+  }
+  const slice = kbSlice(html)
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|svg|noscript|template)\b[\s\S]*?<\/\1>/gi, " ");
+  if (!slice) return [];
+
+  const blocks = [];
+  let cur = { text: "", anchors: [] };
+  let anchor = null;
+  const flush = () => {
+    if (anchor) cur.anchors.push(anchor), (anchor = null);
+    if (cur.text.trim() || cur.anchors.length) blocks.push(cur);
+    cur = { text: "", anchors: [] };
+  };
+
+  const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g;
+  let last = 0;
+  let m;
+  while ((m = tagRe.exec(slice))) {
+    const text = slice.slice(last, m.index);
+    cur.text += text;
+    if (anchor) anchor.text += text;
+    last = tagRe.lastIndex;
+    const [, close, rawTag, attrs] = m;
+    const tag = rawTag.toLowerCase();
+    if (tag === "a") {
+      if (close) {
+        if (anchor) cur.anchors.push(anchor);
+        anchor = null;
+      } else {
+        if (anchor) cur.anchors.push(anchor);
+        const href = /\bhref\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attrs);
+        anchor = { href: href ? href[2] ?? href[3] ?? href[4] : "", text: "" };
+      }
+    } else if (BLOCK_TAGS.has(tag)) {
+      flush();
+    }
+  }
+  cur.text += slice.slice(last);
+  flush();
+
+  const groups = [];
+  let group = null;
+  let lastLink = null;
+  let total = 0;
+  const seen = new Set();
+  for (const b of blocks) {
+    const text = clean(b.text);
+    const links = b.anchors
+      .map((a) => ({ url: outbound(a.href, tijoriHost), title: clean(a.text) }))
+      .filter((a) => a.url);
+    if (links.length) {
+      // Several anchors to one URL (icon + title) count once; keep the longest title.
+      const byUrl = new Map();
+      for (const l of links) if (!byUrl.has(l.url) || l.title.length > byUrl.get(l.url).title.length) byUrl.set(l.url, l);
+      const uniq = [...byUrl.values()].filter((l) => l.title);
+      let by = "";
+      if (uniq.length === 1) {
+        by = text.replace(uniq[0].title, "").replace(/^[\s\-–—|:•·]+/, "").replace(/^by\s+/i, "").trim();
+      }
+      for (const l of uniq) {
+        if (total >= MAX_KB_LINKS) break;
+        if (!group) groups.push((group = { title: "", links: [] }));
+        const key = `${group.title}\n${l.url}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        lastLink = { title: l.title, by: uniq.length === 1 ? by : "", url: l.url };
+        group.links.push(lastLink);
+        total++;
+      }
+      continue;
+    }
+    if (!text) continue;
+    // "- Author" split into its own element: attach to the previous link.
+    if (/^[\-–—]\s*\S/.test(text) && lastLink && !lastLink.by) {
+      lastLink.by = text.replace(/^[\-–—]\s*/, "");
+      continue;
+    }
+    if (text.length > 80 || SKIP_TITLES.test(text)) continue;
+    group = { title: text, links: [] };
+    groups.push(group);
+    lastLink = null;
+  }
+  return groups.filter((g) => g.links.length);
 }
 
 function withTimeout(ms) {
@@ -129,7 +286,8 @@ function createResolver({
         path = new URL(url).pathname;
       }
       if (!path.startsWith("/company/")) return { state: "miss", url };
-      return { state: pageMatches(await res.text(), ids, name) ? "ok" : "miss", url };
+      const html = await res.text();
+      return pageMatches(html, ids, name) ? { state: "ok", url, html } : { state: "miss", url };
     } catch {
       return { state: "error", url };
     }
@@ -169,7 +327,18 @@ function createResolver({
       const r = await probe(slug, ids, named.name);
       firstGuess = firstGuess || { slug, url: r.url };
       if (r.state === "ok") {
-        return { ...base, tijori: { status: "verified", slug, url: `${r.url}#knowledgebase` } };
+        let groups = [];
+        try {
+          groups = parseKnowledgeBase(r.html, { tijoriBase });
+        } catch {
+          // odd markup: still a verified link, just no inline list
+        }
+        const count = groups.reduce((n, g) => n + g.links.length, 0);
+        return {
+          ...base,
+          tijori: { status: "verified", slug, url: `${r.url}#knowledgebase` },
+          knowledge: count ? { groups, count, fetchedAt: new Date(now()).toISOString() } : null,
+        };
       }
       if (r.state === "error") sawError = true;
     }
@@ -216,4 +385,4 @@ function createRouter(resolver) {
   return router;
 }
 
-module.exports = { createResolver, createRouter, normalizeTicker, slugCandidates, pageMatches };
+module.exports = { createResolver, createRouter, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase };
