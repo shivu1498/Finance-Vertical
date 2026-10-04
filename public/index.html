@@ -36,6 +36,7 @@
 <nav class="tabs" id="tabs">
   <a class="tab" data-tab="markets" href="#markets">Markets</a>
   <a class="tab" data-tab="stocks" href="#stocks">Stocks</a>
+  <a class="tab" data-tab="chart" href="#chart">Chart</a>
   <a class="tab" data-tab="indices" href="#indices">Indices</a>
   <a class="tab" data-tab="funds" href="#funds">Mutual Funds</a>
   <a class="tab" data-tab="industries" href="#industries">Industries</a>
@@ -145,6 +146,16 @@
     <div id="kc-root" hidden></div>
   </div>
 
+  <div class="tab-panel" data-panel="chart" hidden>
+    <section class="card k-head">
+      <div>
+        <h2 class="k-title">Chart</h2>
+        <p class="k-sub">Live TradingView charts. Search any listed company by name or ticker, or type a TradingView symbol such as NASDAQ:AAPL.</p>
+      </div>
+    </section>
+    <div id="ch-root"></div>
+  </div>
+
   <div class="tab-panel" data-panel="filings" hidden>
     <section class="card k-head">
       <div>
@@ -173,5 +184,6 @@
 <script src="industry-ui.js"></script>
 <script src="mf-ui.js"></script>
 <script src="filings-ui.js"></script>
+<script src="chart-ui.js"></script>
 </body>
 </html>

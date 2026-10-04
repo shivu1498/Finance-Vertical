@@ -2795,3 +2795,42 @@ body.mf-lock {
     display: none;
   }
 }
+
+/* ---- Chart tab (TradingView) ---- */
+.ch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ch-now {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.ch-name {
+  font-weight: 700;
+}
+.ch-widget {
+  height: clamp(520px, 74vh, 880px);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #071446;
+}
+.ch-fail {
+  padding: 24px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.ch-fail a {
+  color: var(--accent);
+  display: block;
+  margin-top: 8px;
+}
+.ch-sg-code {
+  min-width: 150px;
+}
+.ch-tools .kc-form {
+  flex: 1 1 100%;
+}

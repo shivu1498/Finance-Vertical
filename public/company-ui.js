@@ -217,6 +217,9 @@
     const tijoriUrl = d && d.tijori.url ? d.tijori.url : l.status === "error" && c ? c.source : null;
     const screenerUrl = d ? d.screenerUrl : state.ticker ? `https://www.screener.in/company/${encodeURIComponent(state.ticker)}/consolidated/` : null;
     const via = d && d.nameSource && d.nameSource !== "list" ? `<span class="kc-via">name via ${d.nameSource === "screener" ? "Screener.in" : "Yahoo Finance"}</span>` : "";
+    // TradingView writes & and - in NSE tickers as "_".
+    const chartCode = nse || (state.ticker && !bse ? state.ticker : "");
+    const chartSym = chartCode ? `NSE:${chartCode.replace(/[&-]/g, "_")}` : bse ? `BSE:${bse}` : "";
     const ids = [nse && `NSE ${nse}`, bse && `BSE ${bse}`, isin && `ISIN ${isin}`].filter(Boolean).join(" · ");
     const cls = group
       ? `<div class="kc-class">
@@ -241,6 +244,7 @@
         ${badge(l)}
         ${tijoriUrl ? `<a class="kc-src" href="${esc(tijoriUrl)}" target="_blank" rel="noopener noreferrer">Knowledge Base on Tijori &#8599;</a>` : ""}
         ${screenerUrl ? `<a class="kc-src" href="${esc(screenerUrl)}" target="_blank" rel="noopener noreferrer">Screener.in &#8599;</a>` : ""}
+        ${chartSym ? `<a class="kc-src" href="#chart/${encodeURIComponent(chartSym)}">Chart</a>` : ""}
       </div>
     </section>`;
   }
