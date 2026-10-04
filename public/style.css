@@ -83,7 +83,7 @@ body {
   font-size: 0.95rem;
 }
 .brand-logo { flex: none; display: block; filter: drop-shadow(0 0 6px rgba(255,77,67,.45)); }
-.brand-name { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; color: #f2f2f3; }
+.brand-name { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; color: var(--text-main); }
 .brand-name b { font-weight: 800; color: var(--accent); margin-left: 0.18em; }
 
 /* ---- Asset-class filter ---- */
@@ -2853,5 +2853,13 @@ body.mf-lock {
   pointer-events: none;
   opacity: 0;
   mix-blend-mode: screen;
-  background: radial-gradient(ellipse at var(--rr-x, 50%) var(--rr-y, 40%), rgba(255, 40, 28, 0.3), rgba(255, 30, 20, 0.12) 55%, rgba(255, 20, 10, 0.05) 100%);
+  background: radial-gradient(ellipse at var(--rr-x, 50%) var(--rr-y, 40%), rgba(var(--rr-rgb, 255, 40, 28), 0.3), rgba(var(--rr-rgb, 255, 30, 20), 0.12) 55%, rgba(var(--rr-rgb, 255, 20, 10), 0.05) 100%);
+}
+
+/* While a ray passes (a ~140 ms blink), the whole UI wears its colour. */
+:root.rr-blink {
+  --accent: var(--rr-accent);
+  --text-main: var(--rr-tint);
+  --text-muted: var(--rr-dim);
+  --panel-border: var(--rr-border);
 }
