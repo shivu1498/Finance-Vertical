@@ -50,7 +50,7 @@
   <a class="tab" data-tab="funds" href="#funds">Mutual Funds</a>
   <a class="tab" data-tab="industries" href="#industries">Industries</a>
   <a class="tab" data-tab="knowledge" href="#knowledge">Sector Knowledge</a>
-  <a class="tab" data-tab="filings" href="#filings">Annual Reports</a>
+  <a class="tab" data-tab="universe" href="#universe">Universe</a>
 </nav>
 
 <main class="main">
@@ -165,14 +165,26 @@
     <div id="ch-root"></div>
   </div>
 
-  <div class="tab-panel" data-panel="filings" hidden>
+  <div class="tab-panel" data-panel="universe" hidden>
     <section class="card k-head">
       <div>
-        <h2 class="k-title">Annual Reports</h2>
-        <p class="k-sub">Only two markets are listed here, on purpose: <a class="i-src" href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces" target="_blank" rel="noopener">SEC EDGAR</a> (US) and <a class="i-src" href="https://www.nseindia.com/" target="_blank" rel="noopener">NSE</a> (India) are the only exchanges with a free, public, no-login way to pull filings. Every other market either needs a paid data vendor or restricts automated access to its filing portal.</p>
+        <h2 class="k-title" id="ur-title">Universe</h2>
+        <p class="k-sub" id="ur-sub">Every market and company tracked here, grouped by region and sector. Pick a market to browse its companies.</p>
+      </div>
+      <div class="k-seg" id="ur-switch" role="tablist" aria-label="Universe view">
+        <button type="button" role="tab" class="active" data-ur="markets" aria-selected="true">Markets</button>
+        <button type="button" role="tab" data-ur="reports" aria-selected="false">Annual Reports</button>
       </div>
     </section>
-    <div id="f-root"></div>
+    <div id="ur-root"></div>
+    <div id="ur-reports" hidden>
+      <section class="card k-head">
+        <div>
+          <p class="k-sub">Only two markets are listed here, on purpose: <a class="i-src" href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces" target="_blank" rel="noopener">SEC EDGAR</a> (US) and <a class="i-src" href="https://www.nseindia.com/" target="_blank" rel="noopener">NSE</a> (India) are the only exchanges with a free, public, no-login way to pull filings. Every other market either needs a paid data vendor or restricts automated access to its filing portal.</p>
+        </div>
+      </section>
+      <div id="f-root"></div>
+    </div>
   </div>
 
   <footer class="footer">
@@ -192,6 +204,7 @@
 <script src="indices-ui.js"></script>
 <script src="industry-ui.js"></script>
 <script src="mf-ui.js"></script>
+<script src="universe-ui.js"></script>
 <script src="filings-ui.js"></script>
 <script src="chart-ui.js"></script>
 </body>

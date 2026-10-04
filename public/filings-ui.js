@@ -1,11 +1,13 @@
-// Annual Reports tab: SEC EDGAR (US) search + filings, NSE (India) recent
+// Annual Reports view (inside the Universe tab): SEC EDGAR (US) search + filings, NSE (India) recent
 // feed + search. Talks to /api/filings/* (see filings.js).
 (function () {
   const root = document.getElementById("f-root");
   if (!root) return;
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const isActive = () => document.querySelector("#tabs .tab.active")?.dataset.tab === "filings";
+  const isActive = () =>
+    document.querySelector("#tabs .tab.active")?.dataset.tab === "universe" &&
+    document.getElementById("ur-reports")?.hidden === false;
 
   async function getJSON(url) {
     const res = await fetch(url);
@@ -165,5 +167,6 @@
   }
 
   document.addEventListener("tabchange", route);
+  document.addEventListener("universe-view", route);
   route();
 })();

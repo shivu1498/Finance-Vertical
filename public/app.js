@@ -420,6 +420,7 @@ document.getElementById("detail-close").addEventListener("click", () => {
 // Hashes look like "#tab" or "#tab/sub" (sub is handled by the tab's own code).
 function showTab(raw) {
   let [name] = String(raw || "").split("/");
+  if (name === "filings") name = "universe"; // old Annual Reports links
   const tabs = [...document.querySelectorAll("#tabs .tab")];
   if (!tabs.some((t) => t.dataset.tab === name)) name = tabs[0].dataset.tab;
   for (const t of tabs) t.classList.toggle("active", t.dataset.tab === name);
