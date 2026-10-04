@@ -1,5 +1,8 @@
 /* Video backgrounds + switcher.
  *
+ * Default is "Matte": flat matte black with red rays flashing once a second
+ * (red-rays.js). The black-hole options below are still one tap away.
+ *
  * Two black-hole loops play at the same time ("Both", the default): the second
  * is screen-blended over the first so each shows through the other. The pill
  * at the bottom-right switches to either video alone or back to the animated
@@ -15,8 +18,8 @@
   var host = document.querySelector(".field-bg");
   if (!host) return;
 
-  var KEY = "stalkingstocks.bgmode";
-  var MODES = [["both", "Both"], ["v1", "Hole 1"], ["v2", "Hole 2"], ["canvas", "Animated"]];
+  var KEY = "stalkingstocks.bgmode2";
+  var MODES = [["matte", "Matte"], ["both", "Both"], ["v1", "Hole 1"], ["v2", "Hole 2"], ["canvas", "Animated"]];
   var VIDEOS = {
     v1: { src: "media/bg-hole-1.mp4", poster: "media/bg-hole-1.jpg" },
     v2: { src: "media/bg-hole-2.mp4", poster: "media/bg-hole-2.jpg" }
@@ -31,7 +34,7 @@
       var v = localStorage.getItem(KEY);
       for (var i = 0; i < MODES.length; i++) if (MODES[i][0] === v) return v;
     } catch (e) {}
-    return "both";
+    return "matte";
   }
   function save(v) {
     try { localStorage.setItem(KEY, v); } catch (e) {}
@@ -79,6 +82,7 @@
   var buttons = {};
 
   function apply() {
+    var matte = mode === "matte";
     var want = { v1: mode === "both" || mode === "v1", v2: mode === "both" || mode === "v2" };
     if (mode === "both" && small.matches) want.v2 = false; // one video on phones
     if (reduce || saveData) want = { v1: false, v2: false }; // stills/canvas only
@@ -87,8 +91,9 @@
     layer.hidden = !anyVideo;
     layer.classList.toggle("is-both", want.v1 && want.v2);
     var canvas = host.querySelector(".bh-canvas");
-    if (canvas) canvas.style.display = anyVideo ? "none" : "";
-    if (window.StalkingCanvasBg) window.StalkingCanvasBg[anyVideo ? "stop" : "start"]();
+    if (canvas) canvas.style.display = anyVideo || matte ? "none" : "";
+    if (window.StalkingCanvasBg) window.StalkingCanvasBg[anyVideo || matte ? "stop" : "start"]();
+    if (window.StalkingRedRays) window.StalkingRedRays[matte ? "start" : "stop"]();
 
     ["v1", "v2"].forEach(function (k) {
       shown[k] = want[k];
