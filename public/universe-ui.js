@@ -180,6 +180,86 @@
       </section>`;
   }
 
+  /* ---------- Australia universe (au-stocks.json, ASX listed companies) ---------- */
+  const aud = { status: "idle", rows: [], sectors: [], asOf: null };
+  async function loadAu() {
+    if (aud.status !== "idle") return;
+    aud.status = "loading";
+    try {
+      const res = await fetch("au-stocks.json");
+      if (!res.ok) throw new Error(String(res.status));
+      const d = await res.json();
+      aud.rows = d.rows.map((r) => ({ ...r, hay: `${r.n} ${r.t}`.toLowerCase() }));
+      aud.sectors = d.sectors || [];
+      aud.asOf = d.asOf || null;
+      aud.status = "ready";
+    } catch {
+      aud.status = "error";
+    }
+    render();
+  }
+  const listedAu = () => (aud.status === "ready" ? aud.rows.length : null);
+
+  const audCap = (v) => {
+    if (v == null) return "—";
+    if (v >= 1e12) return `$${dec(v / 1e12, 2)} Tn`;
+    if (v >= 1e9) return `$${dec(v / 1e9, 2)} Bn`;
+    if (v >= 1e6) return `$${dec(v / 1e6, 2)} Mn`;
+    return `$${dec(v, 0)}`;
+  };
+  let auSort = { key: "mc", dir: -1 }, auGroup = "";
+
+  function auBrowseHtml(c) {
+    if (aud.status === "idle" || aud.status === "loading") return `<section class="card"><p class="f-empty">Loading the ASX company list…</p></section>`;
+    if (aud.status === "error") return `<section class="card"><p class="f-error">Couldn't load au-stocks.json.</p></section>`;
+    const q = state.q.trim().toLowerCase();
+    let rows = aud.rows;
+    if (auGroup) rows = rows.filter((r) => r.sector === auGroup);
+    if (q) rows = rows.filter((r) => r.hay.includes(q));
+    const total = rows.length;
+    const k = auSort.key;
+    const sorted = rows.slice().sort((a, b) => {
+      const x = a[k], y = b[k];
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return (typeof x === "string" ? x.localeCompare(y) : x - y) * auSort.dir;
+    });
+    const page = sorted.slice(0, state.shown);
+    const th = (key, label, cls) => `<th class="${cls || ""} ur-sortable ${auSort.key === key ? "sorted" : ""}" data-asort="${key}">${label}${auSort.key === key ? (auSort.dir < 0 ? " ▼" : " ▲") : ""}</th>`;
+    const secCounts = new Map();
+    aud.rows.forEach((r) => secCounts.set(r.sector, (secCounts.get(r.sector) || 0) + 1));
+    const chips = [`<button type="button" class="ur-chip ${auGroup ? "" : "active"}" data-asector="">All <i>${fmt(aud.rows.length)}</i></button>`]
+      .concat(aud.sectors.map((s) => `<button type="button" class="ur-chip ${auGroup === s ? "active" : ""}" data-asector="${esc(s)}">${esc(s)} <i>${secCounts.get(s) || 0}</i></button>`))
+      .join("");
+    const trs = page.map((r) => `<tr>
+      <td class="ur-sticky"><b>${esc(r.n)}</b><small class="ur-tk">${esc(r.t)}</small></td>
+      <td class="ur-dim">${esc(r.sector)}</td>
+      <td class="ur-num">${audCap(r.mc)}</td>
+      <td class="ur-num">${r.w == null ? "—" : `<em class="pc">${dec(r.w, 3)}%</em>`}</td>
+      <td class="ur-act"><a class="kc-src" href="#chart/${encodeURIComponent(`ASX:${r.t}`)}">Chart</a></td>
+    </tr>`).join("");
+    return `
+      <section class="card">
+        <div class="section-title"><span><button type="button" class="ur-back" id="ur-back">← All markets</button></span></div>
+        <div class="ur-bhead">
+          <span class="ur-flag big">${c.flag}</span>
+          <div><h3>${esc(c.name)}</h3><p>${esc(c.exchange)} · AUD ($) · ${fmt(aud.rows.length)} companies (full ASX list)</p></div>
+        </div>
+        <div class="ur-note"><b>Snapshot.</b> Market cap and index weight are from an ASX export dated ${esc(aud.asOf || "unknown")} — names and tickers are current, but the figures are not live. No per-company page or SEC/annual-report lookup is available for Australia yet; "Chart" opens the live TradingView chart.</div>
+        <div class="ur-find"><input id="ur-q" type="search" placeholder="Search ASX companies by name or ticker…" value="${esc(state.q)}" autocomplete="off"></div>
+        <div class="ur-subhead">Sector</div>
+        <div class="ur-chips ur-chips-wrap">${chips}</div>
+        <div class="ur-scroll">
+          <table class="ur-table ur-au">
+            <thead><tr>${th("n", "Company", "ur-sticky")}${th("sector", "Sector")}${th("mc", "Market cap", "ur-num")}${th("w", "Index weight", "ur-num")}<th></th></tr></thead>
+            <tbody>${trs || `<tr><td colspan="5" class="f-empty">No companies match.</td></tr>`}</tbody>
+          </table>
+        </div>
+        <div class="ur-foot">Showing ${fmt(page.length)} of ${fmt(total)}${total > page.length ? ` <button type="button" class="ur-browse ghost" id="ur-more">Show more</button>` : ""}</div>
+      </section>`;
+  }
+
   // Name/ticker search over the India universe: ticker prefix > name prefix > contains.
   function searchIndia(q) {
     const t = q.trim().toLowerCase();
@@ -207,7 +287,7 @@
       <div class="ur-gres" id="ur-gres" hidden></div>
     </div>`;
 
-  function trackedCount(c) { return c.code === "US" && listedUs() != null ? listedUs() : c.stocks.length; }
+  function trackedCount(c) { return c.code === "US" && listedUs() != null ? listedUs() : c.code === "AU" && listedAu() != null ? listedAu() : c.stocks.length; }
   function listedIndia() { return dir.status === "ready" ? dir.rows.length : null; }
 
   /* ---------- markets view ---------- */
@@ -239,6 +319,7 @@
     const comp = listed != null
       ? `${fmt(listed)}<small>${trackedCount(c)} on the heatmap</small>`
       : c.code === "US" && listedUs() != null ? `${trackedCount(c)}<small>Dhan US list</small>`
+      : c.code === "AU" && listedAu() != null ? `${trackedCount(c)}<small>Full ASX list</small>`
       : `${trackedCount(c)}<small>tracked basket</small>`;
     const rep = m.reports
       ? `<span class="ur-badge ${m.lvl}">${esc(m.reports)}</span>`
@@ -303,6 +384,7 @@
 
   function browseHtml(c) {
     if (c.code === "US") return usBrowseHtml(c);
+    if (c.code === "AU") return auBrowseHtml(c);
     const m = META[c.code];
     if (c.code === "IN" && dir.status === "loading") return `<section class="card"><p class="f-empty">Loading the NSE/BSE company list…</p></section>`;
     if (c.code === "IN" && dir.status === "error") return `<section class="card"><p class="f-error">Couldn't load companies.json.</p></section>`;
@@ -409,8 +491,10 @@
     state.group = "";
     state.q = "";
     state.shown = 100;
+    auGroup = "";
     if (code === "IN") loadDir();
     if (code === "US") loadUs();
+    if (code === "AU") loadAu();
     location.hash = `#universe/${code}`; // route() renders via tabchange
   }
 
@@ -423,7 +507,7 @@
     if ((valid === "IN" || valid === "US") && sym) {
       try { company = decodeURIComponent(sym); } catch { company = null; }
     }
-    if (valid !== state.market || company !== state.company) { state.group = ""; state.q = ""; state.shown = 100; }
+    if (valid !== state.market || company !== state.company) { state.group = ""; state.q = ""; state.shown = 100; auGroup = ""; }
     state.market = valid;
     state.company = company;
     state.companyMkt = company ? valid : null;
@@ -432,6 +516,7 @@
     else if (state.view === "markets") render();
     if (valid === "IN") loadDir();
     if (valid === "US") loadUs();
+    if (valid === "AU") loadAu();
   }
 
   sw.addEventListener("click", (e) => {
@@ -453,6 +538,14 @@
       if (usSort.key === key) usSort.dir *= -1; else { usSort.key = key; usSort.dir = key === "n" ? 1 : -1; }
       return render();
     }
+    const aso = t.closest("[data-asort]");
+    if (aso) {
+      const key = aso.dataset.asort;
+      if (auSort.key === key) auSort.dir *= -1; else { auSort.key = key; auSort.dir = key === "n" || key === "sector" ? 1 : -1; }
+      return render();
+    }
+    const ag = t.closest("[data-asector]");
+    if (ag) { auGroup = ag.dataset.asector; state.shown = 100; return render(); }
     if (t.closest("#ur-back")) { location.hash = "#universe"; return; }
     if (t.closest("#ur-more")) { state.shown += 200; return render(); }
     const rp = t.closest("[data-reports]");
@@ -510,8 +603,9 @@
     if (!isActive()) return;
     loadDir();
     loadUs();
+    loadAu();
     route();
   });
-  if (isActive()) { loadDir(); loadUs(); route(); }
+  if (isActive()) { loadDir(); loadUs(); loadAu(); route(); }
   render();
 })();

@@ -290,3 +290,14 @@ the list (new listings, renamed tickers); commit the regenerated `public/compani
     node scripts/import-us-stocks.js path/to/Dhan_-_US_All_Us_Stocks.csv
 
 The CSV has no ticker column, so tickers come from the table at the top of the script (names it doesn't know show without a page link). Market cap is treated as $ millions and displayed as $ Tn / Bn / Mn.
+
+## Australian company list (Universe → Australia)
+
+`public/au-stocks.json` is built from an ASX-listed-companies export (Code,
+Company, Sector, Market Cap, Weight(%)):
+
+    node scripts/import-au-stocks.js path/to/asx-listed-companies.csv
+
+Every row already carries its own ASX code, so (unlike the US import) there's
+no name-to-ticker table to maintain. The export's date is kept as `asOf` and
+shown on the page, since market cap and weight are a snapshot, not live.

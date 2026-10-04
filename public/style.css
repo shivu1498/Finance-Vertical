@@ -3208,3 +3208,7 @@ em.pc { font-style: italic; }
 .ur-us td.ur-num { font-variant-numeric: tabular-nums; }
 .ur-us td.ur-num .pos { color: var(--up-strong); }
 .ur-us td.ur-num .neg { color: var(--down-strong); }
+
+/* ---------- Universe: Australia list table ---------- */
+.ur-au { font-size: 0.86rem; min-width: 760px; }
+.ur-au td.ur-sticky small { display: block; margin-top: 2px; }
