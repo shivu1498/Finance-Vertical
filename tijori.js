@@ -59,7 +59,7 @@ function slugCandidates(name) {
 function pageMatches(html, tickers, name) {
   const text = html.replace(/&amp;/g, "&");
   const ids = [].concat(tickers).filter(Boolean);
-  const hasId = ids.some((id) => {
+  const hasId = !ids.length || ids.some((id) => {
     const esc = String(id).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp(`(^|[^A-Za-z0-9&-])${esc}([^A-Za-z0-9&-]|$)`).test(text);
   });
@@ -243,14 +243,32 @@ const normName = (n) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-// Which search result is the company? An exact (normalised) name match wins;
+// Spaces, hyphens and the legal suffix don't count: "Titan Biotech" and
+// Tijori's "Titan Bio-Tech Ltd." both compact to "titanbiotech".
+const compactName = (n) => normName(n).replace(/\b(limited|private|pvt)\b/g, "").replace(/\s+/g, "");
+
+// Which search result is the company? An exact (compacted) name match wins;
 // otherwise a lone result is accepted only for a precise query (BSE code).
 function pickSearchResult(results, wantNames, { loneOk = false } = {}) {
   const live = (Array.isArray(results) ? results : []).filter((r) => r && r.type === "companies" && r.slug && /^[a-z0-9-]+$/.test(r.slug));
-  const wants = [].concat(wantNames).filter(Boolean).map(normName);
-  const exact = live.find((r) => wants.includes(normName(r.name)));
+  const wants = [].concat(wantNames).filter(Boolean).map(compactName).filter(Boolean);
+  const exact = live.find((r) => wants.includes(compactName(r.name)));
   if (exact) return exact;
   return loneOk && live.length === 1 ? live[0] : null;
+}
+
+// The search only matches on Tijori's own word breaks ("titan biotech" finds
+// nothing for "Titan Bio-Tech Ltd."), so an empty answer is retried with less of
+// the name: the name without its suffix, first word + 3 letters of the next,
+// then the first word alone. Results are still picked by compacted name.
+function searchQueries(name) {
+  if (!name) return [];
+  const words = normName(name).split(" ").filter((w) => w && w !== "limited" && w !== "private" && w !== "pvt");
+  if (!words.length) return [];
+  const out = [words.join(" ")];
+  if (words.length > 1) out.push(`${words[0]} ${words[1].slice(0, 3)}`);
+  if (words[0].length >= 3) out.push(words[0]);
+  return [...new Set(out)];
 }
 
 function withTimeout(ms) {
@@ -297,7 +315,7 @@ function createResolver({
   }
 
   // "ok" = confirmed company page, "miss" = not this company, "error" = couldn't tell
-  async function probe(slug, ids, name) {
+  async function probe(slug, ids, name, trusted = false) {
     const url = `${tijoriBase}/company/${slug}/`;
     try {
       const res = await fetchImpl(url, {
@@ -315,7 +333,7 @@ function createResolver({
       }
       if (!path.startsWith("/company/")) return { state: "miss", url };
       const html = await res.text();
-      return pageMatches(html, ids, name) ? { state: "ok", url, html } : { state: "miss", url };
+      return pageMatches(html, trusted ? [] : ids, name) ? { state: "ok", url, html } : { state: "miss", url };
     } catch {
       return { state: "error", url };
     }
@@ -367,20 +385,30 @@ function createResolver({
     let firstGuess = null;
     let sawError = false;
 
-    // Tijori's search first (BSE code is the precise query; then the legal
-    // name; then the list's short name), then slugs guessed from the name.
-    const slugs = [];
+    // Tijori's search first, then slugs guessed from the name. Queries, most
+    // precise first: BSE code, the legal name, the list's short name, each
+    // retried shorter if empty. A slug the search returned for an exactly
+    // matching name is trusted: the page only has to name the company (BSE-only
+    // companies often don't show a code on the page).
     const names = [named.name, rec && rec.name];
-    const queries = [rec && rec.bse ? [rec.bse, { loneOk: true }] : null, [named.name, {}], rec && rec.name && rec.name !== named.name ? [rec.name, {}] : null].filter(Boolean);
-    for (const [q, opts] of queries) {
+    const queries = [];
+    if (rec && rec.bse) queries.push([rec.bse, { loneOk: true }]);
+    for (const n of names) for (const q of searchQueries(n)) if (!queries.some(([x]) => x === q)) queries.push([q, {}]);
+    const slugs = [];
+    const fromSearch = new Set();
+    for (const [q, opts] of queries.slice(0, 6)) {
       const found = await searchSlug(q, names, opts);
       if (found.error) sawError = true;
-      else if (found.slug && !slugs.includes(found.slug)) slugs.push(found.slug);
+      else if (found.slug) {
+        slugs.push(found.slug);
+        fromSearch.add(found.slug);
+        break;
+      }
     }
     for (const g of slugCandidates(named.name)) if (!slugs.includes(g)) slugs.push(g);
 
     for (const slug of slugs.slice(0, MAX_CANDIDATES + 2)) {
-      const r = await probe(slug, ids, named.name);
+      const r = await probe(slug, ids, named.name, fromSearch.has(slug));
       firstGuess = firstGuess || { slug, url: r.url };
       if (r.state === "ok") {
         let groups = [];
@@ -441,4 +469,4 @@ function createRouter(resolver) {
   return router;
 }
 
-module.exports = { createResolver, createRouter, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase, pickSearchResult };
+module.exports = { createResolver, createRouter, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase, pickSearchResult, searchQueries };

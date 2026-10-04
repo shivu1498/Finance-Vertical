@@ -1,5 +1,5 @@
 // Unit tests for tijori.js. No network and no express needed: fetch is mocked.
-const { createResolver, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase, pickSearchResult } = require("../tijori");
+const { createResolver, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase, pickSearchResult, searchQueries } = require("../tijori");
 const { createDirectory } = require("../companies");
 const { build, parseCsv } = require("../scripts/import-companies");
 
@@ -224,7 +224,7 @@ const htmlRes = (url, body, finalUrl) => ({ ok: true, status: 200, url: finalUrl
   // slug that can't be derived from the name: the search finds it
   f = mockFetch([
     ["https://y/v8/finance/chart/SMLISUZU.NS", () => yahoo("SML Mahindra Limited")],
-    ["https://t/api/v1/ind/company_search/?q=SML%20Mahindra%20Limited", () => ({ ok: true, status: 200, text: async () => JSON.stringify(SEARCH) })],
+    ["https://t/api/v1/ind/company_search/?q=sml%20mahindra", () => ({ ok: true, status: 200, text: async () => JSON.stringify(SEARCH) })],
     ["https://t/company/sml-isuzu-limited/", (u) => htmlRes(u, page("SML Mahindra Ltd. SMLISUZU"))],
   ]);
   r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("SMLISUZU");
@@ -248,6 +248,28 @@ const htmlRes = (url, body, finalUrl) => ({ ok: true, status: 200, url: finalUrl
   ]);
   r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("GRASIM");
   check("resolver: search outage falls back to name-derived slug", r.tijori.status === "verified" && r.tijori.slug === "grasim-industries-limited");
+
+  // Titan Biotech: Tijori calls it "Titan Bio-Tech Ltd." (slug titan-bio-tech-ltd);
+  // "titan biotech" finds nothing there, "titan bio" does. BSE-only, and the page
+  // doesn't show the BSE code, so the search-derived slug is trusted on the name.
+  check("search queries: suffix dropped, then shorter", eq(searchQueries("Titan Biotech Limited"), ["titan biotech", "titan bio", "titan"]), JSON.stringify(searchQueries("Titan Biotech Limited")));
+  check("search queries: single word, empty", eq(searchQueries("Grasim"), ["grasim"]) && eq(searchQueries(""), []) && eq(searchQueries(null), []));
+  const TB = [{ name: "Titan Bio-Tech Ltd.", slug: "titan-bio-tech-ltd", type: "companies" }, { name: "Titan Company Ltd.", slug: "titan-company-limited", type: "companies" }, { name: "Titan Edge", slug: "titan-company-limited", type: "brands" }];
+  check("search pick: hyphen/space differences ignored", pickSearchResult(TB, ["Titan Biotech Limited"]).slug === "titan-bio-tech-ltd");
+  check("search pick: brands are not companies", pickSearchResult([TB[2]], ["Titan Edge"], { loneOk: true }) === null);
+  check("search pick: similar name is not enough", pickSearchResult(TB, ["Titan Biotech Pharma"]) === null);
+  {
+    const tbDir = createDirectory(build("Name,BSE Code,NSE Code,ISIN Code,Industry Group,Industry\r\nTitan Biotech,524717,,INE150C01029,Chemicals & Petrochemicals,Specialty Chemicals").data);
+    f = mockFetch([
+      ["https://y/v8/finance/chart/524717.BO", () => yahoo("Titan Biotech Limited")],
+      ["https://t/api/v1/ind/company_search/?q=524717", () => ({ ok: true, status: 200, text: async () => "[]" })],
+      ["https://t/api/v1/ind/company_search/?q=titan%20biotech", () => ({ ok: true, status: 200, text: async () => "[]" })],
+      ["https://t/api/v1/ind/company_search/?q=titan%20bio", () => ({ ok: true, status: 200, text: async () => JSON.stringify(TB) })],
+      ["https://t/company/titan-bio-tech-ltd/", (u) => htmlRes(u, page("<h1>Titan Bio-Tech Ltd.</h1> Specialty Chemicals"))],
+    ]);
+    r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t", directory: tbDir }).resolve("524717");
+    check("Titan Biotech: found by retrying a shorter query, verified on name", r.tijori.status === "verified" && r.tijori.slug === "titan-bio-tech-ltd", JSON.stringify(r.tijori));
+  }
 
   console.log(fails ? `\n${fails} FAILED` : "\nall passed");
   process.exit(fails ? 1 : 0);
