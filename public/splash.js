@@ -1,5 +1,5 @@
-/* Builds the intro's table rows and counter, and removes the overlay.
- * Markup lives in index.html (#splash); timing is all CSS (splash.css). */
+/* Builds the intro's rows, letters and counter, and removes the overlay.
+ * Markup lives in index.html (#splash); all timing is in splash.css. */
 (function () {
   "use strict";
   var el = document.getElementById("splash");
@@ -18,9 +18,19 @@
     table.innerHTML = h;
   }
 
-  // "Scanning N companies" counter, tied to the beam's sweep (0.12 s -> 1.12 s).
+  // Wordmark letters, so each can flip up in 3D on its own beat.
+  var n = 0;
+  el.querySelectorAll("[data-letters]").forEach(function (w) {
+    var out = "";
+    w.getAttribute("data-letters").split("").forEach(function (ch) {
+      out += '<span class="sp-l" style="--i:' + n++ + '">' + ch + "</span>";
+    });
+    w.innerHTML = out;
+  });
+
+  // "Scanning N companies" counter, tied to the beam's run (1.0 s -> 3.5 s).
   var counter = el.querySelector("[data-count]");
-  var TOTAL = 3933, start = performance.now() + 120, DUR = 1000;
+  var TOTAL = 3933, start = performance.now() + 1000, DUR = 2500;
   function tick(now) {
     if (!el.isConnected) return;
     var p = Math.min(Math.max((now - start) / DUR, 0), 1);
@@ -30,8 +40,8 @@
   requestAnimationFrame(tick);
 
   function remove() { if (el.parentNode) el.parentNode.removeChild(el); }
-  el.addEventListener("animationend", function (e) { if (e.animationName === "sp-out") remove(); });
-  setTimeout(remove, 2200); // failsafe
+  el.addEventListener("animationend", function (e) { if (e.animationName === "sp-out" && e.target === el) remove(); });
+  setTimeout(remove, 5800); // failsafe
   el.addEventListener("click", function () { el.classList.add("sp-skip"); });
   window.addEventListener("keydown", function once() { window.removeEventListener("keydown", once); el.classList.add("sp-skip"); });
 })();

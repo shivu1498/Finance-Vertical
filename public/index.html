@@ -9,10 +9,12 @@
 </head>
 <body>
 <div id="splash" aria-hidden="true">
-  <div class="sp-table"></div>
-  <div class="sp-beam"></div>
-  <div class="sp-stage">
-    <svg class="sp-logo" viewBox="0 0 48 48"  aria-hidden="true">
+  <div class="sp-world">
+    <div class="sp-floor"><div class="sp-table"></div><div class="sp-beam"></div></div>
+    <div class="sp-ribbons"><i class="sp-rib" style="--r:0"></i><i class="sp-rib" style="--r:1"></i><i class="sp-rib" style="--r:2"></i><i class="sp-rib" style="--r:3"></i><i class="sp-rib" style="--r:4"></i><i class="sp-rib" style="--r:5"></i></div>
+    <div class="sp-flash"></div>
+    <div class="sp-stage">
+      <svg class="sp-logo" viewBox="0 0 48 48"  aria-hidden="true">
         <g stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
           <path d="M15 45 L15.4 36.5 C13 33.5 12 29 12.6 22.5 L30.6 22.5 C31.2 24.5 31.8 26 33 27.6 L35.4 29 L32.3 30.4 L32.8 31.8 L31.8 33.2 L32.2 35.2 C31 37.6 28.6 38.6 25.4 38.8 L24.6 41 L24.6 45 Z" fill="currentColor" fill-opacity=".22"/>
           <path d="M12.2 22 C11.4 13.6 18 9.6 23.4 10.4 C28.6 11 31.4 15.2 30.6 21.6 Q21.4 24.2 12.2 22 Z" fill="currentColor" fill-opacity=".6"/>
@@ -26,7 +28,8 @@
           <path d="M41.6 34.2 Q43.4 32.4 42.2 30.4 Q41.4 28.8 42.8 27.2" fill="none" stroke-width="1" opacity=".55"/>
         </g>
       </svg>
-    <div class="sp-word"><span class="sp-text">Stalking<b>Stocks</b></span>
+      <div class="sp-word">
+        <span class="sp-w sp-w1" data-letters="Stalking">Stalking</span><span class="sp-w sp-w2" data-letters="Stocks">Stocks</span>
         <svg class="sp-lens" viewBox="0 0 64 64" aria-hidden="true">
           <circle cx="26" cy="26" r="19" fill="rgba(255,255,255,.06)" stroke="#e9e9ec" stroke-width="4"/>
           <circle cx="26" cy="26" r="15" fill="none" stroke="rgba(255,77,67,.55)" stroke-width="1.5"/>
@@ -34,9 +37,11 @@
           <path d="M40 40 L58 58" stroke="#b9b9c0" stroke-width="7" stroke-linecap="round"/>
           <path d="M44 44 L56 56" stroke="#2a2a2f" stroke-width="3" stroke-linecap="round" opacity=".6"/>
         </svg>
+      </div>
     </div>
   </div>
   <div class="sp-status">Scanning<span><em data-count>0</em> companies</span></div>
+  <div class="sp-skip-hint">Click to skip</div>
 </div>
 <script src="splash.js"></script>
 <div class="field-bg" aria-hidden="true"></div>
