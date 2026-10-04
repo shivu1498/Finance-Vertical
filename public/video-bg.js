@@ -1,16 +1,12 @@
-/* Video backgrounds + switcher.
+/* Background switcher.
  *
- * Default is "Matte": flat matte black with red rays flashing once a second
- * (red-rays.js). The black-hole options below are still one tap away.
- *
- * Two black-hole loops play at the same time ("Both", the default): the second
- * is screen-blended over the first so each shows through the other. The pill
- * at the bottom-right switches to either video alone or back to the animated
- * canvas (blackhole-bg.js). The choice is remembered per browser.
+ * Default is "Matte": flat matte black with a coloured ray flashing once a
+ * second (red-rays.js). "Hole 1" and "Hole 2" play one black-hole video each.
+ * The choice is remembered per browser.
  *
  * Kept light on purpose: videos are created only when first needed, are muted,
- * pause when the tab is hidden, phones get one video instead of two, and
- * reduced-motion / data-saver users keep the still-or-canvas background.
+ * pause when the tab is hidden, and reduced-motion / data-saver users get
+ * plain matte black instead of video.
  */
 (function () {
   "use strict";
@@ -19,7 +15,7 @@
   if (!host) return;
 
   var KEY = "stalkingstocks.bgmode2";
-  var MODES = [["matte", "Matte"], ["both", "Both"], ["v1", "Hole 1"], ["v2", "Hole 2"], ["canvas", "Animated"]];
+  var MODES = [["matte", "Matte"], ["v1", "Hole 1"], ["v2", "Hole 2"]];
   var VIDEOS = {
     v1: { src: "media/bg-hole-1.mp4", poster: "media/bg-hole-1.jpg" },
     v2: { src: "media/bg-hole-2.mp4", poster: "media/bg-hole-2.jpg" }
@@ -27,7 +23,6 @@
 
   var reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   var saveData = !!(navigator.connection && navigator.connection.saveData);
-  var small = window.matchMedia ? window.matchMedia("(max-width: 700px)") : { matches: false };
 
   function read() {
     try {
@@ -83,16 +78,11 @@
 
   function apply() {
     var matte = mode === "matte";
-    var want = { v1: mode === "both" || mode === "v1", v2: mode === "both" || mode === "v2" };
-    if (mode === "both" && small.matches) want.v2 = false; // one video on phones
+    var want = { v1: mode === "v1", v2: mode === "v2" };
     if (reduce || saveData) want = { v1: false, v2: false }; // stills/canvas only
 
     var anyVideo = want.v1 || want.v2;
     layer.hidden = !anyVideo;
-    layer.classList.toggle("is-both", want.v1 && want.v2);
-    var canvas = host.querySelector(".bh-canvas");
-    if (canvas) canvas.style.display = anyVideo || matte ? "none" : "";
-    if (window.StalkingCanvasBg) window.StalkingCanvasBg[anyVideo || matte ? "stop" : "start"]();
     if (window.StalkingRedRays) window.StalkingRedRays[matte ? "start" : "stop"]();
 
     ["v1", "v2"].forEach(function (k) {
@@ -143,7 +133,6 @@
       else play(vids[k]);
     });
   });
-  if (small.addEventListener) small.addEventListener("change", apply);
 
   // Some browsers (low-power mode) block autoplay until a gesture.
   window.addEventListener("pointerdown", function once() {
