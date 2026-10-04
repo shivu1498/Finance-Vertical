@@ -1,6 +1,6 @@
 // Connects an NSE ticker to its company page on Tijori Finance.
 //
-//   ticker -> company name -> Tijori slug -> verified Tijori page URL
+//   ticker -> company name -> Tijori slug (from Tijori's search) -> verified page URL
 //
 // The company name comes from Screener.in when SCREENER_SESSIONID is set (it
 // has no public API, see screener.js), otherwise from Yahoo Finance, which is
@@ -12,7 +12,9 @@
 // page rather than a 404, so a candidate only counts as a match when it stays
 // on /company/... AND the page mentions both the ticker and the company name.
 //
-// Nothing here copies Tijori's content; it only finds and verifies the link.
+// From the verified page we also read the Knowledge Base link list (titles,
+// authors and outbound URLs only, see parseKnowledgeBase) so the app can show
+// it inline; results are cached for a day per ticker.
 
 const TIJORI_BASE = process.env.TIJORI_BASE || "https://www.tijorifinance.com";
 const YAHOO_BASE = process.env.YAHOO_BASE || "https://query1.finance.yahoo.com";
@@ -57,7 +59,7 @@ function slugCandidates(name) {
 function pageMatches(html, tickers, name) {
   const text = html.replace(/&amp;/g, "&");
   const ids = [].concat(tickers).filter(Boolean);
-  const hasId = ids.some((id) => {
+  const hasId = !ids.length || ids.some((id) => {
     const esc = String(id).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp(`(^|[^A-Za-z0-9&-])${esc}([^A-Za-z0-9&-]|$)`).test(text);
   });
@@ -66,6 +68,207 @@ function pageMatches(html, tickers, name) {
     .split(/[^a-z0-9]+/)
     .filter(Boolean)[0];
   return hasId && (!core || text.toLowerCase().includes(core));
+}
+
+// ---- Knowledge Base links ----
+//
+// The company page is server-rendered. Its Knowledge Base section reads, in
+// document order:
+//   Discussions & Analysis
+//   <group title>                       e.g. "Cement"
+//   <a href="https://...">Title</a> - Author
+//   ...
+//   Submit your Links                   (end of section)
+// We don't depend on Tijori's class names: the section is cut out between
+// those markers and split into blocks at block-level tags. A block with an
+// outbound link is a link row (the rest of its text is the author); a short
+// block of plain text is a group title. Only titles, authors and URLs are
+// kept, and every link points at the original author's content.
+
+const MAX_KB_LINKS = 400;
+const BLOCK_TAGS = new Set(
+  "div p li ul ol h1 h2 h3 h4 h5 h6 section article header footer nav br hr tr td th table tbody thead dl dt dd button form label aside main figure".split(" ")
+);
+const SKIP_TITLES = /^(knowledge\s*base|discussions\s*&\s*analysis|discussions and analysis|submit.*|show (more|less)|view (more|all)|load more)$/i;
+
+function decodeEntities(s) {
+  return String(s)
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&nbsp;/g, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&ndash;/g, "–")
+    .replace(/&mdash;/g, "—")
+    .replace(/&amp;/g, "&");
+}
+const clean = (s) => decodeEntities(s).replace(/\s+/g, " ").trim();
+
+// The Knowledge Base slice of the page, or "" when the page has none.
+function kbSlice(html) {
+  const src = String(html || "");
+  const anchor = Math.max(src.search(/id=["']knowledge-?base["']/i), 0);
+  const endAt = src.slice(anchor).search(/Submit\s+(your\s+links|a\s+link)/i);
+  const end = endAt >= 0 ? anchor + endAt : Math.min(src.length, anchor + 300000);
+  // The last "Discussions & Analysis" before the end marker, so a nav tab
+  // with the same words earlier on the page doesn't widen the slice.
+  const re = /Discussions\s*(&amp;|&|and)\s*Analysis/gi;
+  let start = -1;
+  let m;
+  while ((m = re.exec(src)) && m.index < end) start = m.index;
+  if (start < 0 || start >= end) return "";
+  return src.slice(start, end);
+}
+
+function outbound(href, tijoriHost) {
+  try {
+    const u = new URL(decodeEntities(href));
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    if (tijoriHost && u.hostname.replace(/^www\./, "") === tijoriHost) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function parseKnowledgeBase(html, { tijoriBase = TIJORI_BASE } = {}) {
+  let tijoriHost = "";
+  try {
+    tijoriHost = new URL(tijoriBase).hostname.replace(/^www\./, "");
+  } catch {
+    // relative/odd base: only scheme filtering applies
+  }
+  const slice = kbSlice(html)
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|svg|noscript|template)\b[\s\S]*?<\/\1>/gi, " ");
+  if (!slice) return [];
+
+  const blocks = [];
+  let cur = { text: "", anchors: [] };
+  let anchor = null;
+  const flush = () => {
+    if (anchor) cur.anchors.push(anchor), (anchor = null);
+    if (cur.text.trim() || cur.anchors.length) blocks.push(cur);
+    cur = { text: "", anchors: [] };
+  };
+
+  const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g;
+  let last = 0;
+  let m;
+  while ((m = tagRe.exec(slice))) {
+    const text = slice.slice(last, m.index);
+    cur.text += text;
+    if (anchor) anchor.text += text;
+    last = tagRe.lastIndex;
+    const [, close, rawTag, attrs] = m;
+    const tag = rawTag.toLowerCase();
+    if (tag === "a") {
+      if (close) {
+        if (anchor) cur.anchors.push(anchor);
+        anchor = null;
+      } else {
+        if (anchor) cur.anchors.push(anchor);
+        const href = /\bhref\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(attrs);
+        anchor = { href: href ? href[2] ?? href[3] ?? href[4] : "", text: "" };
+      }
+    } else if (BLOCK_TAGS.has(tag)) {
+      flush();
+    }
+  }
+  cur.text += slice.slice(last);
+  flush();
+
+  const groups = [];
+  let group = null;
+  let lastLink = null;
+  let total = 0;
+  const seen = new Set();
+  for (const b of blocks) {
+    const text = clean(b.text);
+    const links = b.anchors
+      .map((a) => ({ url: outbound(a.href, tijoriHost), title: clean(a.text) }))
+      .filter((a) => a.url);
+    if (links.length) {
+      // Several anchors to one URL (icon + title) count once; keep the longest title.
+      const byUrl = new Map();
+      for (const l of links) if (!byUrl.has(l.url) || l.title.length > byUrl.get(l.url).title.length) byUrl.set(l.url, l);
+      const uniq = [...byUrl.values()].filter((l) => l.title);
+      let by = "";
+      if (uniq.length === 1) {
+        by = text.replace(uniq[0].title, "").replace(/^[\s\-–—|:•·]+/, "").replace(/^by\s+/i, "").trim();
+      }
+      for (const l of uniq) {
+        if (total >= MAX_KB_LINKS) break;
+        if (!group) groups.push((group = { title: "", links: [] }));
+        const key = `${group.title}\n${l.url}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        lastLink = { title: l.title, by: uniq.length === 1 ? by : "", url: l.url };
+        group.links.push(lastLink);
+        total++;
+      }
+      continue;
+    }
+    if (!text) continue;
+    // "- Author" split into its own element: attach to the previous link.
+    if (/^[\-–—]\s*\S/.test(text) && lastLink && !lastLink.by) {
+      lastLink.by = text.replace(/^[\-–—]\s*/, "");
+      continue;
+    }
+    if (text.length > 80 || SKIP_TITLES.test(text)) continue;
+    group = { title: text, links: [] };
+    groups.push(group);
+    lastLink = null;
+  }
+  return groups.filter((g) => g.links.length);
+}
+
+// ---- Tijori's own company search ----
+//
+// The search bar on tijorifinance.com calls
+//   GET /api/v1/ind/company_search/?q=<text>   (public, no login)
+// and gets a JSON array of { name, slug, type }. Slugs can't always be derived
+// from names ("SML Mahindra Ltd." -> sml-isuzu-limited), so the slug is taken
+// from here first and the name-derived guesses are only a fallback. Only
+// type "companies" counts; delisted entries and rights issues are "InActive".
+// Searching by NSE ticker finds nothing, but names and BSE codes work.
+
+const normName = (n) =>
+  decodeEntities(n)
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/\bltd\b/g, "limited")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+// Spaces, hyphens and the legal suffix don't count: "Titan Biotech" and
+// Tijori's "Titan Bio-Tech Ltd." both compact to "titanbiotech".
+const compactName = (n) => normName(n).replace(/\b(limited|private|pvt)\b/g, "").replace(/\s+/g, "");
+
+// Which search result is the company? An exact (compacted) name match wins;
+// otherwise a lone result is accepted only for a precise query (BSE code).
+function pickSearchResult(results, wantNames, { loneOk = false } = {}) {
+  const live = (Array.isArray(results) ? results : []).filter((r) => r && r.type === "companies" && r.slug && /^[a-z0-9-]+$/.test(r.slug));
+  const wants = [].concat(wantNames).filter(Boolean).map(compactName).filter(Boolean);
+  const exact = live.find((r) => wants.includes(compactName(r.name)));
+  if (exact) return exact;
+  return loneOk && live.length === 1 ? live[0] : null;
+}
+
+// The search only matches on Tijori's own word breaks ("titan biotech" finds
+// nothing for "Titan Bio-Tech Ltd."), so an empty answer is retried with less of
+// the name: the name without its suffix, first word + 3 letters of the next,
+// then the first word alone. Results are still picked by compacted name.
+function searchQueries(name) {
+  if (!name) return [];
+  const words = normName(name).split(" ").filter((w) => w && w !== "limited" && w !== "private" && w !== "pvt");
+  if (!words.length) return [];
+  const out = [words.join(" ")];
+  if (words.length > 1) out.push(`${words[0]} ${words[1].slice(0, 3)}`);
+  if (words[0].length >= 3) out.push(words[0]);
+  return [...new Set(out)];
 }
 
 function withTimeout(ms) {
@@ -112,7 +315,7 @@ function createResolver({
   }
 
   // "ok" = confirmed company page, "miss" = not this company, "error" = couldn't tell
-  async function probe(slug, ids, name) {
+  async function probe(slug, ids, name, trusted = false) {
     const url = `${tijoriBase}/company/${slug}/`;
     try {
       const res = await fetchImpl(url, {
@@ -129,9 +332,25 @@ function createResolver({
         path = new URL(url).pathname;
       }
       if (!path.startsWith("/company/")) return { state: "miss", url };
-      return { state: pageMatches(await res.text(), ids, name) ? "ok" : "miss", url };
+      const html = await res.text();
+      return pageMatches(html, trusted ? [] : ids, name) ? { state: "ok", url, html } : { state: "miss", url };
     } catch {
       return { state: "error", url };
+    }
+  }
+
+  // -> { slug } | { slug: null } | { error: true }
+  async function searchSlug(query, wantNames, opts) {
+    try {
+      const res = await fetchImpl(`${tijoriBase}/api/v1/ind/company_search/?q=${encodeURIComponent(query)}`, {
+        headers: { "User-Agent": UA, Accept: "application/json" },
+        signal: withTimeout(TIMEOUT_MS),
+      });
+      if (!res.ok) return res.status === 404 ? { slug: null } : { error: true };
+      const hit = pickSearchResult(JSON.parse(await res.text()), wantNames, opts);
+      return { slug: hit ? hit.slug : null };
+    } catch {
+      return { error: true };
     }
   }
 
@@ -165,11 +384,45 @@ function createResolver({
 
     let firstGuess = null;
     let sawError = false;
-    for (const slug of slugCandidates(named.name)) {
-      const r = await probe(slug, ids, named.name);
+
+    // Tijori's search first, then slugs guessed from the name. Queries, most
+    // precise first: BSE code, the legal name, the list's short name, each
+    // retried shorter if empty. A slug the search returned for an exactly
+    // matching name is trusted: the page only has to name the company (BSE-only
+    // companies often don't show a code on the page).
+    const names = [named.name, rec && rec.name];
+    const queries = [];
+    if (rec && rec.bse) queries.push([rec.bse, { loneOk: true }]);
+    for (const n of names) for (const q of searchQueries(n)) if (!queries.some(([x]) => x === q)) queries.push([q, {}]);
+    const slugs = [];
+    const fromSearch = new Set();
+    for (const [q, opts] of queries.slice(0, 6)) {
+      const found = await searchSlug(q, names, opts);
+      if (found.error) sawError = true;
+      else if (found.slug) {
+        slugs.push(found.slug);
+        fromSearch.add(found.slug);
+        break;
+      }
+    }
+    for (const g of slugCandidates(named.name)) if (!slugs.includes(g)) slugs.push(g);
+
+    for (const slug of slugs.slice(0, MAX_CANDIDATES + 2)) {
+      const r = await probe(slug, ids, named.name, fromSearch.has(slug));
       firstGuess = firstGuess || { slug, url: r.url };
       if (r.state === "ok") {
-        return { ...base, tijori: { status: "verified", slug, url: `${r.url}#knowledgebase` } };
+        let groups = [];
+        try {
+          groups = parseKnowledgeBase(r.html, { tijoriBase });
+        } catch {
+          // odd markup: still a verified link, just no inline list
+        }
+        const count = groups.reduce((n, g) => n + g.links.length, 0);
+        return {
+          ...base,
+          tijori: { status: "verified", slug, url: `${r.url}#knowledgebase` },
+          knowledge: count ? { groups, count, fetchedAt: new Date(now()).toISOString() } : null,
+        };
       }
       if (r.state === "error") sawError = true;
     }
@@ -216,4 +469,4 @@ function createRouter(resolver) {
   return router;
 }
 
-module.exports = { createResolver, createRouter, normalizeTicker, slugCandidates, pageMatches };
+module.exports = { createResolver, createRouter, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase, pickSearchResult, searchQueries };

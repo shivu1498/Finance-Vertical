@@ -242,3 +242,7 @@ node scripts/import-companies.js path/to/bse-nse-company-list.csv
 
 Rows with neither an NSE nor a BSE code are skipped. Re-run the script with a newer CSV to refresh
 the list (new listings, renamed tickers); commit the regenerated `public/companies.json`.
+
+### Tijori Knowledge Base links
+
+`/api/tijori/resolve` now also returns `knowledge` (groups of title / author / outbound URL) read from the verified Tijori company page, cached 24h per ticker. The Company view shows it inline for any company; Grasim's curated list in `public/company-knowledge.js` still takes precedence. If Tijori blocks our server the card falls back to the "Knowledge Base on Tijori" link.
