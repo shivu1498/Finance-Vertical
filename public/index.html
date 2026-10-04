@@ -132,11 +132,16 @@
   <div class="tab-panel" data-panel="knowledge" hidden>
     <section class="card k-head">
       <div>
-        <h2 class="k-title">Sector Specific Knowledge</h2>
-        <p class="k-sub">Curated sector research, one sub-tab per sector. Pick a thumbnail to dive in.</p>
+        <h2 class="k-title" id="kx-title">Sector Specific Knowledge</h2>
+        <p class="k-sub" id="kx-sub">Curated sector research, one sub-tab per sector. Pick a thumbnail to dive in.</p>
+      </div>
+      <div class="k-seg" id="kx-switch" role="tablist" aria-label="Knowledge view">
+        <button type="button" role="tab" class="active" data-kx="sector" aria-selected="true">Sector</button>
+        <button type="button" role="tab" data-kx="company" aria-selected="false">Company</button>
       </div>
     </section>
     <div id="k-root"></div>
+    <div id="kc-root" hidden></div>
   </div>
 
   <div class="tab-panel" data-panel="filings" hidden>
@@ -161,6 +166,8 @@
 <script src="industry.js"></script>
 <script src="app.js"></script>
 <script src="knowledge-ui.js"></script>
+<script src="company-knowledge.js"></script>
+<script src="company-ui.js"></script>
 <script src="indices-ui.js"></script>
 <script src="industry-ui.js"></script>
 <script src="mf-ui.js"></script>
