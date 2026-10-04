@@ -26,7 +26,7 @@
     { rgb: "30,95,255",  hot: "190,215,255", head: "90,140,255",  accent: "#4d86ff", tint: "#b8cfff", dim: "#8fb4ff", border: "rgba(77,134,255,.55)" },
     { rgb: "20,225,100", hot: "190,255,215", head: "70,240,140",  accent: "#2ee476", tint: "#b4ffd2", dim: "#7dffaa", border: "rgba(46,228,118,.55)" }
   ];
-  var BLINK_MS = 140;     // how long the page elements wear the ray's colour
+  var BLINK_MS = 30;      // how long the page elements wear the ray's colour
   var root = document.documentElement;
   var colorIdx = -1, pal = PALETTE[0], tinted = false;
 
