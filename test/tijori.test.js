@@ -1,0 +1,119 @@
+// Unit tests for tijori.js. No network and no express needed: fetch is mocked.
+const { createResolver, normalizeTicker, slugCandidates, pageMatches } = require("../tijori");
+
+let fails = 0;
+const check = (n, ok, x = "") => {
+  if (!ok) fails++;
+  console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  -> " + x : ""));
+};
+const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+// ---- pure helpers ----
+check("normalizeTicker strips suffix/prefix and case", normalizeTicker(" nse:grasim.ns ") === "GRASIM");
+check("normalizeTicker keeps & and -", normalizeTicker("m&m") === "M&M" && normalizeTicker("bajaj-auto") === "BAJAJ-AUTO");
+check("normalizeTicker rejects junk", normalizeTicker("../etc") === null && normalizeTicker("") === null && normalizeTicker("A".repeat(30)) === null);
+
+check("slug: Grasim", slugCandidates("Grasim Industries Ltd")[0] === "grasim-industries-limited");
+check("slug: Ltd. with dot", slugCandidates("Reliance Industries Ltd.")[0] === "reliance-industries-limited");
+check("slug: & is dropped first (Tijori style)", slugCandidates("Mahindra & Mahindra Limited")[0] === "mahindra-mahindra-limited");
+check("slug: & as 'and' is the second guess", slugCandidates("Larsen & Toubro Limited")[1] === "larsen-and-toubro-limited");
+check("slug: adds -limited when missing", slugCandidates("Bajaj Auto").includes("bajaj-auto-limited"));
+check("slug: empty name -> none", eq(slugCandidates(""), []));
+
+const page = (body) => `<html><head><title>x</title></head><body>${body}</body></html>`;
+check("pageMatches: ticker + name", pageMatches(page("<h1>Grasim Industries Ltd.</h1><span>GRASIM</span>"), "GRASIM", "Grasim Industries Limited"));
+check("pageMatches: ticker as part of a longer word does not count", !pageMatches(page("Grasim Industries GRASIMX"), "GRASIM", "Grasim Industries Limited"));
+check("pageMatches: &amp; ticker (M&M)", pageMatches(page("Mahindra &amp; Mahindra <b>M&amp;M</b>"), "M&M", "Mahindra & Mahindra Limited"));
+check("pageMatches: home page without the company fails", !pageMatches(page("Tijori dashboard TCS ITC"), "GRASIM", "Grasim Industries Limited"));
+
+// ---- resolver with a mock fetch ----
+function mockFetch(routes) {
+  const calls = [];
+  const fn = async (url) => {
+    calls.push(url);
+    for (const [prefix, handler] of routes) {
+      if (url.startsWith(prefix)) return handler(url);
+    }
+    return { ok: false, status: 404, url, text: async () => "", json: async () => ({}) };
+  };
+  fn.calls = calls;
+  return fn;
+}
+const yahoo = (longName) => ({ ok: true, status: 200, json: async () => ({ chart: { result: [{ meta: { longName } }] } }) });
+const htmlRes = (url, body, finalUrl) => ({ ok: true, status: 200, url: finalUrl || url, text: async () => body });
+
+(async () => {
+  // verified
+  let f = mockFetch([
+    ["https://y/v8/finance/chart/GRASIM.NS", () => yahoo("Grasim Industries Limited")],
+    ["https://t/company/grasim-industries-limited/", (u) => htmlRes(u, page("<h1>Grasim Industries Ltd.</h1> GRASIM"))],
+  ]);
+  let r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("grasim");
+  check("verified: status + url", r.tijori.status === "verified" && r.tijori.url === "https://t/company/grasim-industries-limited/#knowledgebase", r.tijori.url);
+  check("verified: name from yahoo", r.name === "Grasim Industries Limited" && r.nameSource === "yahoo");
+  check("verified: screener link built from ticker", r.screenerUrl === "https://www.screener.in/company/GRASIM/consolidated/");
+
+  // Tijori serves its home page for unknown slugs (redirect to /) -> miss, then second guess matches
+  f = mockFetch([
+    ["https://y/v8/finance/chart/M%26M.NS", () => yahoo("Mahindra & Mahindra Limited")],
+    ["https://t/company/mahindra-mahindra-limited/", (u) => htmlRes(u, page("home"), "https://t/")],
+    ["https://t/company/mahindra-and-mahindra-limited/", (u) => htmlRes(u, page("Mahindra &amp; Mahindra M&amp;M"))],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("M&M");
+  check("redirect-to-home is a miss; next candidate can still verify", r.tijori.status === "verified" && r.tijori.slug === "mahindra-and-mahindra-limited", r.tijori.slug);
+
+  // same-URL soft 404 (home page content, no company) -> not_found
+  f = mockFetch([
+    ["https://y/v8/finance/chart/ZZZ.NS", () => yahoo("Zed Zed Limited")],
+    ["https://t/company/", (u) => htmlRes(u, page("Tijori dashboard TCS ITC"))],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("ZZZ");
+  check("soft 404 -> not_found, no link offered", r.tijori.status === "not_found" && !r.tijori.url);
+
+  // Tijori blocks us -> unverified best guess, not a false 'verified'
+  f = mockFetch([
+    ["https://y/v8/finance/chart/GRASIM.NS", () => yahoo("Grasim Industries Limited")],
+    ["https://t/company/", () => ({ ok: false, status: 403, text: async () => "" })],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("GRASIM");
+  check("403 from Tijori -> unverified guess", r.tijori.status === "unverified" && /grasim-industries-limited/.test(r.tijori.url));
+
+  // unknown to Yahoo -> no_name
+  f = mockFetch([]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("NOPE");
+  check("unknown ticker -> no_name", r.tijori.status === "no_name" && r.name === null);
+
+  // Screener preferred over Yahoo when configured; failing Screener falls back to Yahoo
+  f = mockFetch([["https://t/company/grasim-industries-limited/", (u) => htmlRes(u, page("Grasim Industries GRASIM"))]]);
+  r = await createResolver({
+    fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t",
+    screenerLookup: async () => ({ companyName: "Grasim Industries Ltd", url: "https://www.screener.in/company/GRASIM/consolidated/" }),
+  }).resolve("GRASIM");
+  check("screener name preferred (no yahoo call)", r.nameSource === "screener" && !f.calls.some((u) => u.startsWith("https://y")) && r.tijori.status === "verified");
+  f = mockFetch([
+    ["https://y/v8/finance/chart/GRASIM.NS", () => yahoo("Grasim Industries Limited")],
+    ["https://t/company/grasim-industries-limited/", (u) => htmlRes(u, page("Grasim Industries GRASIM"))],
+  ]);
+  r = await createResolver({
+    fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t",
+    screenerLookup: async () => { throw new Error("Screener session expired or invalid"); },
+  }).resolve("GRASIM");
+  check("screener failure falls back to yahoo", r.nameSource === "yahoo" && r.tijori.status === "verified");
+
+  // cache + validation
+  f = mockFetch([
+    ["https://y/v8/finance/chart/GRASIM.NS", () => yahoo("Grasim Industries Limited")],
+    ["https://t/company/grasim-industries-limited/", (u) => htmlRes(u, page("Grasim Industries GRASIM"))],
+  ]);
+  const res = createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" });
+  await res.resolve("GRASIM");
+  const n = f.calls.length;
+  await res.resolve("grasim.ns");
+  check("verified results are cached", f.calls.length === n);
+  let status = 0;
+  try { await res.resolve("../x"); } catch (e) { status = e.status; }
+  check("invalid ticker -> 400", status === 400);
+
+  console.log(fails ? `\n${fails} FAILED` : "\nall passed");
+  process.exit(fails ? 1 : 0);
+})();

@@ -10,6 +10,7 @@
 const K_COMPANIES = [
   {
     id: "grasim",
+    ticker: "GRASIM", // NSE ticker; connects this list to ticker lookups
     name: "Grasim Industries Ltd.",
     sector: "Diversified: cement, chemicals, textiles, paints",
     source: "https://www.tijorifinance.com/company/grasim-industries-limited/#knowledgebase",

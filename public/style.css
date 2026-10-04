@@ -2420,3 +2420,95 @@ body.mf-lock {
   font-size: 0.82rem;
   margin: 6px 0 0;
 }
+
+/* ---- Knowledge: ticker lookup ---- */
+.kc-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1 1 380px;
+}
+.kc-ticker-in {
+  flex: 1 1 260px;
+}
+.kc-ticker-in input {
+  text-transform: uppercase;
+}
+.kc-go {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.kc-go:hover {
+  filter: brightness(1.08);
+}
+.kc-connect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  align-items: center;
+  justify-content: space-between;
+}
+.kc-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.kc-ticker {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 6px;
+  padding: 2px 9px;
+}
+.kc-arrow {
+  color: var(--text-muted);
+}
+.kc-cname {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.kc-via {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+.kc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.kc-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 4px 11px;
+  border: 1px solid var(--panel-border);
+}
+.kc-badge.ok {
+  color: var(--up-strong);
+  border-color: rgba(46, 204, 113, 0.5);
+}
+.kc-badge.wait {
+  color: var(--text-muted);
+}
+.kc-badge.bad {
+  color: var(--down-strong);
+  border-color: rgba(255, 90, 74, 0.5);
+}
+#kc-root,
+#kc-out {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+#kc-root[hidden] {
+  display: none;
+}

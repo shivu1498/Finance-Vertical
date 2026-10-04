@@ -15,6 +15,7 @@ const { createScreenerHandler } = require("./screener");
 const { createMf } = require("./mf");
 const { createFilings } = require("./filings");
 const { parseChart } = require("./quotes");
+const tijori = require("./tijori");
 
 // Minimal .env loader so the Screener session cookie never lives in code.
 // (On Vercel, env vars come from the dashboard instead; a missing .env here
@@ -83,9 +84,14 @@ app.get("/api/quotes", async (req, res) => {
   res.json({ quotes, updatedAt: new Date().toISOString() });
 });
 
-app.get(
-  "/api/screener/:symbol",
-  createScreenerHandler({ sessionId: process.env.SCREENER_SESSIONID })
+const screenerHandler = createScreenerHandler({ sessionId: process.env.SCREENER_SESSIONID });
+app.get("/api/screener/:symbol", screenerHandler);
+
+// Ticker -> Tijori Finance company page (name from Screener if configured,
+// else Yahoo). See tijori.js.
+app.use(
+  "/api/tijori",
+  tijori.createRouter(tijori.createResolver({ screenerLookup: screenerHandler.lookup }))
 );
 
 // Mutual-fund screener (mfapi.in). Builds in the background and caches to data/.

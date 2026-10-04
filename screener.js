@@ -94,7 +94,16 @@ function createScreenerHandler({ baseUrl = "https://www.screener.in", sessionId 
     return run;
   }
 
-  return async function handler(req, res) {
+  // Cached, rate-limited lookup shared by the HTTP handler and other modules.
+  async function getData(symbol) {
+    const cached = cache.get(symbol);
+    if (cached && Date.now() - cached.ts < CACHE_MS) return cached.data;
+    const data = await enqueue(symbol);
+    cache.set(symbol, { data, ts: Date.now() });
+    return data;
+  }
+
+  async function handler(req, res) {
     const symbol = (req.params.symbol || "").toUpperCase();
     if (!SYMBOL_RE.test(symbol)) return res.status(400).json({ error: "invalid symbol" });
     if (!sessionId) {
@@ -104,17 +113,16 @@ function createScreenerHandler({ baseUrl = "https://www.screener.in", sessionId 
       });
     }
 
-    const cached = cache.get(symbol);
-    if (cached && Date.now() - cached.ts < CACHE_MS) return res.json(cached.data);
-
     try {
-      const data = await enqueue(symbol);
-      cache.set(symbol, { data, ts: Date.now() });
-      res.json(data);
+      res.json(await getData(symbol));
     } catch (err) {
       res.status(err.status || 502).json({ error: "screener_error", message: err.message });
     }
-  };
+  }
+
+  // null when no session cookie is configured, so callers can skip Screener.
+  handler.lookup = sessionId ? (symbol) => getData(String(symbol).toUpperCase()) : null;
+  return handler;
 }
 
 module.exports = { createScreenerHandler, parseCompanyPage };
