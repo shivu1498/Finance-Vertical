@@ -2083,3 +2083,196 @@ body.mf-lock {
   font-weight: 800;
   background: rgba(46, 204, 113, 0.1);
 }
+
+/* ---- Annual Reports ---- */
+.f-coverage {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.f-cov-card {
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.f-cov-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.f-cov-flag {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--panel-soft);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  color: var(--accent);
+}
+.f-cov-kind {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.f-cov-src a {
+  color: var(--accent);
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+.f-cov-src a:hover {
+  text-decoration: underline;
+}
+.f-cov-note {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.f-excluded {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin: 2px 0 20px;
+  line-height: 1.5;
+}
+
+.f-search {
+  margin-bottom: 16px;
+}
+.f-market-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.f-mbtn {
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.f-mbtn:hover {
+  border-color: var(--accent);
+}
+.f-mbtn.active {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+#f-search-form {
+  display: flex;
+  gap: 8px;
+}
+#f-search-form input {
+  flex: 1;
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+#f-search-form button {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.f-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 0.86rem;
+}
+.f-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.f-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--text-main);
+}
+.f-table tr:last-child td {
+  border-bottom: none;
+}
+.f-table a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.f-table a:hover {
+  text-decoration: underline;
+}
+.f-mkt {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.f-ticker {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.f-form {
+  background: var(--panel-soft);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.f-empty,
+.f-error {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  padding: 16px 4px;
+}
+.f-error {
+  color: var(--down-strong);
+}
+.f-picks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.f-pick {
+  text-align: left;
+  background: var(--panel);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.f-pick:hover {
+  border-color: var(--accent);
+}

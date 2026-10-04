@@ -38,6 +38,7 @@
   <a class="tab" data-tab="funds" href="#funds">Mutual Funds</a>
   <a class="tab" data-tab="industries" href="#industries">Industries</a>
   <a class="tab" data-tab="knowledge" href="#knowledge">Sector Knowledge</a>
+  <a class="tab" data-tab="filings" href="#filings">Annual Reports</a>
 </nav>
 
 <main class="main">
@@ -137,6 +138,16 @@
     <div id="k-root"></div>
   </div>
 
+  <div class="tab-panel" data-panel="filings" hidden>
+    <section class="card k-head">
+      <div>
+        <h2 class="k-title">Annual Reports</h2>
+        <p class="k-sub">Only two markets are listed here, on purpose: <a class="i-src" href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces" target="_blank" rel="noopener">SEC EDGAR</a> (US) and <a class="i-src" href="https://www.nseindia.com/" target="_blank" rel="noopener">NSE</a> (India) are the only exchanges with a free, public, no-login way to pull filings. Every other market either needs a paid data vendor or restricts automated access to its filing portal.</p>
+      </div>
+    </section>
+    <div id="f-root"></div>
+  </div>
+
   <footer class="footer">
     Data: Yahoo Finance (free, unauthenticated, ~15s cache) · constituents &amp; sectors mapped locally per country · Not investment advice · Updated <span id="footer-updated">—</span>
   </footer>
@@ -152,5 +163,6 @@
 <script src="indices-ui.js"></script>
 <script src="industry-ui.js"></script>
 <script src="mf-ui.js"></script>
+<script src="filings-ui.js"></script>
 </body>
 </html>
