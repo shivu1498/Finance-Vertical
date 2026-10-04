@@ -40,10 +40,10 @@ const TICKERS = [
   { symbol: "^FCHI", label: "CAC 40", name: "CAC 40", cls: "equity", sub: "europe" },
   // Cash (currencies)
   { symbol: "DX-Y.NYB", label: "DOLLAR INDEX", name: "US Dollar Index", cls: "cash", sub: "usd" },
-  { symbol: "INR=X", label: "USD/INR", name: "US dollar to Indian rupee", cls: "cash", sub: "usd" },
+  { symbol: "INR=X", label: "USD/INR", name: "US dollar to Indian rupee", cls: "cash", sub: "usd", prefix: "₹" },
   { symbol: "JPY=X", label: "USD/JPY", name: "US dollar to Japanese yen", cls: "cash", sub: "usd", dp: 2 },
   { symbol: "EURUSD=X", label: "EUR/USD", name: "Euro to US dollar", cls: "cash", sub: "eur", dp: 4 },
-  { symbol: "EURINR=X", label: "EUR/INR", name: "Euro to Indian rupee", cls: "cash", sub: "eur" },
+  { symbol: "EURINR=X", label: "EUR/INR", name: "Euro to Indian rupee", cls: "cash", sub: "eur", prefix: "₹" },
   { symbol: "EURGBP=X", label: "EUR/GBP", name: "Euro to British pound", cls: "cash", sub: "eur", dp: 4 },
   // Commodity
   { symbol: "GC=F", label: "GOLD", name: "Gold futures (per troy oz)", cls: "commodity", sub: "gold", prefix: "$" },

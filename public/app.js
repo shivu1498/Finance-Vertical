@@ -15,7 +15,35 @@ function groupOf(stock) {
 
 function fmtPrice(n, prefix = "") {
   if (n == null || Number.isNaN(n)) return "—";
+  // Rupee amounts use Indian digit grouping (12,34,567.50).
+  if (prefix === "₹") return prefix + n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
   return prefix + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+// ₹ for Indian listings (Yahoo .NS / .BO), nothing for other markets.
+function currencyPrefix(symbol) {
+  return /\.(NS|BO)$/i.test(String(symbol || "")) ? "₹" : "";
+}
+
+// Rupee amount in Indian units: ₹ 1.25 Cr, ₹ 4.5 Lk, ₹ 12,345.
+function fmtInrCompact(n) {
+  if (n == null || Number.isNaN(Number(n))) return "—";
+  const v = Number(n);
+  const a = Math.abs(v);
+  const trim = (x) => String(Number(x.toFixed(2)));
+  if (a >= 1e7) return `₹ ${trim(v / 1e7)} Cr`;
+  if (a >= 1e5) return `₹ ${trim(v / 1e5)} Lk`;
+  return `₹ ${Math.round(v).toLocaleString("en-IN")}`;
+}
+
+// Screener writes "Rs. 1,234 Cr." / "Crores" / "Lakhs"; show the short forms.
+function normMoney(s) {
+  return String(s == null ? "" : s)
+    .replace(/\bRs\.?\s?(?=Cr|[\d])/g, "₹ ")
+    .replace(/\bRs\.?(?![A-Za-z])/g, "₹")
+    .replace(/\bCrores?\b\.?/gi, "Cr")
+    .replace(/\bCr\./g, "Cr")
+    .replace(/\b(Lakhs?|Lacs?)\b\.?/gi, "Lk");
 }
 
 function fmtPct(n) {
@@ -330,7 +358,7 @@ function renderTreemap(map, sectorFilter = "") {
     tile.style.setProperty("--heat", heat(pct).toFixed(2));
     tile.innerHTML = `
       <div class="stock-name">${s.name}</div>
-      <div class="stock-price">${q && !q.error ? fmtPrice(q.price) : "—"}</div>
+      <div class="stock-price">${q && !q.error ? fmtPrice(q.price, currencyPrefix(s.symbol)) : "—"}</div>
       <div class="stock-pct">${pct != null ? fmtPct(pct) : "n/a"}</div>
     `;
     if (activeCountry.code === "IN") {
@@ -379,7 +407,7 @@ async function showFundamentals(stock) {
       return;
     }
     const items = json.ratios
-      .map((r) => `<div class="ratio"><div class="ratio-name">${escapeHtml(r.name)}</div><div class="ratio-value">${escapeHtml(r.value)}</div></div>`)
+      .map((r) => `<div class="ratio"><div class="ratio-name">${escapeHtml(r.name)}</div><div class="ratio-value">${escapeHtml(normMoney(r.value))}</div></div>`)
       .join("");
     body.innerHTML = `
       <div class="detail-company">${escapeHtml(json.companyName || stock.name)}</div>

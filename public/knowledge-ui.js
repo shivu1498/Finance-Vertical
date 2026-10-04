@@ -293,7 +293,7 @@
         const pct = q && !q.error ? q.changePercent : null;
         return `<button type="button" class="k-stock stock-tile ${changeClass(pct)}" style="--heat:${heat(pct).toFixed(2)}" data-stock="${esc(s.symbol)}" title="Open ${esc(s.name)} fundamentals">
           <div class="stock-name">${esc(s.name)}</div>
-          <div class="stock-price">${q && !q.error ? fmtPrice(q.price) : "—"}</div>
+          <div class="stock-price">${q && !q.error ? fmtPrice(q.price, currencyPrefix(s.symbol)) : "—"}</div>
           <div class="stock-pct">${pct != null ? fmtPct(pct) : "n/a"}</div>
         </button>`;
       })

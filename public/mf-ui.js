@@ -349,7 +349,7 @@
         <div><dt>Sharpe</dt><dd>${num(m.sharpe)}</dd></div>
         <div><dt>Alpha vs peers</dt><dd class="${tone(m.alpha)}">${signed(m.alpha)} pp</dd></div>
       </dl>
-      ${sip ? `<p class="mf-d-note">A &#8377;10,000 monthly SIP over the last ${sip.months} months would have put in <b>&#8377;${inr(sip.invested * 10000)}</b> and be worth about <b>&#8377;${inr(sip.value * 10000)}</b> now.</p>` : ""}
+      ${sip ? `<p class="mf-d-note">A &#8377;10,000 monthly SIP over the last ${sip.months} months would have put in <b>${fmtInrCompact(sip.invested * 10000)}</b> and be worth about <b>${fmtInrCompact(sip.value * 10000)}</b> now.</p>` : ""}
       ${dd ? `<p class="mf-d-note">Worst fall (5Y window): <b class="neg">${pct(dd.pct, 1)}</b>, from the peak on ${dmy(dd.peak)} to the low on ${dmy(dd.trough)}.</p>` : ""}
 
       <h4 class="mf-d-h">Calendar-year returns</h4>

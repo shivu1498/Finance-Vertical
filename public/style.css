@@ -3096,3 +3096,6 @@ body.mf-lock {
   .ur-gr { grid-template-columns: 1fr auto; }
   .ur-gr small { display: none; }
 }
+
+/* Every percentage figure is italic (pct-italic.js wraps them). */
+em.pc { font-style: italic; }

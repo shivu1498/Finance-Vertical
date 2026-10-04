@@ -37,24 +37,32 @@
 
   /* ---------- tables ---------- */
   function numClass(v) {
-    return /^-\s*[\d.,]+/.test(v) ? "neg" : "";
+    return /^-\s*[₹\d.,]+/.test(v) ? "neg" : "";
   }
+
+  // Rows that are ratios, days or percentages are not rupee amounts.
+  const NON_MONEY = /%|days|ratio|cycle|yield|payout|\bno\.? of|turnover|multiple|holders/i;
+  const isNum = (v) => /^-?\s*[\d,]+(\.\d+)?$/.test(v);
+  const rupee = (v) => (isNum(v) ? (v.trim().startsWith("-") ? "-₹" + v.replace("-", "").trim() : "₹" + v) : v);
+  const norm = (s) => (typeof normMoney === "function" ? normMoney(s) : s);
 
   function statTable(t, opts = {}) {
     if (!t || !t.rows.length) return `<p class="sc-empty">No data on Screener for this section.</p>`;
-    const head = t.headers.map((h, i) => `<th${i === 0 ? ' class="sc-first"' : ""}>${esc(h)}</th>`).join("");
+    // opts.money: amounts get a ₹ and the corner cell says the unit (₹ Cr).
+    const head = t.headers.map((h, i) => `<th${i === 0 ? ' class="sc-first"' : ""}>${esc(i === 0 && opts.money && !h ? "₹ Cr" : norm(h))}</th>`).join("");
     const body = t.rows
-      .map(
-        (r) =>
-          `<tr class="${r.strong ? "strong" : ""}"><td class="sc-first">${esc(r.name)}</td>${r.values.map((v) => `<td class="${numClass(v)}">${esc(v)}</td>`).join("")}</tr>`
-      )
+      .map((r) => {
+        const m = opts.money && !NON_MONEY.test(r.name);
+        return `<tr class="${r.strong ? "strong" : ""}"><td class="sc-first">${esc(r.name)}</td>${r.values.map((v) => { const x = m ? rupee(v) : v; return `<td class="${numClass(x)}">${esc(x)}</td>`; }).join("")}</tr>`;
+      })
       .join("");
     return `<div class="sc-scroll${opts.tight ? " tight" : ""}"><table class="sc-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
   }
 
   function peersTable(p, rec) {
     if (!p || !p.rows.length) return `<p class="sc-empty">Peer comparison isn't available.</p>`;
-    const head = p.headers.map((h, i) => `<th class="${i <= 1 ? "sc-first" : ""}">${esc(h)}</th>`).join("");
+    const head = p.headers.map((h, i) => `<th class="${i <= 1 ? "sc-first" : ""}">${esc(norm(h))}</th>`).join("");
+    const moneyCol = p.headers.map((h) => /\bRs\./.test(h));
     const body = p.rows
       .map((r) => {
         const me = r.symbol && (r.symbol === rec.nse || r.symbol === rec.bse);
@@ -65,7 +73,8 @@
                 ? `<td class="sc-first"><a href="#universe/IN/${encodeURIComponent(r.symbol)}">${esc(c)}</a></td>`
                 : `<td class="sc-first">${esc(c)}</td>`;
             }
-            return `<td class="${i === 0 ? "sc-first" : numClass(c)}">${esc(c)}</td>`;
+            const x = moneyCol[i] ? rupee(c) : c;
+            return `<td class="${i === 0 ? "sc-first" : numClass(x)}">${esc(x)}</td>`;
           })
           .join("");
         return `<tr class="${me ? "me" : ""}${r.symbol ? "" : " median"}">${cells}</tr>`;
@@ -78,14 +87,14 @@
   function card(id, title, sub, inner) {
     return `<section class="card sc-card" id="${id}">
       <h3 class="sc-h">${esc(title)}</h3>
-      ${sub ? `<p class="sc-sub">${esc(sub)}</p>` : ""}
+      ${sub ? `<p class="sc-sub">${esc(norm(sub))}</p>` : ""}
       ${inner}
     </section>`;
   }
 
   function ratiosGrid(ratios) {
     if (!ratios.length) return "";
-    return `<ul class="sc-ratios">${ratios.map((r) => `<li><span>${esc(r.name)}</span><b>${esc(r.value)}</b></li>`).join("")}</ul>`;
+    return `<ul class="sc-ratios">${ratios.map((r) => `<li><span>${esc(norm(r.name))}</span><b>${esc(norm(r.value))}</b></li>`).join("")}</ul>`;
   }
 
   function rangesHtml(ranges) {
@@ -117,10 +126,10 @@
     return `
       ${card("sc-analysis", "Pros & Cons", "", analysis)}
       ${card("sc-peers", "Peer comparison", "", crumbs + peersTable(d.peers, rec))}
-      ${card("sc-quarters", "Quarterly Results", basis(t.quarters), statTable(t.quarters))}
-      ${card("sc-pl", "Profit & Loss", basis(t.profitLoss), statTable(t.profitLoss) + rangesHtml(d.ranges))}
-      ${card("sc-bs", "Balance Sheet", basis(t.balanceSheet), statTable(t.balanceSheet))}
-      ${card("sc-cf", "Cash Flows", basis(t.cashFlow), statTable(t.cashFlow))}
+      ${card("sc-quarters", "Quarterly Results", basis(t.quarters), statTable(t.quarters, { money: true }))}
+      ${card("sc-pl", "Profit & Loss", basis(t.profitLoss), statTable(t.profitLoss, { money: true }) + rangesHtml(d.ranges))}
+      ${card("sc-bs", "Balance Sheet", basis(t.balanceSheet), statTable(t.balanceSheet, { money: true }))}
+      ${card("sc-cf", "Cash Flows", basis(t.cashFlow), statTable(t.cashFlow, { money: true }))}
       ${card("sc-ratios", "Ratios", basis(t.ratios), statTable(t.ratios))}
       ${card("sc-holders", "Shareholding Pattern", "Percentage holding", holdersHtml(t.shareholding))}`;
   }
