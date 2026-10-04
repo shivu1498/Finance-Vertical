@@ -230,3 +230,15 @@ treemap and fundamentals panel; **Sector Knowledge** holds the research gallery.
 - The constituent lists and sector mappings in `public/data.js` are
   maintained by hand — update them if index constituents change.
 - This is informational only — not investment advice.
+
+## Company list and industry classification
+
+The Company view (Sector Knowledge tab) searches `public/companies.json`, built from a
+BSE/NSE company-list CSV (Name, BSE Code, NSE Code, ISIN Code, Industry Group, Industry):
+
+```
+node scripts/import-companies.js path/to/bse-nse-company-list.csv
+```
+
+Rows with neither an NSE nor a BSE code are skipped. Re-run the script with a newer CSV to refresh
+the list (new listings, renamed tickers); commit the regenerated `public/companies.json`.

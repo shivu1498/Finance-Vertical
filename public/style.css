@@ -2512,3 +2512,200 @@ body.mf-lock {
 #kc-root[hidden] {
   display: none;
 }
+
+/* ---- Knowledge: company search, industry tags, browse by industry ---- */
+.kc-combo {
+  position: relative;
+  flex: 1 1 280px;
+}
+.kc-combo .kc-ticker-in {
+  width: 100%;
+}
+.kc-ticker-in input {
+  text-transform: none;
+}
+.kc-sugg {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #0a1a52;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(2, 8, 40, 0.6);
+  max-height: 340px;
+  overflow: auto;
+}
+.kc-sugg[hidden] {
+  display: none;
+}
+.kc-sg,
+.kc-crow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.kc-sg:hover,
+.kc-sg.active,
+.kc-crow:hover {
+  background: var(--panel-soft);
+}
+.kc-sg-code {
+  flex: 0 0 auto;
+  min-width: 84px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  font-size: 0.82rem;
+}
+.kc-sg-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kc-sg-ind {
+  flex: 0 1 auto;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+.kc-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.kc-ids {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+.kc-class {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.kc-class-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.kc-tag {
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 3px 11px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.kc-tag:hover {
+  border-color: var(--accent);
+}
+.kc-tag.alt {
+  color: var(--accent);
+}
+.kc-browse {
+  padding: 0;
+}
+.kc-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 14px 16px;
+  cursor: pointer;
+  text-align: left;
+}
+.kc-toggle-title {
+  margin: 0;
+}
+.kc-chev {
+  color: var(--accent);
+}
+.kc-browse > :not(.kc-toggle) {
+  margin: 0 16px 16px;
+}
+.kc-gchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.kc-count {
+  opacity: 0.65;
+  font-weight: 500;
+  margin-left: 4px;
+}
+.kc-chip.active .kc-count {
+  opacity: 0.8;
+}
+.kc-crumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.kc-back {
+  background: none;
+  border: 1px solid var(--panel-border);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.kc-clist {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2px 14px;
+}
+.kc-crow {
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.kc-more {
+  margin-top: 10px;
+  background: var(--panel-soft);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.kc-tools {
+  position: relative;
+  z-index: 5; /* keeps the suggestion dropdown above the cards below */
+}

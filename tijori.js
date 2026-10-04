@@ -54,15 +54,18 @@ function slugCandidates(name) {
 
 // The page counts as the company's page only if it names the ticker as a whole
 // word and also contains the company's first name word.
-function pageMatches(html, ticker, name) {
+function pageMatches(html, tickers, name) {
   const text = html.replace(/&amp;/g, "&");
-  const escTicker = ticker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const tickerRe = new RegExp(`(^|[^A-Za-z0-9&-])${escTicker}([^A-Za-z0-9&-]|$)`);
+  const ids = [].concat(tickers).filter(Boolean);
+  const hasId = ids.some((id) => {
+    const esc = String(id).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[^A-Za-z0-9&-])${esc}([^A-Za-z0-9&-]|$)`).test(text);
+  });
   const core = String(name || "")
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter(Boolean)[0];
-  return tickerRe.test(text) && (!core || text.toLowerCase().includes(core));
+  return hasId && (!core || text.toLowerCase().includes(core));
 }
 
 function withTimeout(ms) {
@@ -72,6 +75,7 @@ function withTimeout(ms) {
 function createResolver({
   fetchImpl = (...a) => fetch(...a),
   screenerLookup = null,
+  directory = null, // companies.js directory: adds listed name + industry
   tijoriBase = TIJORI_BASE,
   yahooBase = YAHOO_BASE,
   now = () => Date.now(),
@@ -89,11 +93,11 @@ function createResolver({
     return null;
   }
 
-  async function nameFromYahoo(ticker) {
-    for (const suffix of [".NS", ".BO"]) {
+  async function nameFromYahoo(symbols) {
+    for (const symbol of symbols) {
       try {
         const res = await fetchImpl(
-          `${yahooBase}/v8/finance/chart/${encodeURIComponent(ticker + suffix)}?interval=1d&range=1d`,
+          `${yahooBase}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
           { headers: { "User-Agent": UA, Accept: "application/json" }, signal: withTimeout(TIMEOUT_MS) }
         );
         if (!res.ok) continue;
@@ -101,14 +105,14 @@ function createResolver({
         const name = meta.longName || meta.shortName;
         if (name) return { name, source: "yahoo", screenerUrl: null };
       } catch {
-        // try the next exchange suffix
+        // try the next symbol
       }
     }
     return null;
   }
 
   // "ok" = confirmed company page, "miss" = not this company, "error" = couldn't tell
-  async function probe(slug, ticker, name) {
+  async function probe(slug, ids, name) {
     const url = `${tijoriBase}/company/${slug}/`;
     try {
       const res = await fetchImpl(url, {
@@ -125,25 +129,44 @@ function createResolver({
         path = new URL(url).pathname;
       }
       if (!path.startsWith("/company/")) return { state: "miss", url };
-      return { state: pageMatches(await res.text(), ticker, name) ? "ok" : "miss", url };
+      return { state: pageMatches(await res.text(), ids, name) ? "ok" : "miss", url };
     } catch {
       return { state: "error", url };
     }
   }
 
   async function compute(ticker) {
-    const screenerPage = `https://www.screener.in/company/${encodeURIComponent(ticker)}/consolidated/`;
-    const named = (await nameFromScreener(ticker)) || (await nameFromYahoo(ticker));
-    if (!named) {
-      return { ticker, name: null, nameSource: null, screenerUrl: screenerPage, tijori: { status: "no_name" } };
-    }
+    const rec = directory ? directory.find(ticker) : null;
+    const code = rec ? rec.nse || rec.bse : ticker;
+    const ids = rec ? [rec.nse, rec.bse].filter(Boolean) : [ticker];
+    const screenerPage = `https://www.screener.in/company/${encodeURIComponent(code)}/consolidated/`;
+    const symbols = rec
+      ? [rec.nse && `${rec.nse}.NS`, rec.bse && `${rec.bse}.BO`, rec.nse && `${rec.nse}.BO`].filter(Boolean)
+      : [`${ticker}.NS`, `${ticker}.BO`];
 
-    const base = { ticker, name: named.name, nameSource: named.source, screenerUrl: named.screenerUrl || screenerPage };
-    const candidates = slugCandidates(named.name);
+    // Legal names (Screener, Yahoo) make the right slugs; the list's short
+    // names ("Grasim Inds") are the last resort.
+    const named =
+      (await nameFromScreener(code)) ||
+      (await nameFromYahoo(symbols)) ||
+      (rec ? { name: rec.name, source: "list", screenerUrl: null } : null);
+
+    const base = {
+      ticker,
+      name: rec ? rec.name : named ? named.name : null,
+      legalName: named ? named.name : null,
+      nameSource: named ? named.source : null,
+      industryGroup: rec ? rec.group : null,
+      industry: rec ? rec.industry : null,
+      listed: rec ? { nse: rec.nse, bse: rec.bse, isin: rec.isin } : null,
+      screenerUrl: (named && named.screenerUrl) || screenerPage,
+    };
+    if (!named) return { ...base, tijori: { status: "no_name" } };
+
     let firstGuess = null;
     let sawError = false;
-    for (const slug of candidates) {
-      const r = await probe(slug, ticker, named.name);
+    for (const slug of slugCandidates(named.name)) {
+      const r = await probe(slug, ids, named.name);
       firstGuess = firstGuess || { slug, url: r.url };
       if (r.state === "ok") {
         return { ...base, tijori: { status: "verified", slug, url: `${r.url}#knowledgebase` } };

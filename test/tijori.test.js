@@ -1,5 +1,7 @@
 // Unit tests for tijori.js. No network and no express needed: fetch is mocked.
 const { createResolver, normalizeTicker, slugCandidates, pageMatches } = require("../tijori");
+const { createDirectory } = require("../companies");
+const { build, parseCsv } = require("../scripts/import-companies");
 
 let fails = 0;
 const check = (n, ok, x = "") => {
@@ -113,6 +115,47 @@ const htmlRes = (url, body, finalUrl) => ({ ok: true, status: 200, url: finalUrl
   let status = 0;
   try { await res.resolve("../x"); } catch (e) { status = e.status; }
   check("invalid ticker -> 400", status === 400);
+
+  // ---- company list: importer + directory + resolver ----
+  const csv = [
+    "Name,BSE Code,NSE Code,ISIN Code,Industry Group,Industry",
+    "Grasim Inds,500300,GRASIM,INE047A01021,Cement & Cement Products,Cement & Cement Products",
+    '"Tata Motors, CV",544569,TMCV,INE1TAE01010,"Agricultural, Commercial & Construction Vehicles",Commercial Vehicles',
+    "7Seas Enter.,540874,,INE454F01010,Entertainment,Digital Entertainment",
+    "Nothing Co,,,INE000000001,Finance,Other",
+    "Blank Ind,111111,BLANK,INE000000002,,",
+    "Dupe,500300,GRASIM,INE047A01021,Cement & Cement Products,Cement & Cement Products",
+  ].join("\r\n");
+  check("csv parser keeps quoted commas", parseCsv(csv)[2][0] === "Tata Motors, CV" && parseCsv(csv)[2][4].includes("Commercial Vehicles") === false && parseCsv(csv)[2][4].startsWith("Agricultural, Commercial"));
+  const built = build(csv);
+  check("importer drops rows without a ticker and duplicate ISINs", built.data.rows.length === 4 && built.dropped === 1 && built.dupes === 1, `${built.data.rows.length} rows, dropped ${built.dropped}, dupes ${built.dupes}`);
+  const dir = createDirectory(built.data);
+  const g = dir.find("grasim");
+  check("directory: NSE lookup is case-insensitive, carries industry", g && g.name === "Grasim Inds" && g.group === "Cement & Cement Products" && g.industry === "Cement & Cement Products");
+  check("directory: BSE code lookup (BSE-only company)", dir.find("540874") && dir.find("540874").nse === null && dir.find("540874").industry === "Digital Entertainment");
+  check("directory: blank industry -> Unclassified", dir.find("BLANK").group === "Unclassified" && dir.find("BLANK").industry === "Unclassified");
+  check("directory: unknown -> null", dir.find("NOPE") === null);
+
+  // Resolver with directory: legal name (Yahoo) drives the slug; list supplies the industry
+  f = mockFetch([
+    ["https://y/v8/finance/chart/GRASIM.NS", () => yahoo("Grasim Industries Limited")],
+    ["https://t/company/grasim-industries-limited/", (u) => htmlRes(u, page("Grasim Industries GRASIM"))],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t", directory: dir }).resolve("GRASIM");
+  check("resolver+list: slug from legal name, list name + industry returned", r.tijori.status === "verified" && r.name === "Grasim Inds" && r.legalName === "Grasim Industries Limited" && r.industryGroup === "Cement & Cement Products");
+
+  // BSE-only: identified and verified by BSE code
+  f = mockFetch([
+    ["https://y/v8/finance/chart/540874.BO", () => yahoo("7Seas Entertainment Limited")],
+    ["https://t/company/7seas-entertainment-limited/", (u) => htmlRes(u, page("7Seas Entertainment BSE: 540874"))],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t", directory: dir }).resolve("540874");
+  check("BSE-only company verifies on its BSE code", r.tijori.status === "verified" && r.industry === "Digital Entertainment", r.tijori.status);
+
+  // Names all fail -> fall back to the list's short name instead of giving up
+  f = mockFetch([["https://t/company/grasim-inds-limited/", (u) => htmlRes(u, page("Grasim GRASIM"))]]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t", directory: dir }).resolve("GRASIM");
+  check("falls back to the list name when Screener/Yahoo have none", r.nameSource === "list" && r.tijori.status === "verified" && r.industry === "Cement & Cement Products");
 
   console.log(fails ? `\n${fails} FAILED` : "\nall passed");
   process.exit(fails ? 1 : 0);
