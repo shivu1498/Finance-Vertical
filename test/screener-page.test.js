@@ -25,6 +25,8 @@ const read = (f) => fs.readFileSync(path.join(__dirname, "fixtures", f), "utf8")
   const q = p.tables.quarters;
   check("quarters headers", q.headers.join(",") === ",Jun 2025,Sep 2025");
   check("quarters rows; '+' button stripped", q.rows[0].name === "Sales" && q.rows[0].values.join(",") === "1,738,1,757");
+  check("button-wrapped labels keep their text (Sales, Expenses, Net Profit...)", p.tables.profitLoss.rows.map((r) => r.name).join("|") === "Sales|Expenses|Net Profit");
+  check("cash-flow + shareholding labels too", p.tables.cashFlow.rows[0].name === "Cash from Operating Activity" && p.tables.shareholding.quarterly.rows[0].name === "Promoters");
   check("strong row flagged", q.rows[1].strong === true && q.rows[0].strong === false);
   check("basis line", q.basis === "Consolidated Figures in Rs. Crores");
   check("P&L / BS / CF / ratios present", ["profitLoss", "balanceSheet", "cashFlow", "ratios"].every((k) => p.tables[k] && p.tables[k].rows.length));

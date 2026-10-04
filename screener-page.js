@@ -17,10 +17,14 @@ const decode = (s) =>
     .replace(/&#39;|&#x27;/g, "'");
 
 // Plain text of an HTML fragment (buttons/scripts/styles dropped).
+// Screener puts expandable row labels inside a button ("Sales +": the label is
+// the button text, the "+" is a blue-icon span), so button contents are kept and
+// only the "+" icon is dropped.
 function text(html) {
   return decode(
     String(html || "")
-      .replace(/<(script|style|button)[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<span[^>]*class="[^"]*blue-icon[^"]*"[^>]*>[\s\S]*?<\/span>/gi, " ")
       .replace(/<br\s*\/?>/gi, " ")
       .replace(/<[^>]*>/g, " ")
   )
@@ -55,7 +59,7 @@ function parseTable(html, nth = 0) {
     const hrefCell = tds.find((c) => /<a[^>]*href="/i.test(c[2]));
     const href = hrefCell ? (hrefCell[2].match(/<a[^>]*href="([^"]+)"/i) || [])[1] : null;
     rows.push({
-      name: text(tds[0][2]),
+      name: text(tds[0][2]).replace(/\s*\+$/, ""), // a bare "+" is an expand icon, not part of the label
       values: tds.slice(1).map((c) => text(c[2])),
       cells: tds.map((c) => text(c[2])),
       strong: /\bstrong\b/.test(attrs),
