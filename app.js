@@ -12,6 +12,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const { createScreenerHandler } = require("./screener");
+const { createFinviz } = require("./finviz");
 const { createMf } = require("./mf");
 const { createFilings } = require("./filings");
 const { parseChart } = require("./quotes");
@@ -88,6 +89,9 @@ app.get("/api/quotes", async (req, res) => {
 const screenerHandler = createScreenerHandler({ sessionId: process.env.SCREENER_SESSIONID, directory: companies.loadDefault() });
 app.get("/api/screener/company/:symbol", screenerHandler.company);
 app.get("/api/screener/:symbol", screenerHandler);
+
+// US company data from Finviz (see finviz.js). No key or cookie needed.
+app.get("/api/finviz/:ticker", createFinviz());
 
 // Ticker -> Tijori Finance company page (name from Screener if configured,
 // else Yahoo). See tijori.js.

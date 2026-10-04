@@ -216,6 +216,22 @@ On Vercel, add `SCREENER_SESSIONID` under Project Settings -> Environment
 Variables and redeploy. Anyone who can open your site can then trigger these
 requests with your session, so keep that in mind before sharing the URL.
 
+## US companies from Finviz
+
+In **Universe**, the search bar also finds any SEC-listed US company, and the
+United States basket links to a company page for each ticker (`#universe/US/AAPL`).
+The page shows the price, the Finviz snapshot (about 70 metrics), about, analyst
+ratings, news and insider trades, a TradingView chart, and the company's 10-K /
+20-F filings from SEC EDGAR.
+
+Finviz has no free API, so `finviz.js` reads the public quote page for one
+ticker at a time (no cookie needed): one request at a time, 1.5s apart,
+cached for 10 minutes. Finviz's terms limit automated access, so keep it to
+personal use. If Finviz answers 403 or 429 (it blocks some hosting IPs), the page
+says so and still shows the chart, the SEC filings and a link to Finviz. The
+parser follows Finviz's markup and may need updating if it changes. Tests use a
+hand-built fixture (`test/fixtures/finviz-quote.html`), not a capture.
+
 ## Adding a new section (tab)
 
 The page is organised as tabs under one roof. **Markets** holds the

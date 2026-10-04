@@ -4,7 +4,9 @@
 // (companies.json) grouped by industry; every other market browses its tracked
 // basket grouped by sector. Clicking an Indian company opens a Screener-style
 // company page (company-page.js). Routes: #universe, #universe/IN (browse),
-// #universe/IN/SYMBOL (company). The Annual Reports lookup lives under the
+// #universe/IN/SYMBOL (company). US tickers open a Finviz-backed company page
+// (us-company-page.js) at #universe/US/TICKER; the search bar also finds any
+// SEC-listed US company. The Annual Reports lookup lives under the
 // second switch (filings-ui.js).
 (function () {
   const root = document.getElementById("ur-root");
@@ -47,7 +49,8 @@
     region: "All",
     sort: "name",
     market: null,        // null = coverage table, else a country code (from the hash)
-    company: null,       // NSE ticker / BSE code when a company page is open
+    company: null,       // NSE ticker / BSE code / US ticker when a company page is open
+    companyMkt: null,    // "IN" or "US" for that company page
     group: "",           // sector / industry-group filter inside Browse
     q: "",
     shown: 100,
@@ -97,11 +100,14 @@
     scored.sort((a, b) => b[0] - a[0] || a[1].name.localeCompare(b[1].name));
     return scored.slice(0, 8).map((x) => x[1]);
   }
-  const gresHtml = (list) =>
-    list.map((r) => `<a class="ur-gr" href="#universe/IN/${encodeURIComponent(r.code)}"><b>${esc(r.name)}</b><span class="ur-tk">${esc(r.code)}</span><small>${esc(r.industry)}</small></a>`).join("") ||
-    `<div class="ur-gr none">No match</div>`;
+  const gresHtml = (india, us, loading) => {
+    const rows =
+      india.map((r) => `<a class="ur-gr" href="#universe/IN/${encodeURIComponent(r.code)}"><b>${esc(r.name)}</b><span class="ur-tk">${esc(r.code)}</span><small>🇮🇳 ${esc(r.industry)}</small></a>`).join("") +
+      us.map((r) => `<a class="ur-gr" href="#universe/US/${encodeURIComponent(r.ticker)}"><b>${esc(r.title)}</b><span class="ur-tk">${esc(r.ticker)}</span><small>🇺🇸 United States</small></a>`).join("");
+    return rows || `<div class="ur-gr none">${loading ? "Searching…" : "No match"}</div>`;
+  };
   const searchBar = () => `<div class="ur-gsearch">
-      <input id="ur-gsearch" type="search" placeholder="Search any Indian company by name or ticker…" autocomplete="off" aria-label="Search companies">
+      <input id="ur-gsearch" type="search" placeholder="Search any Indian or US company by name or ticker…" autocomplete="off" aria-label="Search companies">
       <div class="ur-gres" id="ur-gres" hidden></div>
     </div>`;
 
@@ -162,7 +168,7 @@
     return `
       ${searchBar()}
       ${statsHtml()}
-      <div class="ur-note"><b>Data quality.</b> India lists the full NSE/BSE company universe with the official industry classification. Every other market shows a tracked basket of its largest listings. Annual reports are available for the US (SEC EDGAR, complete) and India (NSE feed, recent filings only). Other exchanges restrict automated access to filings.</div>
+      <div class="ur-note"><b>Data quality.</b> India lists the full NSE/BSE company universe with the official industry classification. Every other market shows a tracked basket of its largest listings. Indian companies open Screener-style pages; any US ticker opens a Finviz-backed page. Annual reports are available for the US (SEC EDGAR, complete) and India (NSE feed, recent filings only). Other exchanges restrict automated access to filings.</div>
       <section class="card">
         <div class="section-title"><span>MARKET COVERAGE <span class="muted">· click a market to browse companies</span></span>
           <select id="ur-sort" class="sector-filter" aria-label="Sort markets">
@@ -213,10 +219,10 @@
       .concat(d.groups.map(([g, n]) => `<button type="button" class="ur-chip ${state.group === g ? "active" : ""}" data-group="${esc(g)}">${esc(g)} <i>${n}</i></button>`))
       .join("");
     const trs = page.map((r) => `<tr>
-      <td>${c.code === "IN" ? `<a class="ur-co" href="#universe/IN/${encodeURIComponent(r.code)}">${esc(r.name)}</a>` : `<b>${esc(r.name)}</b>`}</td>
+      <td>${c.code === "IN" || c.code === "US" ? `<a class="ur-co" href="#universe/${c.code}/${encodeURIComponent(r.code)}">${esc(r.name)}</a>` : `<b>${esc(r.name)}</b>`}</td>
       <td class="ur-dim"><span class="ur-tk">${esc(r.code)}</span>${r.extra ? ` <small>${esc(r.extra)}</small>` : ""}</td>
       <td class="ur-dim">${esc(r.sub)}</td>
-      <td class="ur-act">${c.code === "IN" ? `<a class="kc-src" href="#universe/IN/${encodeURIComponent(r.code)}">View</a> ` : ""}<a class="kc-src" href="#chart/${encodeURIComponent(r.chart)}">Chart</a></td>
+      <td class="ur-act">${c.code === "IN" || c.code === "US" ? `<a class="kc-src" href="#universe/${c.code}/${encodeURIComponent(r.code)}">View</a> ` : ""}<a class="kc-src" href="#chart/${encodeURIComponent(r.chart)}">Chart</a></td>
     </tr>`).join("");
     const reportsBtn = m.reports ? `<button type="button" class="ur-browse ghost" data-reports="${c.code}">Annual reports →</button>` : "";
     return `
@@ -229,7 +235,7 @@
           <span class="ur-flag big">${c.flag}</span>
           <div><h3>${esc(c.name)}</h3><p>${esc(c.exchange)} · ${m.cur} · ${esc(c.indexLabel)} · ${fmt(d.rows.length)} companies${c.code === "IN" ? " (full NSE/BSE list)" : " (tracked basket)"}</p></div>
         </div>
-        ${c.code === "IN" ? searchBar() : ""}
+        ${c.code === "IN" || c.code === "US" ? searchBar() : ""}
         <div class="ur-find"><input id="ur-q" type="search" placeholder="Search ${esc(c.name)} companies by name or ticker…" value="${esc(state.q)}" autocomplete="off"></div>
         <div class="ur-subhead">${esc(d.label)}</div>
         <div class="ur-chips ur-chips-wrap">${chips}</div>
@@ -249,6 +255,7 @@
     const c = state.market ? COUNTRIES.find((x) => x.code === state.market) : null;
     if (state.company) return renderCompany();
     if (window.CompanyPage) window.CompanyPage.close(document.getElementById("ur-company"));
+    if (window.UsCompanyPage) window.UsCompanyPage.close(document.getElementById("ur-company"));
     const focus = document.activeElement && document.activeElement.id === "ur-q";
     root.innerHTML = c ? browseHtml(c) : marketsHtml();
     if (focus) {
@@ -257,7 +264,18 @@
     }
   }
 
+  function renderUsCompany() {
+    const us = COUNTRIES.find((c) => c.code === "US");
+    const t = String(state.company).toUpperCase();
+    const hint = us && us.stocks.find((x) => x.symbol.toUpperCase() === t);
+    root.innerHTML = `<div class="ur-crumb"><a class="ur-back" href="#universe/US">← United States</a><span>/</span><span>${esc(t)}</span></div>
+      ${searchBar()}<div id="ur-company"></div>`;
+    document.title = `${t} · StalkingStocks`;
+    window.UsCompanyPage.open(document.getElementById("ur-company"), t, hint ? hint.name : "");
+  }
+
   function renderCompany() {
+    if (state.companyMkt === "US") return renderUsCompany();
     if (dir.status === "idle" || dir.status === "loading") {
       root.innerHTML = `<section class="card"><p class="f-empty">Loading the company list…</p></section>`;
       loadDir();
@@ -273,6 +291,8 @@
     document.title = `${rec.name} · StalkingStocks`;
     window.CompanyPage.open(document.getElementById("ur-company"), rec);
   }
+
+  let usTimer = 0, usSeq = 0;
 
   function setView(v) {
     state.view = v;
@@ -301,12 +321,13 @@
     const [, market, sym] = location.hash.slice(1).split("/");
     const valid = market && COUNTRIES.some((c) => c.code === market) ? market : null;
     let company = null;
-    if (valid === "IN" && sym) {
+    if ((valid === "IN" || valid === "US") && sym) {
       try { company = decodeURIComponent(sym); } catch { company = null; }
     }
     if (valid !== state.market || company !== state.company) { state.group = ""; state.q = ""; state.shown = 100; }
     state.market = valid;
     state.company = company;
+    state.companyMkt = company ? valid : null;
     if (!state.company) document.title = "StalkingStocks";
     if ((valid || company) && state.view === "reports") setView("markets");
     else if (state.view === "markets") render();
@@ -345,7 +366,24 @@
       const box = document.getElementById("ur-gres");
       const q = e.target.value.trim();
       box.hidden = !q;
-      if (q) box.innerHTML = dir.status === "ready" ? gresHtml(searchIndia(q)) : `<div class="ur-gr none">Loading the company list…</div>`;
+      clearTimeout(usTimer);
+      if (!q) return;
+      const paint = (us, loading) => {
+        const b = document.getElementById("ur-gres");
+        if (b && !b.hidden) b.innerHTML = gresHtml(dir.status === "ready" ? searchIndia(q).slice(0, 6) : [], us, loading || dir.status !== "ready");
+      };
+      paint([], true);
+      // US companies: SEC's ticker list (also what the annual-report search uses).
+      usTimer = setTimeout(async () => {
+        const seq = ++usSeq;
+        try {
+          const res = await fetch(`/api/filings/us/search?q=${encodeURIComponent(q)}`);
+          const body = await res.json();
+          if (seq === usSeq) paint((body.results || []).slice(0, 6), false);
+        } catch {
+          if (seq === usSeq) paint([], false);
+        }
+      }, 220);
     }
   });
   root.addEventListener("keydown", (e) => {
