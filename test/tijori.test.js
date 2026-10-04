@@ -1,5 +1,5 @@
 // Unit tests for tijori.js. No network and no express needed: fetch is mocked.
-const { createResolver, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase } = require("../tijori");
+const { createResolver, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase, pickSearchResult } = require("../tijori");
 const { createDirectory } = require("../companies");
 const { build, parseCsv } = require("../scripts/import-companies");
 
@@ -207,6 +207,47 @@ const htmlRes = (url, body, finalUrl) => ({ ok: true, status: 200, url: finalUrl
   ]);
   r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("GRASIM");
   check("resolver: verified page without a knowledge base -> knowledge null", r.tijori.status === "verified" && r.knowledge === null);
+
+  // ---- Tijori company search (slug comes from the site, not from the name) ----
+  const SEARCH = [
+    { name: "Mahindra &amp; Mahindra Financial Services Ltd.", slug: "mahindra-mahindra-financial-services-limited", type: "companies" },
+    { name: "Mahindra &amp; Mahindra Ltd.", slug: "mahindra-mahindra-limited", type: "companies" },
+    { name: "SML Mahindra Ltd.", slug: "sml-isuzu-limited", type: "companies" },
+    { name: "Mahindra &amp; Mahindra Ltd. - (Rights)", slug: "mm-rights", type: "InActive" },
+  ];
+  check("search pick: exact normalised name, & entity decoded", pickSearchResult(SEARCH, "Mahindra & Mahindra Limited").slug === "mahindra-mahindra-limited");
+  check("search pick: Ltd. == Limited", pickSearchResult(SEARCH, ["SML Mahindra Limited"]).slug === "sml-isuzu-limited");
+  check("search pick: several results, no exact name -> none", pickSearchResult(SEARCH, "Mahindra") === null);
+  check("search pick: lone result only with loneOk", pickSearchResult([SEARCH[2]], "xyz") === null && pickSearchResult([SEARCH[2]], "xyz", { loneOk: true }).slug === "sml-isuzu-limited");
+  check("search pick: InActive and bad slugs ignored", pickSearchResult([SEARCH[3], { name: "Evil", slug: "../x", type: "companies" }], "Evil", { loneOk: true }) === null);
+
+  // slug that can't be derived from the name: the search finds it
+  f = mockFetch([
+    ["https://y/v8/finance/chart/SMLISUZU.NS", () => yahoo("SML Mahindra Limited")],
+    ["https://t/api/v1/ind/company_search/?q=SML%20Mahindra%20Limited", () => ({ ok: true, status: 200, text: async () => JSON.stringify(SEARCH) })],
+    ["https://t/company/sml-isuzu-limited/", (u) => htmlRes(u, page("SML Mahindra Ltd. SMLISUZU"))],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("SMLISUZU");
+  check("resolver: slug taken from Tijori search", r.tijori.status === "verified" && r.tijori.slug === "sml-isuzu-limited", JSON.stringify(r.tijori));
+  check("resolver: search tried before slug guessing", !f.calls.some((u) => u.includes("/company/sml-mahindra-limited/")), f.calls.join(" | "));
+
+  // BSE-only company: BSE code query returns a lone result
+  f = mockFetch([
+    ["https://y/v8/finance/chart/540874.BO", () => yahoo("7Seas Entertainment Limited")],
+    ["https://t/api/v1/ind/company_search/?q=540874", () => ({ ok: true, status: 200, text: async () => JSON.stringify([{ name: "Seven Seas Ent Ltd.", slug: "seven-seas-ent", type: "companies" }]) })],
+    ["https://t/company/seven-seas-ent/", (u) => htmlRes(u, page("7Seas Entertainment BSE: 540874"))],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t", directory: dir }).resolve("540874");
+  check("resolver: BSE code search finds the slug", r.tijori.status === "verified" && r.tijori.slug === "seven-seas-ent", JSON.stringify(r.tijori));
+
+  // search down -> guessed slugs still work
+  f = mockFetch([
+    ["https://y/v8/finance/chart/GRASIM.NS", () => yahoo("Grasim Industries Limited")],
+    ["https://t/api/v1/ind/company_search/", () => ({ ok: false, status: 503, text: async () => "" })],
+    ["https://t/company/grasim-industries-limited/", (u) => htmlRes(u, page("Grasim Industries GRASIM"))],
+  ]);
+  r = await createResolver({ fetchImpl: f, yahooBase: "https://y", tijoriBase: "https://t" }).resolve("GRASIM");
+  check("resolver: search outage falls back to name-derived slug", r.tijori.status === "verified" && r.tijori.slug === "grasim-industries-limited");
 
   console.log(fails ? `\n${fails} FAILED` : "\nall passed");
   process.exit(fails ? 1 : 0);

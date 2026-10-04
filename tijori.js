@@ -1,6 +1,6 @@
 // Connects an NSE ticker to its company page on Tijori Finance.
 //
-//   ticker -> company name -> Tijori slug -> verified Tijori page URL
+//   ticker -> company name -> Tijori slug (from Tijori's search) -> verified page URL
 //
 // The company name comes from Screener.in when SCREENER_SESSIONID is set (it
 // has no public API, see screener.js), otherwise from Yahoo Finance, which is
@@ -225,6 +225,34 @@ function parseKnowledgeBase(html, { tijoriBase = TIJORI_BASE } = {}) {
   return groups.filter((g) => g.links.length);
 }
 
+// ---- Tijori's own company search ----
+//
+// The search bar on tijorifinance.com calls
+//   GET /api/v1/ind/company_search/?q=<text>   (public, no login)
+// and gets a JSON array of { name, slug, type }. Slugs can't always be derived
+// from names ("SML Mahindra Ltd." -> sml-isuzu-limited), so the slug is taken
+// from here first and the name-derived guesses are only a fallback. Only
+// type "companies" counts; delisted entries and rights issues are "InActive".
+// Searching by NSE ticker finds nothing, but names and BSE codes work.
+
+const normName = (n) =>
+  decodeEntities(n)
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/\bltd\b/g, "limited")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+// Which search result is the company? An exact (normalised) name match wins;
+// otherwise a lone result is accepted only for a precise query (BSE code).
+function pickSearchResult(results, wantNames, { loneOk = false } = {}) {
+  const live = (Array.isArray(results) ? results : []).filter((r) => r && r.type === "companies" && r.slug && /^[a-z0-9-]+$/.test(r.slug));
+  const wants = [].concat(wantNames).filter(Boolean).map(normName);
+  const exact = live.find((r) => wants.includes(normName(r.name)));
+  if (exact) return exact;
+  return loneOk && live.length === 1 ? live[0] : null;
+}
+
 function withTimeout(ms) {
   return typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined;
 }
@@ -293,6 +321,21 @@ function createResolver({
     }
   }
 
+  // -> { slug } | { slug: null } | { error: true }
+  async function searchSlug(query, wantNames, opts) {
+    try {
+      const res = await fetchImpl(`${tijoriBase}/api/v1/ind/company_search/?q=${encodeURIComponent(query)}`, {
+        headers: { "User-Agent": UA, Accept: "application/json" },
+        signal: withTimeout(TIMEOUT_MS),
+      });
+      if (!res.ok) return res.status === 404 ? { slug: null } : { error: true };
+      const hit = pickSearchResult(JSON.parse(await res.text()), wantNames, opts);
+      return { slug: hit ? hit.slug : null };
+    } catch {
+      return { error: true };
+    }
+  }
+
   async function compute(ticker) {
     const rec = directory ? directory.find(ticker) : null;
     const code = rec ? rec.nse || rec.bse : ticker;
@@ -323,7 +366,20 @@ function createResolver({
 
     let firstGuess = null;
     let sawError = false;
-    for (const slug of slugCandidates(named.name)) {
+
+    // Tijori's search first (BSE code is the precise query; then the legal
+    // name; then the list's short name), then slugs guessed from the name.
+    const slugs = [];
+    const names = [named.name, rec && rec.name];
+    const queries = [rec && rec.bse ? [rec.bse, { loneOk: true }] : null, [named.name, {}], rec && rec.name && rec.name !== named.name ? [rec.name, {}] : null].filter(Boolean);
+    for (const [q, opts] of queries) {
+      const found = await searchSlug(q, names, opts);
+      if (found.error) sawError = true;
+      else if (found.slug && !slugs.includes(found.slug)) slugs.push(found.slug);
+    }
+    for (const g of slugCandidates(named.name)) if (!slugs.includes(g)) slugs.push(g);
+
+    for (const slug of slugs.slice(0, MAX_CANDIDATES + 2)) {
       const r = await probe(slug, ids, named.name);
       firstGuess = firstGuess || { slug, url: r.url };
       if (r.state === "ok") {
@@ -385,4 +441,4 @@ function createRouter(resolver) {
   return router;
 }
 
-module.exports = { createResolver, createRouter, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase };
+module.exports = { createResolver, createRouter, normalizeTicker, slugCandidates, pageMatches, parseKnowledgeBase, pickSearchResult };
