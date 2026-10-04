@@ -282,3 +282,11 @@ the list (new listings, renamed tickers); commit the regenerated `public/compani
 ### Tijori Knowledge Base links
 
 `/api/tijori/resolve` now also returns `knowledge` (groups of title / author / outbound URL) read from the verified Tijori company page, cached 24h per ticker. The Company view shows it inline for any company; Grasim's curated list in `public/company-knowledge.js` still takes precedence. If Tijori blocks our server the card falls back to the "Knowledge Base on Tijori" link.
+
+## US company list (Universe → United States)
+
+`public/us-stocks.json` is built from a Dhan "All US Stocks" CSV:
+
+    node scripts/import-us-stocks.js path/to/Dhan_-_US_All_Us_Stocks.csv
+
+The CSV has no ticker column, so tickers come from the table at the top of the script (names it doesn't know show without a page link). Market cap is treated as $ millions and displayed as $ Tn / Bn / Mn.

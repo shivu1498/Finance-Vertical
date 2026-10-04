@@ -84,6 +84,102 @@
     render();
   }
 
+  /* ---------- US universe (us-stocks.json, from the Dhan US list) ---------- */
+  const usd = { status: "idle", rows: [] };
+  async function loadUs() {
+    if (usd.status !== "idle") return;
+    usd.status = "loading";
+    try {
+      const res = await fetch("us-stocks.json");
+      if (!res.ok) throw new Error(String(res.status));
+      usd.rows = (await res.json()).rows.map((r) => ({ ...r, hay: `${r.n} ${r.t || ""}`.toLowerCase() }));
+      usd.status = "ready";
+    } catch {
+      usd.status = "error";
+    }
+    render();
+  }
+  const listedUs = () => (usd.status === "ready" ? usd.rows.length : null);
+
+  // $ for currency; Tn / Bn / Mn for trillions / billions / millions.
+  const dec = (n, d) => Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const usdPrice = (n) => (n == null ? "—" : `$${dec(n, 2)}`);
+  const usdCap = (mn) => {            // market cap arrives in $ millions
+    if (mn == null) return "—";
+    if (mn >= 1e6) return `$${dec(mn / 1e6, 2)} Tn`;
+    if (mn >= 1e3) return `$${dec(mn / 1e3, 2)} Bn`;
+    return `$${dec(mn, 2)} Mn`;
+  };
+  const shares = (n) => {             // share volume
+    if (n == null) return "—";
+    if (n >= 1e9) return `${dec(n / 1e9, 2)} Bn`;
+    if (n >= 1e6) return `${dec(n / 1e6, 2)} Mn`;
+    if (n >= 1e3) return `${dec(n / 1e3, 1)} K`;
+    return dec(n, 0);
+  };
+  const pctCell = (n, signed) => (n == null ? `<span class="ur-dim">—</span>` : `<span class="${n < 0 ? "neg" : n > 0 ? "pos" : ""}">${signed && n > 0 ? "+" : ""}${dec(n, 2)}%</span>`);
+  const plain = (n) => (n == null ? `<span class="ur-dim">—</span>` : dec(n, 2));
+
+  const US_COLS = [
+    ["p", "Price", (r) => usdPrice(r.p)],
+    ["c", "Change", (r) => pctCell(r.c, true)],
+    ["vol", "Volume", (r) => shares(r.vol)],
+    ["mc", "Market cap", (r) => usdCap(r.mc)],
+    ["pe", "P/E", (r) => plain(r.pe)],
+    ["ipe", "Industry P/E", (r) => plain(r.ipe)],
+    ["hi", "52W high", (r) => usdPrice(r.hi)],
+    ["r1m", "1M", (r) => pctCell(r.r1m, true)],
+    ["r3m", "3M", (r) => pctCell(r.r3m, true)],
+    ["r1y", "1Y", (r) => pctCell(r.r1y, true)],
+    ["r3y", "3Y", (r) => pctCell(r.r3y, true)],
+    ["r5y", "5Y", (r) => pctCell(r.r5y, true)],
+    ["roe", "ROE", (r) => pctCell(r.roe)],
+    ["roce", "ROCE", (r) => pctCell(r.roce)],
+  ];
+  const usSort = { key: "mc", dir: -1 };
+
+  function usBrowseHtml(c) {
+    if (usd.status === "idle" || usd.status === "loading") return `<section class="card"><p class="f-empty">Loading the US company list…</p></section>`;
+    if (usd.status === "error") return `<section class="card"><p class="f-error">Couldn't load us-stocks.json.</p></section>`;
+    const q = state.q.trim().toLowerCase();
+    let rows = usd.rows.filter((r) => !q || r.hay.includes(q));
+    const k = usSort.key;
+    rows = rows.slice().sort((a, b) => {
+      const x = k === "n" ? a.n : a[k], y = k === "n" ? b.n : b[k];
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return (typeof x === "string" ? x.localeCompare(y) : x - y) * usSort.dir;
+    });
+    const th = (key, label, cls) => `<th class="${cls || ""} ur-sortable ${usSort.key === key ? "sorted" : ""}" data-sort="${key}">${label}${usSort.key === key ? (usSort.dir < 0 ? " ▼" : " ▲") : ""}</th>`;
+    const trs = rows.map((r) => {
+      const name = r.t ? `<a class="ur-co" href="#universe/US/${encodeURIComponent(r.t)}">${esc(r.n)}</a>` : `<b>${esc(r.n)}</b>`;
+      const tick = r.t ? `<small class="ur-tk">${esc(r.t)}</small>` : `<small class="ur-dim">no ticker</small>`;
+      const chart = r.t ? `<a class="kc-src" href="#chart/${encodeURIComponent(`${r.x || "NASDAQ"}:${r.t.replace(/-/g, ".")}`)}">Chart</a>` : "";
+      return `<tr><td class="ur-sticky">${name}${tick}</td>${US_COLS.map(([, , f]) => `<td class="ur-num">${f(r)}</td>`).join("")}<td class="ur-act">${chart}</td></tr>`;
+    }).join("");
+    return `
+      <section class="card">
+        <div class="section-title">
+          <span><button type="button" class="ur-back" id="ur-back">← All markets</button></span>
+          <button type="button" class="ur-browse ghost" data-reports="US">Annual reports →</button>
+        </div>
+        <div class="ur-bhead">
+          <span class="ur-flag big">${c.flag}</span>
+          <div><h3>${esc(c.name)}</h3><p>${esc(c.exchange)} · USD ($) · ${fmt(usd.rows.length)} companies · market cap in $ Tn / Bn / Mn</p></div>
+        </div>
+        ${searchBar()}
+        <div class="ur-find"><input id="ur-q" type="search" placeholder="Search US companies by name or ticker…" value="${esc(state.q)}" autocomplete="off"></div>
+        <div class="ur-scroll">
+          <table class="ur-table ur-us">
+            <thead><tr>${th("n", "Company", "ur-sticky")}${US_COLS.map(([key, label]) => th(key, label, "ur-num")).join("")}<th></th></tr></thead>
+            <tbody>${trs || `<tr><td colspan="${US_COLS.length + 2}" class="f-empty">No companies match.</td></tr>`}</tbody>
+          </table>
+        </div>
+        <div class="ur-foot">Showing ${fmt(rows.length)} of ${fmt(usd.rows.length)} · prices and ratios as supplied in the Dhan US list. Click a column to sort; click a company for its Finviz page.</div>
+      </section>`;
+  }
+
   // Name/ticker search over the India universe: ticker prefix > name prefix > contains.
   function searchIndia(q) {
     const t = q.trim().toLowerCase();
@@ -111,7 +207,7 @@
       <div class="ur-gres" id="ur-gres" hidden></div>
     </div>`;
 
-  function trackedCount(c) { return c.stocks.length; }
+  function trackedCount(c) { return c.code === "US" && listedUs() != null ? listedUs() : c.stocks.length; }
   function listedIndia() { return dir.status === "ready" ? dir.rows.length : null; }
 
   /* ---------- markets view ---------- */
@@ -142,6 +238,7 @@
     const listed = c.code === "IN" ? listedIndia() : null;
     const comp = listed != null
       ? `${fmt(listed)}<small>${trackedCount(c)} on the heatmap</small>`
+      : c.code === "US" && listedUs() != null ? `${trackedCount(c)}<small>Dhan US list</small>`
       : `${trackedCount(c)}<small>tracked basket</small>`;
     const rep = m.reports
       ? `<span class="ur-badge ${m.lvl}">${esc(m.reports)}</span>`
@@ -205,6 +302,7 @@
   }
 
   function browseHtml(c) {
+    if (c.code === "US") return usBrowseHtml(c);
     const m = META[c.code];
     if (c.code === "IN" && dir.status === "loading") return `<section class="card"><p class="f-empty">Loading the NSE/BSE company list…</p></section>`;
     if (c.code === "IN" && dir.status === "error") return `<section class="card"><p class="f-error">Couldn't load companies.json.</p></section>`;
@@ -312,6 +410,7 @@
     state.q = "";
     state.shown = 100;
     if (code === "IN") loadDir();
+    if (code === "US") loadUs();
     location.hash = `#universe/${code}`; // route() renders via tabchange
   }
 
@@ -332,6 +431,7 @@
     if ((valid || company) && state.view === "reports") setView("markets");
     else if (state.view === "markets") render();
     if (valid === "IN") loadDir();
+    if (valid === "US") loadUs();
   }
 
   sw.addEventListener("click", (e) => {
@@ -347,6 +447,12 @@
     if (rg) { state.region = rg.dataset.region; return render(); }
     const gr = t.closest("[data-group]");
     if (gr) { state.group = gr.dataset.group; state.shown = 100; return render(); }
+    const so = t.closest("[data-sort]");
+    if (so) {
+      const key = so.dataset.sort;
+      if (usSort.key === key) usSort.dir *= -1; else { usSort.key = key; usSort.dir = key === "n" ? 1 : -1; }
+      return render();
+    }
     if (t.closest("#ur-back")) { location.hash = "#universe"; return; }
     if (t.closest("#ur-more")) { state.shown += 200; return render(); }
     const rp = t.closest("[data-reports]");
@@ -403,8 +509,9 @@
   document.addEventListener("tabchange", () => {
     if (!isActive()) return;
     loadDir();
+    loadUs();
     route();
   });
-  if (isActive()) { loadDir(); route(); }
+  if (isActive()) { loadDir(); loadUs(); route(); }
   render();
 })();

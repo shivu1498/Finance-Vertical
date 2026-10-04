@@ -3198,3 +3198,13 @@ em.pc { font-style: italic; }
 .us-news .us-when { color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; }
 .us-news small { color: var(--text-muted); }
 @media (max-width: 800px) { .us-news li { grid-template-columns: 1fr; gap: 2px; } }
+
+/* ---------- Universe: US list table ---------- */
+.ur-us { font-size: 0.84rem; min-width: 1320px; }
+.ur-us th.ur-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.ur-us th.ur-sortable:hover, .ur-us th.sorted { color: var(--accent); }
+.ur-us .ur-sticky { position: sticky; left: 0; z-index: 1; min-width: 190px; max-width: 260px; background: rgba(14, 14, 16, 0.97); }
+.ur-us td.ur-sticky small { display: block; margin-top: 2px; font-size: 0.7rem; }
+.ur-us td.ur-num { font-variant-numeric: tabular-nums; }
+.ur-us td.ur-num .pos { color: var(--up-strong); }
+.ur-us td.ur-num .neg { color: var(--down-strong); }

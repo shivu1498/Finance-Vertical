@@ -39,10 +39,22 @@
     }
   }
 
+  // Finviz writes 5.6T / 827B / 312M. Show $ for currency and Tn / Bn / Mn.
+  const MONEY = new Set(["Market Cap", "Income", "Sales", "Enterprise Value", "Book/sh", "Cash/sh", "Dividend Est.", "Dividend TTM"]);
+  const COUNT = /^([-+]?[\d.,]+)([TBM])$/;
+  function money(label, v) {
+    v = String(v);
+    const m = COUNT.exec(v);
+    if (m) return `${MONEY.has(label) ? "$" : ""}${m[1]} ${{ T: "Tn", B: "Bn", M: "Mn" }[m[2]]}`;
+    if (DOLLAR.has(label) && /^[\d.,]+$/.test(v)) return "$" + v;
+    if (MONEY.has(label) && /^-?[\d.,]+$/.test(v)) return (v[0] === "-" ? "-$" + v.slice(1) : "$" + v);
+    return v;
+  }
+
   function snapshotHtml(snap) {
     if (!snap || !snap.length) return `<p class="sc-empty">No snapshot data.</p>`;
     return `<div class="us-snap">${snap
-      .map((s) => `<div class="us-kv"><span>${esc(s.label)}</span><b class="${tone(s.value)}">${esc(DOLLAR.has(s.label) && /^[\d.,]+$/.test(s.value) ? "$" + s.value : s.value)}</b></div>`)
+      .map((s) => `<div class="us-kv"><span>${esc(s.label)}</span><b class="${tone(s.value)}">${esc(money(s.label, s.value))}</b></div>`)
       .join("")}</div>`;
   }
 
