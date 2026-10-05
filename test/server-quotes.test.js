@@ -11,6 +11,9 @@ const SERIES = {
   "^NSEI": { closes: [22000, 22100, 22050, 22200, 22420], price: 22420 },
   "^TNX": { closes: [4.1, 4.2, 4.25, 4.3, 4.28], price: 4.28 },
   "EURUSD=X": { closes: [1.07, 1.075, 1.08, 1.079, 1.082], price: 1.082 },
+  // 400 days of history, for /api/quotes/periods (needs a much wider window
+  // than the 5-day one above to resolve 3M/6M/1Y).
+  "^LONG": { closes: Array.from({ length: 400 }, (_, i) => 100 + i), price: 100 + 399 },
 };
 const mock = express();
 mock.get("/v8/finance/chart/:symbol", (req, res) => {
@@ -38,6 +41,14 @@ mock.get("/v8/finance/chart/:symbol", (req, res) => {
   check("an FX pair gives a positive change", Math.abs(q["EURUSD=X"].change - (1.082 - 1.079)) < 1e-9);
   check("an unknown symbol is reported as an error, not a crash", q["NOPE"].error === true && /404/.test(q["NOPE"].message), q["NOPE"].message);
   check("the symbols param is required", (await fetch(`http://127.0.0.1:${port}/api/quotes`)).status === 400);
+
+  // /api/quotes/periods: the Markets tab's 1D/1W/1M/3M/6M/1Y chips
+  const lp = await (await fetch(`http://127.0.0.1:${port}/api/quotes/periods?symbol=${encodeURIComponent("^LONG")}`)).json();
+  check("periods: price is the live price", lp.price === 499, lp.price);
+  check("periods: 1D matches the same day-change math as /api/quotes", Math.abs(lp.periods["1D"] - (1 / 498) * 100) < 1e-9, lp.periods["1D"]);
+  check("periods: 1Y resolves given 400 days of history", Math.abs(lp.periods["1Y"] - (365 / 134) * 100) < 1e-6, lp.periods["1Y"]);
+  check("periods: symbol query param is required", (await fetch(`http://127.0.0.1:${port}/api/quotes/periods`)).status === 400);
+  check("periods: an unknown symbol is a clean upstream error, not a crash", (await fetch(`http://127.0.0.1:${port}/api/quotes/periods?symbol=NOPE`)).status === 502);
 
   srv.kill(); mockSrv.close();
   console.log(fails ? `\n${fails} FAILED` : "\nall passed");

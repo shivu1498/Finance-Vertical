@@ -1,4 +1,4 @@
-const { parseChart } = require("../quotes");
+const { parseChart, parsePeriods } = require("../quotes");
 let fails = 0;
 const near = (n, got, want, tol = 1e-9) => { const ok = got != null && Math.abs(got - want) <= tol; if (!ok) fails++; console.log((ok ? "PASS " : "FAIL ") + n + `  got ${got}, want ${want}`); };
 const is = (n, ok, x = "") => { if (!ok) fails++; console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  " + x : "")); };
@@ -63,5 +63,46 @@ near("weekend: baseline is Thursday's close", q.prevClose, 103);
 // negative moves and yields
 q = parseChart(chart({ regularMarketPrice: 4.2 }, [4.4, 4.3, 4.25]), "^TNX");
 near("negative change", q.change, 4.2 - 4.3, 1e-9);
+
+// ---- parsePeriods: 1D/1W/1M/3M/6M/1Y change from one wide daily-bar fetch ----
+const periodsChart = (meta, closes, ts) => ({ chart: { result: [{ meta, timestamp: ts, indicators: { quote: [{ close: closes }] } }] } });
+
+{
+  // 400 consecutive daily bars, close[i] = 100 + i, "now" just after the last bar closes.
+  const N = 400;
+  const closes = Array.from({ length: N }, (_, i) => 100 + i);
+  const ts = Array.from({ length: N }, (_, i) => base + i * D);
+  const p = parsePeriods(periodsChart({ regularMarketPrice: closes[N - 1], regularMarketTime: ts[N - 1] + 3600 }, closes, ts), "X");
+
+  near("periods: price is the live price", p.price, 499);
+  near("1D: vs the previous session (reuses previousSessionClose)", p.periods["1D"], (1 / 498) * 100);
+  near("1W: 7 calendar days back", p.periods["1W"], (7 / 492) * 100);
+  near("1M: 30 calendar days back", p.periods["1M"], (30 / 469) * 100);
+  near("3M: 91 calendar days back", p.periods["3M"], (91 / 408) * 100);
+  near("6M: 182 calendar days back", p.periods["6M"], (182 / 317) * 100);
+  near("1Y: 365 calendar days back", p.periods["1Y"], (365 / 134) * 100);
+}
+
+{
+  // Only 50 days of history: anything needing a longer lookback (3M/6M/1Y) has no base to compare to.
+  const N = 50;
+  const closes = Array.from({ length: N }, (_, i) => 100 + i);
+  const ts = Array.from({ length: N }, (_, i) => base + i * D);
+  const p = parsePeriods(periodsChart({ regularMarketPrice: closes[N - 1], regularMarketTime: ts[N - 1] + 3600 }, closes, ts), "X");
+  is("short history: 1M still resolves", p.periods["1M"] != null);
+  is("short history: 3M has nothing to compare to -> null, not a bogus number", p.periods["3M"] == null);
+  is("short history: 1Y likewise null", p.periods["1Y"] == null);
+}
+
+{
+  // A null close right at the cutoff falls through to the nearest earlier real close.
+  const N = 40;
+  const closes = Array.from({ length: N }, (_, i) => 100 + i);
+  closes[N - 1 - 7] = null; // the bar exactly 1W back has no close
+  const ts = Array.from({ length: N }, (_, i) => base + i * D);
+  const p = parsePeriods(periodsChart({ regularMarketPrice: closes[N - 1], regularMarketTime: ts[N - 1] + 3600 }, closes, ts), "X");
+  near("1W: a null bar at the cutoff falls back to the day before it", p.periods["1W"], (8 / (100 + N - 1 - 8)) * 100);
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

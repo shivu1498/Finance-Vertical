@@ -15,7 +15,7 @@ const { createScreenerHandler } = require("./screener");
 const { createFinviz } = require("./finviz");
 const { createMf } = require("./mf");
 const { createFilings } = require("./filings");
-const { parseChart } = require("./quotes");
+const { parseChart, parsePeriods } = require("./quotes");
 const { createNseAnnouncements } = require("./nse-announcements");
 const tijori = require("./tijori");
 const companies = require("./companies");
@@ -39,6 +39,13 @@ const cache = new Map();
 const CACHE_MS = 15_000;
 const YAHOO_BASE = process.env.YAHOO_BASE || "https://query1.finance.yahoo.com";
 
+// Separate cache for the (much heavier, 2y-of-daily-bars) period-return
+// fetch used by the Markets tab's 1D/1W/1M/3M/6M/1Y chips — only ever one
+// or two symbols (the active country's index) hit this, and the figures
+// barely move intraday outside of today's bar, so a longer TTL is fine.
+const periodsCache = new Map();
+const PERIODS_CACHE_MS = 5 * 60_000;
+
 async function fetchQuote(symbol) {
   const cached = cache.get(symbol);
   if (cached && Date.now() - cached.ts < CACHE_MS) return cached.data;
@@ -57,6 +64,29 @@ async function fetchQuote(symbol) {
   const data = parseChart(await res.json(), symbol);
 
   cache.set(symbol, { data, ts: Date.now() });
+  return data;
+}
+
+async function fetchPeriods(symbol) {
+  const cached = periodsCache.get(symbol);
+  if (cached && Date.now() - cached.ts < PERIODS_CACHE_MS) return cached.data;
+
+  // 2y of daily bars comfortably covers a 1-year-ago lookback even with
+  // holiday gaps near the boundary.
+  const url = `${YAHOO_BASE}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2y`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) throw new Error(`upstream ${res.status} for ${symbol}`);
+  const data = parsePeriods(await res.json(), symbol);
+
+  periodsCache.set(symbol, { data, ts: Date.now() });
   return data;
 }
 
@@ -85,6 +115,21 @@ app.get("/api/quotes", async (req, res) => {
   );
 
   res.json({ quotes, updatedAt: new Date().toISOString() });
+});
+
+// One symbol's % change over 1D/1W/1M/3M/6M/1Y, for the Markets tab's
+// period chips next to the country index. Deliberately separate from
+// /api/quotes (which stays a cheap 5-day fetch for the ticker tape, sector
+// heatmap, etc. — paying for 2y of history on every one of those symbols
+// would be wasteful for data almost nothing there uses).
+app.get("/api/quotes/periods", async (req, res) => {
+  const symbol = (req.query.symbol || "").toString().trim();
+  if (!symbol) return res.status(400).json({ error: "symbol query param required" });
+  try {
+    res.json(await fetchPeriods(symbol));
+  } catch (err) {
+    res.status(502).json({ error: "upstream_error", message: err.message });
+  }
 });
 
 const screenerHandler = createScreenerHandler({ sessionId: process.env.SCREENER_SESSIONID, directory: companies.loadDefault() });

@@ -253,6 +253,16 @@ treemap and fundamentals panel; **Sector Knowledge** holds the research gallery.
   integration to maintain. Yahoo covers most major exchanges via ticker
   suffixes; see the comment at the top of `public/data.js` for the
   suffix reference (`.L` London, `.DE` Frankfurt, `.HK` Hong Kong, etc.).
+- The Markets tab's 1D/1W/1M/3M/6M/1Y chips next to the country index are a
+  second, separate endpoint, `/api/quotes/periods?symbol=` (`quotes.js`'s
+  `parsePeriods`) — a 2-year daily-bar fetch for just that one index
+  symbol, so the cheap 5-day `/api/quotes` fetch used everywhere else
+  (ticker tape, sector heatmap, breadth) doesn't pay for history almost
+  nothing there needs. 1D reuses the existing session-aware previous-close
+  logic; the longer windows just find the closest trading day on or before
+  "N calendar days ago". Fetched once per index symbol and cached
+  client-side for 5 minutes — clicking between chips re-slices that one
+  response rather than re-fetching.
 - To add another country: append an entry to `COUNTRIES` in
   `public/data.js` with its index symbol and a stock list — no backend
   changes needed, as long as Yahoo lists that exchange.
