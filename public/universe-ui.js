@@ -101,6 +101,38 @@
   }
   const listedUs = () => (usd.status === "ready" ? usd.rows.length : null);
 
+  // Live prices via the shared /api/quotes (Yahoo Finance) endpoint. Only the
+  // page currently on screen is fetched, and only when that set changes; a
+  // "." in the ticker becomes "-" (Yahoo's convention, e.g. BRK.B -> BRK-B).
+  const usQuotes = new Map(); // ticker -> { price, pct, ok }
+  let usQuoteKey = "", usQuoteTimer = 0;
+  const usYahooSym = (t) => t.replace(/\./g, "-");
+
+  function currentUsTickers() {
+    return [...root.querySelectorAll(".ur-us tbody tr td.ur-sticky small.ur-tk")].map((el) => el.textContent.trim());
+  }
+
+  async function syncUsQuotes(tickers, force) {
+    const key = tickers.join(",");
+    if (!force && key === usQuoteKey) return;
+    usQuoteKey = key;
+    if (!tickers.length || typeof fetchQuotes !== "function") return;
+    try {
+      const { map } = await fetchQuotes(tickers.map(usYahooSym));
+      tickers.forEach((t) => {
+        const q = map.get(usYahooSym(t));
+        usQuotes.set(t, q && !q.error && Number.isFinite(q.price) ? { price: q.price, pct: q.changePercent, ok: true } : { ok: false });
+      });
+    } catch {
+      tickers.forEach((t) => { if (!usQuotes.has(t)) usQuotes.set(t, { ok: false }); });
+    }
+    if (state.market === "US" && !state.company && isActive()) {
+      const y = window.scrollY;
+      render();
+      window.scrollTo({ top: y });
+    }
+  }
+
   // $ for currency; Tn / Bn / Mn for trillions / billions / millions.
   const dec = (n, d) => Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
   const usdPrice = (n) => (n == null ? "—" : `$${dec(n, 2)}`);
@@ -121,8 +153,6 @@
   const plain = (n) => (n == null ? `<span class="ur-dim">—</span>` : dec(n, 2));
 
   const US_COLS = [
-    ["p", "Price", (r) => usdPrice(r.p)],
-    ["c", "Change", (r) => pctCell(r.c, true)],
     ["vol", "Volume", (r) => shares(r.vol)],
     ["mc", "Market cap", (r) => usdCap(r.mc)],
     ["pe", "P/E", (r) => plain(r.pe)],
@@ -142,21 +172,26 @@
     if (usd.status === "idle" || usd.status === "loading") return `<section class="card"><p class="f-empty">Loading the US company list…</p></section>`;
     if (usd.status === "error") return `<section class="card"><p class="f-error">Couldn't load us-stocks.json.</p></section>`;
     const q = state.q.trim().toLowerCase();
-    let rows = usd.rows.filter((r) => !q || r.hay.includes(q));
+    const filtered = usd.rows.filter((r) => !q || r.hay.includes(q));
+    const total = filtered.length;
     const k = usSort.key;
-    rows = rows.slice().sort((a, b) => {
+    const sorted = filtered.slice().sort((a, b) => {
       const x = k === "n" ? a.n : a[k], y = k === "n" ? b.n : b[k];
       if (x == null && y == null) return 0;
       if (x == null) return 1;
       if (y == null) return -1;
       return (typeof x === "string" ? x.localeCompare(y) : x - y) * usSort.dir;
     });
+    const page = sorted.slice(0, state.shown);
     const th = (key, label, cls) => `<th class="${cls || ""} ur-sortable ${usSort.key === key ? "sorted" : ""}" data-sort="${key}">${label}${usSort.key === key ? (usSort.dir < 0 ? " ▼" : " ▲") : ""}</th>`;
-    const trs = rows.map((r) => {
+    const trs = page.map((r) => {
       const name = r.t ? `<a class="ur-co" href="#universe/US/${encodeURIComponent(r.t)}">${esc(r.n)}</a>` : `<b>${esc(r.n)}</b>`;
       const tick = r.t ? `<small class="ur-tk">${esc(r.t)}</small>` : `<small class="ur-dim">no ticker</small>`;
       const chart = r.t ? `<a class="kc-src" href="#chart/${encodeURIComponent(`${r.x || "NASDAQ"}:${r.t.replace(/-/g, ".")}`)}">Chart</a>` : "";
-      return `<tr><td class="ur-sticky">${name}${tick}</td>${US_COLS.map(([, , f]) => `<td class="ur-num">${f(r)}</td>`).join("")}<td class="ur-act">${chart}</td></tr>`;
+      const lq = usQuotes.get(r.t);
+      const price = lq === undefined ? `<span class="ur-dim">…</span>` : lq.ok ? usdPrice(lq.price) : `<span class="ur-dim">—</span>`;
+      const chg = lq === undefined ? "" : lq.ok ? pctCell(lq.pct, true) : "";
+      return `<tr><td class="ur-sticky">${name}${tick}</td><td class="ur-num">${price}</td><td class="ur-num">${chg}</td>${US_COLS.map(([, , f]) => `<td class="ur-num">${f(r)}</td>`).join("")}<td class="ur-act">${chart}</td></tr>`;
     }).join("");
     return `
       <section class="card">
@@ -168,15 +203,16 @@
           <span class="ur-flag big">${c.flag}</span>
           <div><h3>${esc(c.name)}</h3><p>${esc(c.exchange)} · USD ($) · ${fmt(usd.rows.length)} companies · market cap in $ Tn / Bn / Mn</p></div>
         </div>
+        <div class="ur-note"><b>Mixed freshness.</b> Price and change are live (Yahoo Finance, ~15s cache) for every company. Volume, market cap, P/E, 52W high, returns, ROE and ROCE are from the Dhan US list and are only filled in for its ${usd.rows.filter((r) => r.mc != null).length} companies — every other ticker (the full NYSE list) shows "—" for those. Click a company for its Finviz page.</div>
         ${searchBar()}
         <div class="ur-find"><input id="ur-q" type="search" placeholder="Search US companies by name or ticker…" value="${esc(state.q)}" autocomplete="off"></div>
         <div class="ur-scroll">
           <table class="ur-table ur-us">
-            <thead><tr>${th("n", "Company", "ur-sticky")}${US_COLS.map(([key, label]) => th(key, label, "ur-num")).join("")}<th></th></tr></thead>
-            <tbody>${trs || `<tr><td colspan="${US_COLS.length + 2}" class="f-empty">No companies match.</td></tr>`}</tbody>
+            <thead><tr>${th("n", "Company", "ur-sticky")}<th class="ur-num">Price</th><th class="ur-num">Change</th>${US_COLS.map(([key, label]) => th(key, label, "ur-num")).join("")}<th></th></tr></thead>
+            <tbody>${trs || `<tr><td colspan="${US_COLS.length + 4}" class="f-empty">No companies match.</td></tr>`}</tbody>
           </table>
         </div>
-        <div class="ur-foot">Showing ${fmt(rows.length)} of ${fmt(usd.rows.length)} · prices and ratios as supplied in the Dhan US list. Click a column to sort; click a company for its Finviz page.</div>
+        <div class="ur-foot">Showing ${fmt(page.length)} of ${fmt(total)}${total > page.length ? ` <button type="button" class="ur-browse ghost" id="ur-more">Show more</button>` : ""} · click a column to sort.</div>
       </section>`;
   }
 
@@ -485,6 +521,14 @@
       if (!auQuoteTimer) {
         auQuoteTimer = setInterval(() => {
           if (state.market === "AU" && !state.company && isActive()) syncAuQuotes(currentAuTickers(), true);
+        }, 15000);
+      }
+    }
+    if (c && c.code === "US") {
+      syncUsQuotes(currentUsTickers());
+      if (!usQuoteTimer) {
+        usQuoteTimer = setInterval(() => {
+          if (state.market === "US" && !state.company && isActive()) syncUsQuotes(currentUsTickers(), true);
         }, 15000);
       }
     }

@@ -301,3 +301,13 @@ Company, Sector, Market Cap, Weight(%)):
 Every row already carries its own ASX code, so (unlike the US import) there's
 no name-to-ticker table to maintain. The export's date is kept as `asOf` and
 shown on the page, since market cap and weight are a snapshot, not live.
+
+To add a plain NYSE ticker list (name + symbol only, e.g. NYSE's own
+"ACT Symbol,Company Name" export) on top of the richer Dhan data:
+
+    node scripts/import-nyse-listed.js path/to/nyse-listed.csv
+
+Existing tickers (and their Dhan figures) are kept; new ones are added with
+only a name/ticker/exchange — the UI fills their Price/Change live from
+Yahoo Finance and shows "—" for the Dhan-only columns (Volume, Market cap,
+P/E, returns, ROE, ROCE).
