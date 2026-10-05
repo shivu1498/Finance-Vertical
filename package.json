@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/quotes.test.js && node test/server-quotes.test.js && node test/mf-metrics.test.js && node test/mf-backend.test.js && node test/tijori.test.js && node test/screener-page.test.js && node test/finviz.test.js"
+    "test": "node test/quotes.test.js && node test/server-quotes.test.js && node test/mf-metrics.test.js && node test/mf-backend.test.js && node test/tijori.test.js && node test/screener-page.test.js && node test/finviz.test.js && node test/nse-expansion.test.js"
   },
   "engines": {
     "node": ">=18"

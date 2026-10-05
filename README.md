@@ -311,3 +311,27 @@ Existing tickers (and their Dhan figures) are kept; new ones are added with
 only a name/ticker/exchange — the UI fills their Price/Change live from
 Yahoo Finance and shows "—" for the Dhan-only columns (Volume, Market cap,
 P/E, returns, ROE, ROCE).
+
+## Capex Watch (new tab)
+
+Scans NSE's own live corporate-announcements feed
+(`nseindia.com/api/corporate-announcements`) for filings whose summary
+mentions "capex", "capacity expansion" or "unit expansion", cross-checks
+each hit's NSE-tagged industry (`smIndustry`) against the industry we've
+already classified that company under (the same NSE/BSE list Universe
+uses), and — best-effort, using `pdf-text-lite.js` (no npm dependency, just
+Node's built-in `zlib`) — fetches and reads the actual filing PDF to
+confirm the phrase appears in the body, not just NSE's headline.
+
+- `nse-expansion.js` — fetch + cookie priming + keyword prefilter +
+  industry cross-reference + PDF confirmation. `GET /api/filings/in/expansion`.
+- `pdf-text-lite.js` — minimal Flate-stream text extractor. Handles the
+  common case (a text-based, FlateDecode-compressed PDF); gives up quietly
+  on scanned PDFs or unusual encodings rather than guessing.
+- `public/capex-ui.js` — the tab itself.
+
+NSE's feed is a rolling recent window, not a searchable archive (same
+caveat as the existing Annual Reports feed), and NSE's anti-bot layer may
+start blocking this from a server IP at any time — unverified against the
+live site from this sandbox (no outbound access to nseindia.com here); if
+it starts failing, the tab shows a clear error instead of breaking.

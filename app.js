@@ -16,6 +16,7 @@ const { createFinviz } = require("./finviz");
 const { createMf } = require("./mf");
 const { createFilings } = require("./filings");
 const { parseChart } = require("./quotes");
+const { createNseExpansion } = require("./nse-expansion");
 const tijori = require("./tijori");
 const companies = require("./companies");
 
@@ -112,5 +113,10 @@ if (process.env.MF_DISABLE !== "1") mf.start();
 // filings.js for why no other market is offered).
 const filings = createFilings();
 app.use("/api/filings", filings.router);
+
+// "Capex Watch": NSE's live corporate-announcements feed, scanned for
+// capex / capacity-expansion / unit-expansion filings, cross-checked
+// against our own industry classification. See nse-expansion.js.
+app.get("/api/filings/in/expansion", createNseExpansion({ directory: companies.loadDefault() }));
 
 module.exports = app;

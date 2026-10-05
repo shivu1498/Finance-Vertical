@@ -3212,3 +3212,45 @@ em.pc { font-style: italic; }
 /* ---------- Universe: Australia list table ---------- */
 .ur-au { font-size: 0.86rem; min-width: 760px; }
 .ur-au td.ur-sticky small { display: block; margin-top: 2px; }
+
+/* ---------- Capex Watch ---------- */
+.cx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cx-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 14px 0; }
+.cx-stat { background: rgba(17, 17, 19, .9); border: 1px solid var(--panel-border); border-left: 3px solid rgba(255, 255, 255, .25); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.cx-stat b { font-size: 1.7rem; font-weight: 800; line-height: 1; }
+.cx-stat span { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.cx-stat.accent { border-left-color: var(--accent); }
+.cx-stat.accent b { color: var(--accent); }
+.cx-stat.good { border-left-color: var(--up-strong); }
+.cx-stat.good b { color: var(--up-strong); }
+.cx-stat.warn { border-left-color: var(--down-strong); }
+.cx-stat.warn b { color: var(--down-strong); }
+
+.cx-note { background: rgba(255, 77, 67, .06); border: 1px solid var(--panel-border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 14px 16px; font-size: .86rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
+.cx-note b { color: var(--text-main); }
+
+.cx-list { display: flex; flex-direction: column; gap: 12px; }
+.cx-card { background: rgba(17, 17, 19, .9); border: 1px solid var(--panel-border); border-radius: 12px; padding: 16px 18px; }
+.cx-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cx-card-head h3 { margin: 0; font-size: 1rem; }
+.cx-dim { color: var(--text-muted); }
+.cx-pill { font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.cx-pill.ok { background: rgba(46, 228, 118, .14); color: var(--up-strong); }
+.cx-pill.mismatch { background: rgba(255, 77, 67, .14); color: var(--down-strong); }
+.cx-pill.unknown { background: rgba(255, 255, 255, .08); color: var(--text-muted); }
+
+.cx-industries { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.cx-industries > div { display: flex; flex-direction: column; gap: 2px; }
+.cx-industries span { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+.cx-industries b { font-size: .92rem; }
+
+.cx-snippet { font-size: .88rem; color: var(--text-main); background: rgba(255, 255, 255, .03); border-radius: 8px; padding: 10px 12px; margin: 10px 0; line-height: 1.5; }
+.cx-snippet mark { background: rgba(255, 196, 61, .3); color: inherit; border-radius: 3px; padding: 0 2px; }
+
+.cx-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.cx-kws { display: flex; gap: 6px; flex-wrap: wrap; }
+.cx-kw { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: rgba(255, 77, 67, .12); color: var(--accent); padding: 2px 8px; border-radius: 999px; }
+.cx-pdf { font-size: .76rem; color: var(--text-muted); }
+.cx-pdf.ok { color: var(--up-strong); }
+
+.cx-asof { text-align: center; color: var(--text-muted); font-size: .8rem; margin: 16px 0 4px; }
