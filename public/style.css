@@ -3163,3 +3163,82 @@ em.pc { font-style: italic; }
 .cx-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s ease; }
 .cx-progress .cx-dim { margin: 10px 0 0; font-size: .8rem; }
 .ur-browse.ghost[disabled] { opacity: .5; cursor: default; pointer-events: none; }
+
+/* ---- Sector grid (industry roll-up above the filing list) ---- */
+.cx-ind-section { margin: 4px 0 20px; }
+.cx-ind-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.cx-ind-section-head h3 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+.cx-ind-section-head .cx-dim { font-size: .78rem; }
+.cx-ind-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.cx-ind-card {
+  text-align: left; font: inherit; color: inherit; cursor: pointer;
+  background: rgba(17, 17, 19, .9); border: 1px solid var(--panel-border); border-left: 3px solid var(--cc, var(--accent));
+  border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.cx-ind-card:hover { background: var(--panel-soft); transform: translateY(-1px); }
+.cx-ind-card:focus-visible { outline: 2px solid var(--cc, var(--accent)); outline-offset: 2px; }
+.cx-ind-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.cx-ind-head h4 { margin: 0; font-family: var(--font-serif); font-weight: 600; font-size: 1rem; line-height: 1.25; }
+.cx-ind-n { flex: none; font-size: .68rem; font-weight: 700; background: color-mix(in srgb, var(--cc, var(--accent)) 16%, transparent); color: var(--cc, var(--accent)); border-radius: 999px; padding: 2px 8px; }
+.cx-ind-figure { font-weight: 800; font-size: 1.02rem; color: var(--text-main); }
+.cx-ind-figure.placeholder { font-weight: 500; font-size: .84rem; color: var(--text-muted); font-style: italic; }
+.cx-ind-sub { font-size: .76rem; color: var(--text-muted); }
+.cx-ind-dots { display: flex; gap: 5px; margin-top: 2px; }
+.cx-ind-more { margin-top: 10px; font-size: .78rem; }
+
+.cx-dot { display: inline-flex; align-items: center; justify-content: center; width: 9px; height: 9px; border-radius: 50%; background: #5a5a62; position: relative; }
+.cx-dot.ok { background: var(--up-strong); }
+.cx-dot.flag { background: #ffc43d; }
+.cx-dot.mismatch { background: var(--down-strong); }
+.cx-dot.unchecked { background: #5a5a62; }
+.cx-dot b { position: absolute; top: -5px; right: -7px; font-size: .58rem; font-weight: 800; color: var(--text-muted); background: none; }
+
+/* ---- Sector decode modal (per-industry drill-down) ---- */
+.cx-modal-backdrop {
+  position: fixed; inset: 0; z-index: 80; background: rgba(5, 5, 6, .72);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 5vh 16px; overflow-y: auto;
+}
+.cx-modal {
+  position: relative; width: 100%; max-width: 760px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cc, var(--accent)) 8%, var(--blue-2)), var(--blue-2) 140px);
+  border: 1px solid var(--panel-border); border-top: 3px solid var(--cc, var(--accent));
+  border-radius: 14px; padding: 28px 28px 24px; box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
+}
+.cx-modal-close {
+  position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--panel-soft); border: 1px solid var(--panel-border); color: var(--text-main);
+  font-size: 1.1rem; line-height: 1; cursor: pointer;
+}
+.cx-modal-close:hover { background: color-mix(in srgb, var(--cc, var(--accent)) 20%, transparent); }
+.cx-modal-eyebrow { font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--cc, var(--accent)); }
+.cx-modal-title { margin: 4px 0 14px; font-family: var(--font-display); font-weight: 700; font-size: 1.7rem; padding-right: 36px; }
+.cx-modal-headline { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cx-modal-fig { font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; color: var(--text-main); cursor: text; border-radius: 6px; padding: 0 2px; }
+.cx-modal-fig:hover, .cx-modal-fig:focus { background: rgba(255, 255, 255, .06); outline: none; }
+.cx-modal-fig-label { font-size: .92rem; color: var(--text-muted); margin-right: 8px; }
+.cx-modal-fig:empty + .cx-modal-fig-label { display: none; }
+.cx-modal-fig.alt { font-size: 1.05rem; font-weight: 600; font-style: italic; font-family: var(--font-serif); color: var(--cc, var(--accent)); }
+/* Placeholder is rendered, never typed — the field itself stays empty until
+   the person fills it in, so a click-to-edit never lands mid-placeholder. */
+.cx-modal-fig:empty::before {
+  content: attr(data-placeholder);
+  font-weight: 500; font-style: italic; font-family: var(--font-serif); font-size: 1.15rem; color: var(--text-muted);
+}
+.cx-modal-fig.alt:empty::before { font-size: 1.05rem; }
+.cx-modal-note { margin: 8px 0 18px; font-size: .78rem; color: var(--text-muted); }
+.cx-modal-stats { margin: 0 0 18px; }
+.cx-modal-table-wrap { overflow-x: auto; border: 1px solid var(--panel-border); border-radius: 10px; }
+.cx-modal-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.cx-modal-table th { text-align: left; font-size: .66rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); padding: 9px 12px; border-bottom: 1px solid var(--panel-border); white-space: nowrap; }
+.cx-modal-table td { padding: 9px 12px; border-bottom: 1px solid var(--panel-border); vertical-align: top; }
+.cx-modal-table tr:last-child td { border-bottom: none; }
+.cx-modal-table tr:hover td { background: rgba(255, 255, 255, .03); }
+.cx-inline-pill { margin-left: 6px; font-size: .6rem; padding: 1px 7px; vertical-align: middle; }
+@media (max-width: 640px) {
+  .cx-modal { padding: 24px 18px 20px; }
+  .cx-modal-title { font-size: 1.4rem; }
+  .cx-modal-fig { font-size: 1.5rem; }
+}

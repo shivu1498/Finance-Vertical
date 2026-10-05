@@ -144,6 +144,156 @@
     return `<div class="cx-stat ${cls || ""}"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
   }
 
+  // ---- Hand-entered sector figures (capex / demand) ----
+  // NSE's filings feed tells us *who* announced *what*, never a rupee
+  // figure — so capex/demand numbers are typed in by hand (per the plan:
+  // "I'll start giving in future") and kept in this browser's localStorage,
+  // keyed by our own industry name. Click a figure in the sector drill-down
+  // to edit it.
+  const FIGURES_KEY = "stalkingstocks.industryFigures.v1";
+  function loadFigures() {
+    try { return JSON.parse(localStorage.getItem(FIGURES_KEY) || "{}"); } catch (e) { return {}; }
+  }
+  function saveFigure(industry, field, value) {
+    try {
+      const all = loadFigures();
+      all[industry] = all[industry] || {};
+      if (value) all[industry][field] = value;
+      else delete all[industry][field];
+      localStorage.setItem(FIGURES_KEY, JSON.stringify(all));
+    } catch (e) {}
+  }
+
+  // ---- Grouping the currently-filtered items by our own industry tag ----
+  function industryGroups(items) {
+    const map = new Map();
+    for (const it of items) {
+      const ind = it.ourIndustry || "Unclassified";
+      if (!map.has(ind)) map.set(ind, { industry: ind, items: [], companies: new Set(), confirmed: 0, flaggedOnly: 0, mismatches: 0 });
+      const g = map.get(ind);
+      g.items.push(it);
+      g.companies.add(it.symbol);
+      if (it.pdfConfirmed) g.confirmed++;
+      else if (it.pdfChecked) g.flaggedOnly++;
+      if (it.industryMatch === false) g.mismatches++;
+    }
+    return Array.from(map.values()).sort((a, b) => b.items.length - a.items.length);
+  }
+
+  function activeCatMeta() {
+    if (state.activeCats.size !== 1) return null;
+    const id = Array.from(state.activeCats)[0];
+    return state.categories.find((c) => c.id === id) || null;
+  }
+
+  function dotHtml(n, cls, title) {
+    return n > 0 ? `<i class="cx-dot ${cls}" title="${esc(title)}">${n > 1 ? `<b>${n}</b>` : ""}</i>` : "";
+  }
+
+  function industryCardHtml(g, figures) {
+    const f = figures[g.industry] || {};
+    return `<button type="button" class="cx-ind-card" data-industry="${esc(g.industry)}">
+      <div class="cx-ind-head"><h4>${esc(g.industry)}</h4><span class="cx-ind-n">${g.items.length}</span></div>
+      <div class="cx-ind-figure${f.capex ? "" : " placeholder"}">${f.capex ? `₹${esc(f.capex)} cr capex` : "No capex figure yet"}</div>
+      <div class="cx-ind-sub">${g.companies.size} ${g.companies.size === 1 ? "company" : "companies"}${f.demand ? ` · ${esc(f.demand)}` : ""}</div>
+      <div class="cx-ind-dots">
+        ${dotHtml(g.confirmed, "ok", `${g.confirmed} confirmed in the PDF body`)}
+        ${dotHtml(g.flaggedOnly, "flag", `${g.flaggedOnly} flagged from NSE's summary only`)}
+        ${dotHtml(g.mismatches, "mismatch", `${g.mismatches} industry mismatch`)}
+      </div>
+    </button>`;
+  }
+
+  function industrySectionHtml(items) {
+    const groups = industryGroups(items);
+    if (!groups.length) return "";
+    const figures = loadFigures();
+    const cat = activeCatMeta();
+    const label = cat ? `${cat.label} by industry` : "By industry";
+    const cc = cat ? catColor(cat.id) : "var(--accent)";
+    return `<section class="cx-ind-section" style="--cc:${cc}">
+      <div class="cx-ind-section-head">
+        <h3>${esc(label)}</h3>
+        <span class="cx-dim">Capex and demand figures are added by hand — open a sector to fill them in.</span>
+      </div>
+      <div class="cx-ind-grid">${groups.slice(0, 12).map((g) => industryCardHtml(g, figures)).join("")}</div>
+      ${groups.length > 12 ? `<p class="cx-dim cx-ind-more">+${groups.length - 12} more ${groups.length - 12 === 1 ? "industry" : "industries"} with fewer filings</p>` : ""}
+    </section>`;
+  }
+
+  // ---- Sector drill-down (one industry, Kyro-style decode panel) ----
+  let modalIndustry = null;
+
+  function dotForItem(it) {
+    if (it.pdfConfirmed) return "ok";
+    if (it.pdfChecked) return "flag";
+    return "unchecked";
+  }
+  function dotTitleForItem(it) {
+    if (it.pdfConfirmed) return "Confirmed in the PDF body";
+    if (it.pdfChecked) return "Flagged from NSE's summary only — PDF didn't confirm it";
+    return "PDF not checked";
+  }
+
+  function companyRowHtml(it) {
+    const name = it.inUniverse ? `<a class="ur-co" href="#universe/IN/${encodeURIComponent(it.symbol)}">${esc(it.company)}</a>` : esc(it.company);
+    return `<tr>
+      <td><i class="cx-dot ${dotForItem(it)}" title="${esc(dotTitleForItem(it))}"></i></td>
+      <td>${name} <span class="ur-tk">${esc(it.symbol)}</span>${it.industryMatch === false ? `<span class="cx-pill mismatch cx-inline-pill">mismatch</span>` : ""}</td>
+      <td>${esc(it.desc || it.pdfSnippet || it.summary || "")}</td>
+      <td class="cx-dim">${esc(it.filedAt || "")}</td>
+      <td>${it.pdfUrl ? `<a class="kc-src" href="${esc(it.pdfUrl)}" target="_blank" rel="noopener noreferrer">Open →</a>` : ""}</td>
+    </tr>`;
+  }
+
+  function modalHtml() {
+    if (!modalIndustry) return "";
+    const items = visibleItems().filter((it) => (it.ourIndustry || "Unclassified") === modalIndustry);
+    const companies = new Set(items.map((it) => it.symbol));
+    const confirmed = items.filter((it) => it.pdfConfirmed).length;
+    const figures = loadFigures();
+    const f = figures[modalIndustry] || {};
+    const cat = activeCatMeta();
+    const cc = cat ? catColor(cat.id) : "var(--accent)";
+    return `<div class="cx-modal-backdrop" id="cx-modal-backdrop">
+      <div class="cx-modal" style="--cc:${cc}" role="dialog" aria-modal="true" aria-label="${esc(modalIndustry)} sector detail">
+        <button type="button" class="cx-modal-close" id="cx-modal-close" aria-label="Close">×</button>
+        <div class="cx-modal-eyebrow">Sector decode · ${companies.size} listed ${companies.size === 1 ? "company" : "companies"}</div>
+        <h2 class="cx-modal-title">${esc(modalIndustry)}</h2>
+        <div class="cx-modal-headline">
+          <span class="cx-modal-fig" contenteditable="true" data-field="capex" data-industry="${esc(modalIndustry)}" data-placeholder="add a capex figure">${esc(f.capex || "")}</span>
+          <span class="cx-modal-fig-label">crore of capex</span>
+          <span class="cx-modal-fig alt" contenteditable="true" data-field="demand" data-industry="${esc(modalIndustry)}" data-placeholder="add a demand figure">${esc(f.demand || "")}</span>
+        </div>
+        <p class="cx-modal-note">Click either figure above to type it in by hand — everything below is pulled live from NSE's filings feed.</p>
+        <div class="cx-stats cx-modal-stats">
+          ${stat(items.length, "Filings")}
+          ${stat(companies.size, "Companies")}
+          ${stat(confirmed, "Confirmed in PDF", "good")}
+        </div>
+        <div class="cx-modal-table-wrap">
+          <table class="cx-modal-table">
+            <thead><tr><th></th><th>Company</th><th>Filing</th><th>Filed</th><th></th></tr></thead>
+            <tbody>${items.map(companyRowHtml).join("")}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function renderModal() {
+    let host = document.getElementById("cx-modal-host");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "cx-modal-host";
+      document.body.appendChild(host);
+    }
+    host.innerHTML = modalHtml();
+  }
+
+  function openModal(industry) { modalIndustry = industry; renderModal(); }
+  function closeModal() { if (!modalIndustry) return; modalIndustry = null; renderModal(); }
+
   function matchPill(it) {
     if (it.industryMatch === true) return `<span class="cx-pill ok">Industry matches</span>`;
     if (it.industryMatch === false) return `<span class="cx-pill mismatch">Industry mismatch</span>`;
@@ -253,8 +403,6 @@
 
     const all = sortedItems();
     const items = visibleItems();
-    const mismatches = items.filter((it) => it.industryMatch === false).length;
-    const confirmed = items.filter((it) => it.pdfConfirmed).length;
     const scanning = state.status === "loading" || state.status === "partial";
     const year = new Date().getFullYear();
 
@@ -267,14 +415,8 @@
         <button type="button" class="ur-browse ghost" id="cx-refresh" ${scanning ? "disabled" : ""}>${scanning ? "Scanning…" : "Rescan"}</button>
       </section>
       ${scanning ? progressHtml() : ""}
-      <div class="cx-stats">
-        ${stat(state.checked.toLocaleString("en-IN"), "Filings checked")}
-        ${stat(`Jan 1 – today`, "Window")}
-        ${stat(all.length, "Flagged, all categories", "accent")}
-        ${stat(confirmed, "Confirmed in the PDF body (shown)", "good")}
-        ${stat(mismatches, "Industry mismatches (shown)", mismatches ? "warn" : "")}
-      </div>
       ${all.length ? filterBarHtml(all) : ""}
+      ${items.length ? industrySectionHtml(items) : ""}
       <div class="cx-note"><b>How this works.</b> This walks NSE's corporate-announcements feed from Jan 1 of this year through today, a week at a time (NSE's API has no bulk mode, so a wide range in one request is too large to fetch reliably), checking every filing against all the categories above in one pass — the filter chips just re-slice what's already been scanned, so switching them never re-hits NSE. A hit starts from NSE's own one-line summary of the filing; where possible the actual PDF is fetched and read to confirm the phrase appears in the filing itself (see the "confirmed" badge on each card) — that extraction is best-effort and won't work on every PDF. "Industry mismatch" compares our own NSE/BSE classification (the same one Universe uses) against NSE's own sector tag for that company; the two schemes are named differently on purpose, so this flags real disagreements loosely, not just wording differences.</div>
       ${items.length
         ? `<div class="cx-list">${items.map(card).join("")}</div>`
@@ -293,12 +435,58 @@
       else if (state.activeCats.has(id)) state.activeCats.delete(id);
       else state.activeCats.add(id);
       render();
+      return;
     }
+    const indCard = e.target.closest(".cx-ind-card");
+    if (indCard) { openModal(indCard.dataset.industry); }
+  });
+
+  // The modal lives outside #an-root (appended to <body>), so its own
+  // interactions (close, backdrop click, editing a figure) are handled
+  // here at the document level instead of on `root`.
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#cx-modal-close")) { closeModal(); return; }
+    if (e.target.id === "cx-modal-backdrop") { closeModal(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modalIndustry) { closeModal(); return; }
+    const fig = e.target.closest(".cx-modal-fig");
+    if (fig && e.key === "Enter") { e.preventDefault(); fig.blur(); } // single line: Enter commits instead of inserting a break
+  });
+  // Select the whole figure on focus so typing replaces it outright —
+  // without this, clicking into existing text (or the placeholder, before
+  // :empty::before stopped putting literal placeholder text in the content)
+  // drops the cursor mid-string and the first keystrokes land inside it.
+  document.addEventListener("focusin", (e) => {
+    const fig = e.target.closest(".cx-modal-fig");
+    if (!fig) return;
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(fig);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+  document.addEventListener("focusout", (e) => {
+    const fig = e.target.closest(".cx-modal-fig");
+    if (!fig) return;
+    const industry = fig.dataset.industry;
+    const field = fig.dataset.field;
+    const value = fig.textContent.trim();
+    if (fig.textContent !== value) fig.textContent = value; // strip stray whitespace/newlines, in place
+    saveFigure(industry, field, value);
+    // Deliberately NOT renderModal() here: that would replace the whole
+    // modal's DOM mid-interaction, which — if the person is already
+    // focusing the *next* field (e.g. tabbing from capex to demand) —
+    // detaches the very node that's about to receive their keystrokes.
+    // The label's visibility is handled in CSS (:empty + label) instead,
+    // so nothing in the modal needs to re-render on blur. The industry
+    // grid behind it is a separate DOM tree, so updating it here is safe.
+    render();
   });
 
   document.addEventListener("tabchange", () => {
     if (isActive()) load(false);
-    else token++; // leaving the tab invalidates any in-flight scan
+    else { token++; closeModal(); } // leaving the tab invalidates any in-flight scan
   });
   if (isActive()) load(false);
 })();
