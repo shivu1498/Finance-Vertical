@@ -356,26 +356,37 @@ entirely, and the latter is the worse failure mode for a watch tool.
   filters by category itself — it always scans for all five and returns
   every flagged item tagged with the categories it matched, plus a
   `categories: [{id, label}]` list for the client to build filter chips
-  from, so switching filters client-side never re-hits NSE.
+  from, so switching filters client-side never re-hits NSE. Within a chunk,
+  PDF confirmation for the (capped) batch of flagged filings runs
+  concurrently, not one fetch at a time — that used to be the main reason a
+  chunk was slow, since every chunk could pay for up to `maxPdfChecks` PDF
+  fetches back to back.
 - `pdf-text-lite.js` — minimal Flate-stream text extractor. Handles the
   common case (a text-based, FlateDecode-compressed PDF); gives up quietly
   on scanned PDFs or unusual encodings rather than guessing.
-- `public/announcements-ui.js` — the tab itself. Walks Jan 1 → today one
-  `CHUNK_DAYS`-sized window at a time (paced ~250ms apart), accumulating
+- `public/announcements-ui.js` — the tab itself. Walks Jan 1 → today in
+  `CHUNK_DAYS`-sized windows, `CONCURRENCY` of them in flight at once
+  (currently 4 — enough to meaningfully cut wall-clock time on a year's
+  worth of chunks without firing them all at once), accumulating
   checked/flagged counts and items (each carrying its matched categories)
   into a running display as each chunk comes back, so the scan shows live
   progress rather than appearing to hang. `CHUNK_DAYS` here must stay in
-  sync with `maxChunkDays` on the server. A row of filter chips ("All" +
+  sync with `maxChunkDays` on the server. Because chunks can finish out of
+  request order, the progress line shows the furthest date reached so far
+  rather than assuming a contiguous front. A row of filter chips ("All" +
   one per category, each showing a live count) lets the person narrow the
   list to one or more categories — purely a client-side re-slice of
   whatever's already been scanned. If a chunk fails partway through (NSE
-  blocks/rate-limits), the results gathered so far are kept on screen
+  blocks/rate-limits), in-flight sibling chunks are still allowed to finish
+  and merge their data in, but can't flip the status back away from
+  "error" — only the results gathered so far are kept on screen
   alongside the error.
 
-A full year-to-date scan is dozens of sequential NSE round-trips (about
-one per week of the year so far), so it noticeably takes longer than
-scanning a single short window — that's expected, and the progress bar is
-what tells the difference between "still working" and "stuck."
+A full year-to-date scan is dozens of NSE round-trips (about one per week
+of the year so far, 4 running at a time), so it still takes noticeably
+longer than scanning a single short window — that's expected, and the
+progress bar is what tells the difference between "still working" and
+"stuck."
 
 NSE's feed is a rolling recent window at the API level (each chunk request
 only reaches back as far as `from`/`to` ask), and NSE's anti-bot layer may

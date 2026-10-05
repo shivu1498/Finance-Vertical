@@ -27,9 +27,20 @@
 // back a response in the tens of MB, which blew straight through a 48MB
 // response-size cap in testing. So this module deliberately only ever
 // answers for one short date range per call (clamped to maxChunkDays, a
-// week by default): the client is the one that walks a year-to-date scan
-// forward one chunk at a time, which also keeps each call well inside
-// Vercel's request time limit.
+// week by default): the client walks a year-to-date scan forward chunk by
+// chunk (several at a time — see public/announcements-ui.js), which also
+// keeps each individual call well inside Vercel's request time limit.
+//
+// Per-chunk PDF confirmation (see confirmInPdf/build below) runs the capped
+// batch of PDF fetches concurrently rather than one at a time — this used
+// to be a sequential loop, which was the main reason a full scan was slow,
+// since every chunk could pay for up to maxPdfChecks PDF fetches back to
+// back. The other big source of slowness was the keyword list itself:
+// management_change's original bare "appointment"/"resignation" patterns
+// matched nearly every board-meeting-outcome filing (statutory-auditor and
+// scrutinizer appointments are routine), inflating both the noise in the
+// results and the number of PDF fetches paid for per chunk. It's now
+// scoped to director/KMP-level roles specifically.
 //
 // For the filings that match a category, the PDF itself is fetched and
 // read with pdf-text-lite.js (no npm package — see that file for what it
@@ -98,12 +109,30 @@ const CATEGORIES = [
   {
     id: "management_change",
     label: "Management Change",
+    // Deliberately scoped to director/KMP-level roles. Bare "appointment"
+    // or "resignation" (the original version of this category) matches
+    // nearly every board-meeting-outcome filing on NSE — appointment of
+    // statutory auditors, scrutinizers, RTAs, and so on are routine and not
+    // what anyone means by "management change." That over-broad match was
+    // flagging most of a given day's filings, which is both noisy to read
+    // and, since every flagged filing gets a PDF-confirmation fetch, the
+    // main reason a full year-to-date scan was slow: it drove the PDF-check
+    // budget to its cap on almost every chunk. Scoping to director/KMP/
+    // CEO/CFO/company-secretary roles cuts the match volume to what's
+    // actually a management change.
     patterns: [
-      { label: "appointment", re: /\bappoint(?:s|ed|ment)\b/i },
-      { label: "resignation", re: /\bresign(?:s|ed|ation)\b/i },
-      { label: "ceases to be", re: /\bceases?\s+to\s+be\b/i },
+      // NSE filings almost always name the person in between — "Appointment
+      // of Mr. X as the Chief Financial Officer" — so the role word rarely
+      // sits right after "appointment of"/"resignation of". A short lookahead
+      // window (not crossing roughly a sentence's worth of text) catches that
+      // real phrasing, including the common "X, Director of the Company"
+      // comma form, while still excluding "appointment of statutory auditors"
+      // and the like, which never mentions a director/KMP role at all.
+      { label: "director/KMP appointment", re: /\bappoint(?:ment|ed|s)?\s+of\b[\s\S]{0,60}?\b(?:managing\s+director|whole-?time\s+director|independent\s+director|additional\s+director|director|chief\s+executive\s+officer|ceo|chief\s+financial\s+officer|cfo|company\s+secretary|key\s+managerial\s+personnel|kmp)\b/i },
+      { label: "director/KMP resignation", re: /\bresign(?:ation|ed|s)?\s+of\b[\s\S]{0,60}?\b(?:managing\s+director|whole-?time\s+director|independent\s+director|director|chief\s+executive\s+officer|ceo|chief\s+financial\s+officer|cfo|company\s+secretary|key\s+managerial\s+personnel|kmp)\b/i },
+      { label: "ceases to be a director/KMP", re: /\bceases?\s+to\s+be\s+(?:a\s+|an\s+)?(?:director|key\s+managerial\s+personnel|kmp)\b/i },
       { label: "redesignation", re: /\bre-?designat\w*\b/i },
-      { label: "change in directorate", re: /\bchange\s+in\s+(?:the\s+)?(?:board|directorate|key\s+managerial\s+personnel)\b/i },
+      { label: "change in directorate/KMP", re: /\bchange\s+in\s+(?:the\s+)?(?:board|directorate|key\s+managerial\s+personnel)\b/i },
     ],
   },
 ];
@@ -258,16 +287,26 @@ function createNseAnnouncements({
       .map((r) => ({ r, hit: findCategoryMatches(`${r.desc || ""} ${r.attchmntText || ""}`) }))
       .filter((x) => x.hit.length);
 
+    // PDF confirmation is a full fetch + decompress + parse per filing, and
+    // was originally run one at a time in this loop — the single biggest
+    // reason a chunk (and so the whole year-to-date scan) was slow, since
+    // each chunk could pay for up to maxPdfChecks sequential PDF fetches.
+    // Confirmation of one filing's PDF is independent of any other's, so
+    // run the capped batch concurrently instead of awaiting them in a row.
+    let pdfBudget = maxPdfChecks;
+    const toConfirm = [];
+    for (const entry of prefiltered) {
+      if (entry.r.attchmntFile && pdfBudget > 0) { toConfirm.push(entry); pdfBudget--; }
+    }
+    await Promise.all(toConfirm.map(async (entry) => {
+      entry.pdf = await confirmInPdf(entry.r.attchmntFile, entry.hit);
+    }));
+
     const items = [];
-    let pdfChecks = 0;
-    for (const { r, hit } of prefiltered) {
+    for (const { r, hit, pdf: pdfResult } of prefiltered) {
       const rec = directory ? directory.find(r.symbol) : null;
       const ours = rec ? (rec.industry || rec.group) : null;
-      let pdf = { checked: false };
-      if (r.attchmntFile && pdfChecks < maxPdfChecks) {
-        pdf = await confirmInPdf(r.attchmntFile, hit);
-        pdfChecks++;
-      }
+      const pdf = pdfResult || { checked: false };
       const categories = mergeCategoryHits(hit, pdf.categories || []);
       items.push({
         symbol: r.symbol,

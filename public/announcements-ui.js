@@ -18,7 +18,13 @@
   const isActive = () => document.querySelector("#tabs .tab.active")?.dataset.tab === "announcements";
 
   const CHUNK_DAYS = 7; // keep in sync with nse-announcements.js's maxChunkDays
-  const PACE_MS = 250; // small gap between chunk requests so we don't hammer NSE
+  // How many chunk requests run at once. A year-to-date scan is dozens of
+  // chunks; firing them one at a time (even with a small pacing gap) is
+  // what made a full scan feel like it hung. Each chunk is an independent
+  // NSE round-trip, so a handful run concurrently instead — enough to cut
+  // wall-clock time by roughly this factor, not so many that it looks like
+  // a burst of bot traffic to NSE.
+  const CONCURRENCY = 4;
 
   // Fallback category list + colors, used until the server's own metadata
   // arrives with the first chunk (and as the color lookup from then on —
@@ -66,15 +72,14 @@
     status: "idle", // idle | loading | partial | ready | error
     error: null,
     chunks: [],
-    chunkIndex: 0,
+    chunkIndex: 0, // count of chunks completed so far (not necessarily contiguous — see CONCURRENCY)
+    maxToSeen: null, // latest "to" date among completed chunks, for the progress line
     checked: 0,
     items: [],
     categories: FALLBACK_CATEGORIES,
     activeCats: new Set(), // empty = show all
     asOf: null,
   };
-
-  function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
   async function load(force) {
     if (state.status === "loading") return;
@@ -85,35 +90,54 @@
     state.error = null;
     state.chunks = buildChunks();
     state.chunkIndex = 0;
+    state.maxToSeen = null;
     state.checked = 0;
     state.items = [];
     state.asOf = null;
     render();
 
-    for (let i = 0; i < state.chunks.length; i++) {
-      if (my !== token) return; // superseded by a newer scan or the tab was left
-      const { from, to } = state.chunks[i];
-      try {
-        const res = await fetch(`/api/filings/in/announcements?from=${isoDate(from)}&to=${isoDate(to)}`);
-        const body = await res.json().catch(() => ({}));
-        if (my !== token) return;
-        if (!res.ok) throw Object.assign(new Error(body.message || `Request failed (${res.status})`), { code: body.error });
-        state.checked += body.checked || 0;
-        if (Array.isArray(body.items) && body.items.length) state.items.push(...body.items);
-        if (Array.isArray(body.categories) && body.categories.length) state.categories = body.categories;
-        state.asOf = body.asOf || state.asOf;
-        state.chunkIndex = i + 1;
-        state.status = state.chunkIndex < state.chunks.length ? "partial" : "ready";
-        render();
-      } catch (e) {
-        if (my !== token) return;
-        state.error = e;
-        state.status = "error";
-        render();
-        return;
+    let next = 0;
+    let stopped = false;
+
+    async function worker() {
+      while (!stopped) {
+        if (my !== token) return; // superseded by a newer scan or the tab was left
+        const i = next++;
+        if (i >= state.chunks.length) return;
+        const { from, to } = state.chunks[i];
+        const toIso = isoDate(to);
+        try {
+          const res = await fetch(`/api/filings/in/announcements?from=${isoDate(from)}&to=${toIso}`);
+          const body = await res.json().catch(() => ({}));
+          if (my !== token) return;
+          if (!res.ok) throw Object.assign(new Error(body.message || `Request failed (${res.status})`), { code: body.error });
+          // A sibling worker's request can still be in flight when another
+          // one fails — don't let a late success flip the status back away
+          // from "error" (it still merges its data in, since that's real
+          // scanned progress worth keeping in the error view).
+          state.checked += body.checked || 0;
+          if (Array.isArray(body.items) && body.items.length) state.items.push(...body.items);
+          if (Array.isArray(body.categories) && body.categories.length) state.categories = body.categories;
+          state.asOf = body.asOf || state.asOf;
+          state.chunkIndex++;
+          if (!state.maxToSeen || toIso > state.maxToSeen) state.maxToSeen = toIso;
+          if (!stopped) state.status = state.chunkIndex < state.chunks.length ? "partial" : "ready";
+          render();
+        } catch (e) {
+          if (my !== token) return;
+          if (!stopped) {
+            stopped = true;
+            state.error = e;
+            state.status = "error";
+          }
+          render();
+          return;
+        }
       }
-      if (i < state.chunks.length - 1) await sleep(PACE_MS);
     }
+
+    const workers = Array.from({ length: Math.min(CONCURRENCY, state.chunks.length || 1) }, () => worker());
+    await Promise.all(workers);
   }
 
   function stat(label, value, cls) {
@@ -197,10 +221,12 @@
   function progressHtml() {
     const total = state.chunks.length || 1;
     const pct = Math.round((state.chunkIndex / total) * 100);
-    const last = state.chunks[state.chunkIndex - 1];
     const fromLabel = state.chunks.length ? isoDate(state.chunks[0].from) : "";
+    // Several chunks run concurrently (see CONCURRENCY), so completions
+    // don't arrive in date order — "through" names the furthest date any
+    // completed chunk has reached so far, not strictly a contiguous range.
     return `<section class="card cx-progress">
-      <p class="f-empty">Scanning NSE's corporate-filings feed year-to-date, from ${esc(fromLabel)}… (${state.chunkIndex}/${total} windows${last ? `, through ${esc(isoDate(last.to))}` : ""})</p>
+      <p class="f-empty">Scanning NSE's corporate-filings feed year-to-date, from ${esc(fromLabel)}… (${state.chunkIndex}/${total} windows${state.maxToSeen ? `, up to ${esc(state.maxToSeen)}` : ""})</p>
       <div class="cx-bar"><div class="cx-bar-fill" style="width:${pct}%"></div></div>
       <p class="cx-dim">${state.checked.toLocaleString("en-IN")} filings checked so far · ${state.items.length} flagged</p>
     </section>`;

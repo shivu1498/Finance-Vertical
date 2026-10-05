@@ -19,10 +19,22 @@ check("findCategoryMatches: letter of award", findCategoryMatches("Receipt of Le
 check("findCategoryMatches: product launch", findCategoryMatches("Company launches new product in the diagnostics segment").some((c) => c.id === "product_launch"));
 check("findCategoryMatches: M&A", findCategoryMatches("Board approves acquisition of 51% stake in XYZ Ltd").some((c) => c.id === "ma"));
 check("findCategoryMatches: management change", findCategoryMatches("Resignation of Independent Director").some((c) => c.id === "management_change"));
+check("findCategoryMatches: management change, appointment phrasing", findCategoryMatches("Appointment of Mr. X as Managing Director").some((c) => c.id === "management_change"));
+check("findCategoryMatches: management change, ceases to be KMP", findCategoryMatches("Intimation that Mr. Y ceases to be a Key Managerial Personnel").some((c) => c.id === "management_change"));
 check("findCategoryMatches: a filing can match more than one category", (() => {
-  const hits = findCategoryMatches("Capacity expansion plan approved; also appoints new CFO");
+  const hits = findCategoryMatches("Capacity expansion plan approved; also appointment of new CFO");
   return hits.some((c) => c.id === "capex") && hits.some((c) => c.id === "management_change");
 })());
+
+// management_change used to match bare "appointment"/"resignation", which
+// flagged nearly every board-meeting-outcome filing (auditor/scrutinizer
+// appointments are routine, not a management change) and was the main
+// reason a full scan was slow — every flagged filing pays for a PDF fetch.
+// It's now scoped to director/KMP-level roles specifically.
+check("findCategoryMatches: 'appointment of statutory auditors' is NOT a management change", findCategoryMatches("Appointment of Statutory Auditors for FY27").every((c) => c.id !== "management_change"));
+check("findCategoryMatches: 're-appointment of auditors' is NOT a management change", findCategoryMatches("Re-appointment of M/s ABC & Co as Statutory Auditors").every((c) => c.id !== "management_change"));
+check("findCategoryMatches: 'resignation of auditor' is NOT a management change", findCategoryMatches("Resignation of Auditor").every((c) => c.id !== "management_change"));
+check("findCategoryMatches: 'appointment of scrutinizer' is NOT a management change", findCategoryMatches("Appointment of Scrutinizer for e-voting").every((c) => c.id !== "management_change"));
 check("CATEGORIES: exposes id+label for all five tracked categories", CATEGORIES.length === 5 && CATEGORIES.every((c) => c.id && c.label));
 
 check("industriesAgree: shared word", industriesAgree("Chemicals", "Chemicals & Petrochemicals") === true);
@@ -134,6 +146,33 @@ const annRow = (over) => ({
   const h4 = createNseAnnouncements({ directory: dir, fetchImpl, wwwBase: "https://nseindia.com", maxChunkDays: 7 });
   const wide = await h4.get(day, new Date(2026, 9, 31));
   check("chunking: wide range clamped to maxChunkDays", wide.to === "2026-10-10", JSON.stringify({ from: wide.from, to: wide.to }));
+
+  // PDF confirmation used to run one filing at a time, which was the main
+  // reason a chunk (and so a full scan) was slow. Confirm several flagged
+  // filings in one chunk actually get their PDFs fetched concurrently, not
+  // one after another, by tracking how many PDF fetches are in flight at
+  // once.
+  let inFlight = 0, maxInFlight = 0;
+  const pdfBuf2 = makePdf("capacity expansion of the plant");
+  const fetchImplConcurrent = mockFetch([
+    [/nseindia\.com\/$/, async () => ({ ok: true, status: 200, headers: { getSetCookie: () => [] } })],
+    [/corporate-announcements/, async () => ({ ok: true, status: 200, json: async () => ([
+      annRow({ symbol: "A", sm_name: "A Ltd", desc: "Capacity Expansion A", attchmntFile: "https://x/a.pdf" }),
+      annRow({ symbol: "B", sm_name: "B Ltd", desc: "Capacity Expansion B", attchmntFile: "https://x/b.pdf" }),
+      annRow({ symbol: "C", sm_name: "C Ltd", desc: "Capacity Expansion C", attchmntFile: "https://x/c.pdf" }),
+    ]) })],
+    [/[abc]\.pdf/, async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 30)); // hold the "fetch" open so concurrent ones overlap
+      inFlight--;
+      return { ok: true, status: 200, arrayBuffer: async () => pdfBuf2.buffer.slice(pdfBuf2.byteOffset, pdfBuf2.byteOffset + pdfBuf2.byteLength) };
+    }],
+  ]);
+  const h5 = createNseAnnouncements({ directory: dir, fetchImpl: fetchImplConcurrent, wwwBase: "https://nseindia.com", maxPdfChecks: 10 });
+  const outConcurrent = await h5.get(day, day);
+  check("pdf confirmation: all 3 filings got checked", outConcurrent.items.every((it) => it.pdfChecked), JSON.stringify(outConcurrent.items.map((it) => it.pdfChecked)));
+  check("pdf confirmation: fetched concurrently, not one at a time", maxInFlight > 1, `maxInFlight=${maxInFlight}`);
 
   console.log(fails === 0 ? "\nall passed" : `\n${fails} FAILED`);
   process.exit(fails === 0 ? 0 : 1);
