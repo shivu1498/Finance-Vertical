@@ -315,6 +315,19 @@ body {
   font-size: 0.8rem;
 }
 
+/* Self-hosted flag icons (flags.js) — sized in em so they still track
+   whatever font-size the surrounding element (a country pill, a table
+   cell, the Universe header) already sets, same as the emoji they
+   replaced. See flags.js for why these are SVG and not emoji. */
+.flag-icon {
+  width: 1.3em;
+  height: 0.87em;
+  flex: none;
+  vertical-align: -0.12em;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
 /* ---- Country filter ---- */
 .country-card {
   padding-bottom: 12px;
@@ -2852,8 +2865,8 @@ body.mf-lock {
 .ur-cur { font-weight: 700; letter-spacing: 0.06em; color: var(--text-muted); }
 .ur-act { text-align: right; white-space: nowrap; }
 .ur-mkt { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.ur-flag { font-size: 1.3rem; }
-.ur-flag.big { font-size: 2.2rem; }
+.ur-flag { font-size: 1.3rem; display: inline-flex; }
+.ur-flag.big { font-size: 2.2rem; display: inline-flex; }
 .ur-badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
 .ur-badge.full { background: rgba(46, 204, 113, 0.16); color: var(--up-strong); }
 .ur-badge.partial { background: rgba(255, 210, 74, 0.14); color: #ffd24a; }

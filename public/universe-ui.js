@@ -200,7 +200,7 @@
           <button type="button" class="ur-browse ghost" data-reports="US">Annual reports →</button>
         </div>
         <div class="ur-bhead">
-          <span class="ur-flag big">${c.flag}</span>
+          <span class="ur-flag big">${FLAGS.svg(c.code)}</span>
           <div><h3>${esc(c.name)}</h3><p>${esc(c.exchange)} · USD ($) · ${fmt(usd.rows.length)} companies · market cap in $ Tn / Bn / Mn</p></div>
         </div>
         <div class="ur-note"><b>Mixed freshness.</b> Price and change are live (Yahoo Finance, ~15s cache) for every company. Volume, market cap, P/E, 52W high, returns, ROE and ROCE are from the Dhan US list and are only filled in for its ${usd.rows.filter((r) => r.mc != null).length} companies — every other ticker (the full NYSE list) shows "—" for those. Click a company for its Finviz page.</div>
@@ -313,7 +313,7 @@
       <section class="card">
         <div class="section-title"><span><button type="button" class="ur-back" id="ur-back">← All markets</button></span></div>
         <div class="ur-bhead">
-          <span class="ur-flag big">${c.flag}</span>
+          <span class="ur-flag big">${FLAGS.svg(c.code)}</span>
           <div><h3>${esc(c.name)}</h3><p>${esc(c.exchange)} · AUD ($) · ${fmt(aud.rows.length)} companies (full ASX list)</p></div>
         </div>
         <div class="ur-note"><b>Mixed freshness.</b> Price and change are live (Yahoo Finance, ~15s cache). Market cap and index weight are from an ASX export dated ${esc(aud.asOf || "unknown")} and are not live. No per-company page or SEC/annual-report lookup is available for Australia yet; "Chart" opens the live TradingView chart.</div>
@@ -395,7 +395,7 @@
       ? `<span class="ur-badge ${m.lvl}">${esc(m.reports)}</span>`
       : `<span class="ur-badge none">Not available</span>`;
     return `<tr>
-      <td><span class="ur-mkt"><span class="ur-flag">${c.flag}</span><span><b>${esc(c.name)}</b><small>${c.code}</small></span></span></td>
+      <td><span class="ur-mkt"><span class="ur-flag">${FLAGS.svg(c.code)}</span><span><b>${esc(c.name)}</b><small>${c.code}</small></span></span></td>
       <td class="ur-dim">${esc(c.exchange)}</td>
       <td class="ur-cur">${m.cur}</td>
       <td class="ur-num">${comp}</td>
@@ -482,7 +482,7 @@
           ${reportsBtn}
         </div>
         <div class="ur-bhead">
-          <span class="ur-flag big">${c.flag}</span>
+          <span class="ur-flag big">${FLAGS.svg(c.code)}</span>
           <div><h3>${esc(c.name)}</h3><p>${esc(c.exchange)} · ${m.cur} · ${esc(c.indexLabel)} · ${fmt(d.rows.length)} companies${c.code === "IN" ? " (full NSE/BSE list)" : " (tracked basket)"}</p></div>
         </div>
         ${c.code === "IN" || c.code === "US" ? searchBar() : ""}

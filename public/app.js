@@ -263,7 +263,7 @@ function renderCountryFilter() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "country-pill" + (country.code === activeCountry.code ? " active" : "");
-    btn.innerHTML = `${country.flag} ${country.name}`;
+    btn.innerHTML = `${FLAGS.svg(country.code)} ${country.name}`;
     btn.title = country.exchange;
     btn.addEventListener("click", () => setCountry(country.code));
     el.appendChild(btn);
@@ -309,7 +309,7 @@ function renderCountryIndex(map) {
   }).join(`<span class="ci-period-sep">|</span>`);
 
   el.innerHTML = `
-    <span class="country-index-label">${activeCountry.flag} ${activeCountry.indexLabel} <span class="muted">(${activeCountry.exchange})</span></span>
+    <span class="country-index-label">${FLAGS.svg(activeCountry.code)} ${activeCountry.indexLabel} <span class="muted">(${activeCountry.exchange})</span></span>
     <span class="country-index-price">${fmtPrice(q.price)}</span>
     <div class="ci-periods">${row}</div>
   `;
@@ -380,7 +380,7 @@ function populateSectorFilter() {
 
 function renderTreemap(map, sectorFilter = "") {
   if (!map) return;
-  document.getElementById("treemap-sub").textContent = `· ${activeCountry.flag} ${activeCountry.name}${sectorFilter ? " · " + sectorFilter : ""}`;
+  document.getElementById("treemap-sub").innerHTML = `· ${FLAGS.svg(activeCountry.code)} ${activeCountry.name}${sectorFilter ? " · " + sectorFilter : ""}`;
   const el = document.getElementById("treemap");
   el.innerHTML = "";
   const stocks = sectorFilter
