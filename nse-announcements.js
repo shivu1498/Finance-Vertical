@@ -1,8 +1,18 @@
-// "Capex Watch" — scans NSE's own corporate-announcements feed for filings
-// that mention capex / capacity expansion / unit expansion, and checks
-// whether NSE's own industry tag for that company (smIndustry) agrees with
-// the industry we've already classified it under (from companies.json /
-// the NSE-BSE company list the Universe tab uses).
+// "Announcements" — scans NSE's own corporate-announcements feed for
+// filings that fall into any of a handful of tracked categories (capex,
+// new orders/contract wins, product launches, M&A/stake deals, management
+// changes), and checks whether NSE's own industry tag for that company
+// (smIndustry) agrees with the industry we've already classified it under
+// (from companies.json / the NSE-BSE company list the Universe tab uses).
+//
+// This started life as a capex-only scanner ("Capex Watch") and was
+// generalized into a multi-category one: every chunk is scanned against
+// every category in CATEGORIES in a single pass, and each flagged item
+// carries the list of categories it matched. The client (see
+// public/announcements-ui.js) is what turns that into filterable chips —
+// the server doesn't filter by category itself, since the whole point is
+// to let the person flip between category lenses over one scan without
+// re-hitting NSE.
 //
 // Data source: https://www.nseindia.com/api/corporate-announcements — NSE's
 // own (undocumented, free, no key) JSON API behind the "Corporate Filings"
@@ -18,13 +28,13 @@
 // response-size cap in testing. So this module deliberately only ever
 // answers for one short date range per call (clamped to maxChunkDays, a
 // week by default): the client is the one that walks a year-to-date scan
-// forward one chunk at a time (see public/capex-ui.js), which also keeps
-// each call well inside Vercel's request time limit.
+// forward one chunk at a time, which also keeps each call well inside
+// Vercel's request time limit.
 //
-// For the filings that mention the keywords, the PDF itself is fetched and
+// For the filings that match a category, the PDF itself is fetched and
 // read with pdf-text-lite.js (no npm package — see that file for what it
-// can and can't parse) to confirm the keyword actually appears in the
-// filing body, not just NSE's one-line summary of it. That confirmation is
+// can and can't parse) to confirm the match actually appears in the filing
+// body, not just NSE's one-line summary of it. That confirmation is
 // best-effort: a PDF that can't be parsed is not treated as "no match,"
 // just as "unconfirmed."
 
@@ -33,15 +43,94 @@ const { extractPdfText } = require("./pdf-text-lite");
 const WWW = "https://www.nseindia.com";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
-const KEYWORDS = [
-  { label: "capex", re: /\bcapex\b/i },
-  { label: "capacity expansion", re: /\bcapacity\s+expansion\b/i },
-  { label: "unit expansion", re: /\bunit\s+expansion\b/i },
+// Each category is a small set of regexes matched against NSE's own
+// description/summary text for the prefilter pass, and against the PDF
+// body for confirmation. Deliberately loose (best-effort classification of
+// free-text filing titles, same spirit as the original capex-only
+// version) — a false positive here just means a card that turns out, on
+// reading, not to be that interesting; a false negative means a filing
+// gets missed, which is the worse failure mode for a watch tool, so these
+// lean permissive.
+const CATEGORIES = [
+  {
+    id: "capex",
+    label: "Capex / Expansion",
+    patterns: [
+      { label: "capex", re: /\bcapex\b/i },
+      { label: "capacity expansion", re: /\bcapacity\s+expansion\b/i },
+      { label: "unit expansion", re: /\bunit\s+expansion\b/i },
+    ],
+  },
+  {
+    id: "new_order",
+    label: "New Order / Contract Win",
+    patterns: [
+      { label: "new order", re: /\bnew\s+order\b/i },
+      { label: "order win", re: /\b(order|contract)\s+win\b/i },
+      { label: "letter of award", re: /\bletter\s+of\s+award\b/i },
+      { label: "work order", re: /\bwork\s+order\b/i },
+      { label: "purchase order", re: /\bpurchase\s+order\b/i },
+      { label: "bags order", re: /\b(?:bags|secures|wins)\s+(?:a\s+|the\s+)?order\b/i },
+    ],
+  },
+  {
+    id: "product_launch",
+    label: "Product Launch",
+    patterns: [
+      { label: "product launch", re: /\bproduct\s+launch\b/i },
+      { label: "launches product", re: /\blaunch(?:es|ed)?\s+(?:a\s+|its\s+|the\s+|new\s+)*(?:new\s+)?product\b/i },
+      { label: "new product", re: /\bnew\s+product\b/i },
+      { label: "unveils", re: /\bunveil(?:s|ed)?\b/i },
+    ],
+  },
+  {
+    id: "ma",
+    label: "M&A / Stake Acquisition",
+    patterns: [
+      { label: "acquisition", re: /\bacquisition\b/i },
+      { label: "acquires", re: /\bacquir(?:e|es|ed|ing)\b/i },
+      { label: "stake sale", re: /\bstake\s+(?:sale|purchase|acquisition)\b/i },
+      { label: "merger", re: /\bmerger\b/i },
+      { label: "amalgamation", re: /\bamalgamation\b/i },
+      { label: "joint venture", re: /\bjoint\s+venture\b/i },
+    ],
+  },
+  {
+    id: "management_change",
+    label: "Management Change",
+    patterns: [
+      { label: "appointment", re: /\bappoint(?:s|ed|ment)\b/i },
+      { label: "resignation", re: /\bresign(?:s|ed|ation)\b/i },
+      { label: "ceases to be", re: /\bceases?\s+to\s+be\b/i },
+      { label: "redesignation", re: /\bre-?designat\w*\b/i },
+      { label: "change in directorate", re: /\bchange\s+in\s+(?:the\s+)?(?:board|directorate|key\s+managerial\s+personnel)\b/i },
+    ],
+  },
 ];
 
-function findKeywords(text) {
+// Backward-compatible flat keyword list — kept for anything that only
+// cares about matched labels, not which category they belong to.
+const KEYWORDS = CATEGORIES.flatMap((c) => c.patterns);
+
+// Returns [{ id, label, keywords: [label, ...] }] for every category that
+// has at least one pattern match in `text`.
+function findCategoryMatches(text) {
   const t = String(text || "");
-  return KEYWORDS.filter((k) => k.re.test(t)).map((k) => k.label);
+  const hits = [];
+  for (const cat of CATEGORIES) {
+    const keywords = cat.patterns.filter((p) => p.re.test(t)).map((p) => p.label);
+    if (keywords.length) hits.push({ id: cat.id, label: cat.label, keywords });
+  }
+  return hits;
+}
+
+// Flat keyword labels across all matched categories — used for prefiltering
+// ("does this filing match anything at all?") and for the simple per-item
+// keyword chip list.
+function findKeywords(text) {
+  const seen = new Set();
+  for (const hit of findCategoryMatches(text)) for (const k of hit.keywords) seen.add(k);
+  return Array.from(seen);
 }
 
 function snippetAround(text, re, pad = 140) {
@@ -76,13 +165,23 @@ function parseIso(s) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function createNseExpansion({
+function mergeCategoryHits(a, b) {
+  const byId = new Map();
+  for (const h of [...a, ...b]) {
+    const cur = byId.get(h.id);
+    if (!cur) byId.set(h.id, { id: h.id, label: h.label, keywords: [...h.keywords] });
+    else cur.keywords = Array.from(new Set([...cur.keywords, ...h.keywords]));
+  }
+  return Array.from(byId.values());
+}
+
+function createNseAnnouncements({
   directory,
   fetchImpl = fetch,
   wwwBase = WWW,
   maxChunkDays = 7,
   maxPrefilter = 2000,
-  maxPdfChecks = 10,
+  maxPdfChecks = 15,
   pastCacheMs = 12 * 60 * 60 * 1000, // a chunk fully in the past never changes
   todayCacheMs = 10 * 60 * 1000,     // a chunk that includes today still gets new filings
 } = {}) {
@@ -122,16 +221,22 @@ function createNseExpansion({
     return json;
   }
 
-  async function confirmInPdf(url) {
+  async function confirmInPdf(url, prefilterHits) {
     try {
       const res = await fetchImpl(url, { headers: { "User-Agent": UA, Accept: "application/pdf" } });
       if (!res.ok) return { checked: true, confirmed: false, reason: `pdf responded ${res.status}` };
       const buf = Buffer.from(await res.arrayBuffer());
       const text = extractPdfText(buf);
       if (!text) return { checked: true, confirmed: false, reason: "couldn't extract text from this pdf" };
-      const found = findKeywords(text);
+      const found = findCategoryMatches(text);
       if (!found.length) return { checked: true, confirmed: false, text };
-      return { checked: true, confirmed: true, keywords: found, snippet: snippetAround(text, KEYWORDS.find((k) => k.label === found[0]).re) };
+      // Snippet around whichever keyword from the original (prefilter) hit
+      // we can actually find in the PDF body, falling back to the first
+      // confirmed keyword if the prefilter's own label isn't present here.
+      const allPdfKeywords = found.flatMap((h) => h.keywords);
+      const preferred = prefilterHits.flatMap((h) => h.keywords).find((k) => allPdfKeywords.includes(k)) || allPdfKeywords[0];
+      const pattern = CATEGORIES.flatMap((c) => c.patterns).find((p) => p.label === preferred);
+      return { checked: true, confirmed: true, categories: found, snippet: pattern ? snippetAround(text, pattern.re) : null };
     } catch (e) {
       return { checked: true, confirmed: false, reason: e.message };
     }
@@ -150,7 +255,7 @@ function createNseExpansion({
     const checked = raw.length;
     const prefiltered = raw
       .slice(0, maxPrefilter)
-      .map((r) => ({ r, hit: findKeywords(`${r.desc || ""} ${r.attchmntText || ""}`) }))
+      .map((r) => ({ r, hit: findCategoryMatches(`${r.desc || ""} ${r.attchmntText || ""}`) }))
       .filter((x) => x.hit.length);
 
     const items = [];
@@ -160,9 +265,10 @@ function createNseExpansion({
       const ours = rec ? (rec.industry || rec.group) : null;
       let pdf = { checked: false };
       if (r.attchmntFile && pdfChecks < maxPdfChecks) {
-        pdf = await confirmInPdf(r.attchmntFile);
+        pdf = await confirmInPdf(r.attchmntFile, hit);
         pdfChecks++;
       }
+      const categories = mergeCategoryHits(hit, pdf.categories || []);
       items.push({
         symbol: r.symbol,
         company: r.sm_name,
@@ -173,7 +279,8 @@ function createNseExpansion({
         industryMatch: industriesAgree(ours, r.smIndustry),
         desc: r.desc || null,
         summary: r.attchmntText || null,
-        keywords: Array.from(new Set([...hit, ...(pdf.keywords || [])])),
+        categories,
+        keywords: categories.flatMap((c) => c.keywords),
         pdfConfirmed: pdf.confirmed || false,
         pdfChecked: pdf.checked || false,
         pdfSnippet: pdf.snippet || null,
@@ -182,7 +289,15 @@ function createNseExpansion({
       });
     }
     items.sort((a, b) => String(b.filedAt).localeCompare(String(a.filedAt)));
-    return { from: isoDate(f), to: isoDate(t), asOf: new Date().toISOString(), checked, flagged: items.length, items };
+    return {
+      from: isoDate(f),
+      to: isoDate(t),
+      asOf: new Date().toISOString(),
+      checked,
+      flagged: items.length,
+      categories: CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
+      items,
+    };
   }
 
   async function get(from, to) {
@@ -212,4 +327,4 @@ function createNseExpansion({
   return handler;
 }
 
-module.exports = { createNseExpansion, findKeywords, industriesAgree, snippetAround, KEYWORDS };
+module.exports = { createNseAnnouncements, findKeywords, findCategoryMatches, industriesAgree, snippetAround, CATEGORIES, KEYWORDS };

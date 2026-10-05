@@ -1,26 +1,43 @@
-// Capex Watch tab: scans NSE's live corporate-announcements feed, year-to-date,
-// for capex / capacity-expansion / unit-expansion filings, and checks the
-// filing company's industry (as NSE itself tags it) against the industry
-// we've already classified it under (the same NSE/BSE list the Universe tab
-// uses). Talks to GET /api/filings/in/expansion?from=YYYY-MM-DD&to=YYYY-MM-DD
-// (see nse-expansion.js).
+// Announcements tab: scans NSE's live corporate-announcements feed,
+// year-to-date, for filings in any of a handful of tracked categories
+// (capex/expansion, new order/contract win, product launch, M&A/stake
+// acquisition, management change), and checks each hit's industry (as NSE
+// itself tags it) against the industry we've already classified it under
+// (the same NSE/BSE list the Universe tab uses). Talks to
+// GET /api/filings/in/announcements (see nse-announcements.js).
 //
-// NSE's API has no pagination, so the server only ever answers one short
-// date-range "chunk" per call (CHUNK_DAYS, matching the server's own
-// maxChunkDays default). A year-to-date scan is Jan 1 -> today, which can be
-// dozens of chunks, so this walks them one at a time, pacing each request a
-// little and accumulating stats/items into a running display as they come
-// in, rather than waiting for the whole scan before showing anything.
+// The server scans every category in one pass per chunk — it doesn't filter
+// by category itself — so switching the filter chips below just re-slices
+// the results already in memory; it never re-hits NSE.
 (function () {
   "use strict";
-  const root = document.getElementById("cx-root");
+  const root = document.getElementById("an-root");
   if (!root) return;
 
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const isActive = () => document.querySelector("#tabs .tab.active")?.dataset.tab === "capex";
+  const isActive = () => document.querySelector("#tabs .tab.active")?.dataset.tab === "announcements";
 
-  const CHUNK_DAYS = 7; // keep in sync with nse-expansion.js's maxChunkDays
+  const CHUNK_DAYS = 7; // keep in sync with nse-announcements.js's maxChunkDays
   const PACE_MS = 250; // small gap between chunk requests so we don't hammer NSE
+
+  // Fallback category list + colors, used until the server's own metadata
+  // arrives with the first chunk (and as the color lookup from then on —
+  // color is a display-only concern the server doesn't need to know about).
+  const CATEGORY_COLORS = {
+    capex: "#ff4d43",
+    new_order: "#4da3ff",
+    product_launch: "#a78bfa",
+    ma: "#ffc43d",
+    management_change: "#39d2c0",
+  };
+  const FALLBACK_CATEGORIES = [
+    { id: "capex", label: "Capex / Expansion" },
+    { id: "new_order", label: "New Order / Contract Win" },
+    { id: "product_launch", label: "Product Launch" },
+    { id: "ma", label: "M&A / Stake Acquisition" },
+    { id: "management_change", label: "Management Change" },
+  ];
+  const catColor = (id) => CATEGORY_COLORS[id] || "#9aa0a6";
 
   function pad2(n) { return String(n).padStart(2, "0"); }
   function isoDate(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
@@ -52,6 +69,8 @@
     chunkIndex: 0,
     checked: 0,
     items: [],
+    categories: FALLBACK_CATEGORIES,
+    activeCats: new Set(), // empty = show all
     asOf: null,
   };
 
@@ -75,12 +94,13 @@
       if (my !== token) return; // superseded by a newer scan or the tab was left
       const { from, to } = state.chunks[i];
       try {
-        const res = await fetch(`/api/filings/in/expansion?from=${isoDate(from)}&to=${isoDate(to)}`);
+        const res = await fetch(`/api/filings/in/announcements?from=${isoDate(from)}&to=${isoDate(to)}`);
         const body = await res.json().catch(() => ({}));
         if (my !== token) return;
         if (!res.ok) throw Object.assign(new Error(body.message || `Request failed (${res.status})`), { code: body.error });
         state.checked += body.checked || 0;
         if (Array.isArray(body.items) && body.items.length) state.items.push(...body.items);
+        if (Array.isArray(body.categories) && body.categories.length) state.categories = body.categories;
         state.asOf = body.asOf || state.asOf;
         state.chunkIndex = i + 1;
         state.status = state.chunkIndex < state.chunks.length ? "partial" : "ready";
@@ -106,6 +126,12 @@
     return `<span class="cx-pill unknown">Can't compare</span>`;
   }
 
+  function catBadges(categories) {
+    return (categories || [])
+      .map((c) => `<span class="cx-cat" style="--cc:${catColor(c.id)}">${esc(c.label)}</span>`)
+      .join("");
+  }
+
   function keywordHtml(snippet, keywords) {
     if (!snippet) return "";
     let html = esc(snippet);
@@ -126,7 +152,11 @@
     const link = it.inUniverse ? `<a class="ur-co" href="#universe/IN/${encodeURIComponent(it.symbol)}">${esc(it.company)}</a>` : `<b>${esc(it.company)}</b>`;
     return `<article class="cx-card">
       <div class="cx-card-head">
-        <div><h3>${link} <span class="ur-tk">${esc(it.symbol)}</span></h3><small class="cx-dim">${esc(it.filedAt || "")}${it.desc ? ` · ${esc(it.desc)}` : ""}</small></div>
+        <div>
+          <h3>${link} <span class="ur-tk">${esc(it.symbol)}</span></h3>
+          <small class="cx-dim">${esc(it.filedAt || "")}${it.desc ? ` · ${esc(it.desc)}` : ""}</small>
+          <div class="cx-cats">${catBadges(it.categories)}</div>
+        </div>
         ${matchPill(it)}
       </div>
       <div class="cx-industries">
@@ -144,6 +174,24 @@
 
   function sortedItems() {
     return state.items.slice().sort((a, b) => String(b.filedAt).localeCompare(String(a.filedAt)));
+  }
+
+  function visibleItems() {
+    const all = sortedItems();
+    if (!state.activeCats.size) return all;
+    return all.filter((it) => (it.categories || []).some((c) => state.activeCats.has(c.id)));
+  }
+
+  function filterBarHtml(all) {
+    const counts = new Map();
+    for (const it of all) for (const c of it.categories || []) counts.set(c.id, (counts.get(c.id) || 0) + 1);
+    const allActive = !state.activeCats.size;
+    const chip = (id, label, count, color) => {
+      const active = allActive && id === "all" ? true : state.activeCats.has(id);
+      return `<button type="button" class="cx-filter${active ? " active" : ""}" data-cat="${esc(id)}" style="--cc:${color}">${esc(label)}<span class="cx-filter-n">${count}</span></button>`;
+    };
+    const chips = state.categories.map((c) => chip(c.id, c.label, counts.get(c.id) || 0, catColor(c.id))).join("");
+    return `<div class="cx-filters">${chip("all", "All", all.length, "var(--text-main)")}${chips}</div>`;
   }
 
   function progressHtml() {
@@ -169,14 +217,16 @@
       const scanned = state.chunkIndex
         ? `<p class="cx-dim">Managed to scan ${state.chunkIndex}/${state.chunks.length} windows (${state.checked.toLocaleString("en-IN")} filings, ${state.items.length} flagged) before this happened.${state.items.length ? " Results so far are shown below." : ""}</p>`
         : "";
-      root.innerHTML = `<section class="card sc-fail"><h3 class="sc-h">Couldn't finish the Capex Watch scan</h3><p>${esc(msg)}</p>${scanned}<button type="button" class="ur-browse ghost" id="cx-retry">Try again</button></section>`
-        + (state.items.length
-          ? `<div class="cx-list">${sortedItems().map(card).join("")}</div>`
+      const all = sortedItems();
+      root.innerHTML = `<section class="card sc-fail"><h3 class="sc-h">Couldn't finish the Announcements scan</h3><p>${esc(msg)}</p>${scanned}<button type="button" class="ur-browse ghost" id="cx-retry">Try again</button></section>`
+        + (all.length
+          ? `${filterBarHtml(all)}<div class="cx-list">${visibleItems().map(card).join("")}</div>`
           : "");
       return;
     }
 
-    const items = sortedItems();
+    const all = sortedItems();
+    const items = visibleItems();
     const mismatches = items.filter((it) => it.industryMatch === false).length;
     const confirmed = items.filter((it) => it.pdfConfirmed).length;
     const scanning = state.status === "loading" || state.status === "partial";
@@ -185,8 +235,8 @@
     root.innerHTML = `
       <section class="card cx-head">
         <div>
-          <h2 class="k-title">Capex Watch</h2>
-          <p class="k-sub">NSE's own live filings feed, scanned year-to-date (${year}) for <em>capex</em>, <em>capacity expansion</em> and <em>unit expansion</em> — each hit checked against the industry we've already classified the company under.</p>
+          <h2 class="k-title">Announcements</h2>
+          <p class="k-sub">NSE's own live filings feed, scanned year-to-date (${year}) for capex/expansion, new orders, product launches, M&amp;A and management changes — each hit checked against the industry we've already classified the company under.</p>
         </div>
         <button type="button" class="ur-browse ghost" id="cx-refresh" ${scanning ? "disabled" : ""}>${scanning ? "Scanning…" : "Rescan"}</button>
       </section>
@@ -194,21 +244,30 @@
       <div class="cx-stats">
         ${stat(state.checked.toLocaleString("en-IN"), "Filings checked")}
         ${stat(`Jan 1 – today`, "Window")}
-        ${stat(items.length, "Capex / expansion mentions", "accent")}
-        ${stat(confirmed, "Confirmed in the PDF body", "good")}
-        ${stat(mismatches, "Industry mismatches", mismatches ? "warn" : "")}
+        ${stat(all.length, "Flagged, all categories", "accent")}
+        ${stat(confirmed, "Confirmed in the PDF body (shown)", "good")}
+        ${stat(mismatches, "Industry mismatches (shown)", mismatches ? "warn" : "")}
       </div>
-      <div class="cx-note"><b>How this works.</b> This walks NSE's corporate-announcements feed from Jan 1 of this year through today, a week at a time (NSE's API has no bulk mode, so a wide range in one request is too large to fetch reliably). A hit starts from NSE's own one-line summary of the filing; where possible the actual PDF is fetched and read to confirm the phrase appears in the filing itself (see the "confirmed" badge on each card) — that extraction is best-effort and won't work on every PDF. "Industry mismatch" compares our own NSE/BSE classification (the same one Universe uses) against NSE's own sector tag for that company; the two schemes are named differently on purpose, so this flags real disagreements loosely, not just wording differences.</div>
+      ${all.length ? filterBarHtml(all) : ""}
+      <div class="cx-note"><b>How this works.</b> This walks NSE's corporate-announcements feed from Jan 1 of this year through today, a week at a time (NSE's API has no bulk mode, so a wide range in one request is too large to fetch reliably), checking every filing against all the categories above in one pass — the filter chips just re-slice what's already been scanned, so switching them never re-hits NSE. A hit starts from NSE's own one-line summary of the filing; where possible the actual PDF is fetched and read to confirm the phrase appears in the filing itself (see the "confirmed" badge on each card) — that extraction is best-effort and won't work on every PDF. "Industry mismatch" compares our own NSE/BSE classification (the same one Universe uses) against NSE's own sector tag for that company; the two schemes are named differently on purpose, so this flags real disagreements loosely, not just wording differences.</div>
       ${items.length
         ? `<div class="cx-list">${items.map(card).join("")}</div>`
         : scanning
           ? ""
-          : `<section class="card"><p class="f-empty">No capex / capacity-expansion / unit-expansion filings found year-to-date.</p></section>`}
+          : `<section class="card"><p class="f-empty">${all.length ? "No filings match the selected filter." : "No tracked-category filings found year-to-date."}</p></section>`}
       ${state.asOf ? `<p class="cx-asof">${scanning ? "Last updated" : "Updated"} ${new Date(state.asOf).toLocaleTimeString("en-IN")} · <a href="https://www.nseindia.com/companies-listing/corporate-filings-announcements" target="_blank" rel="noopener">NSE corporate filings ↗</a></p>` : ""}`;
   }
 
   root.addEventListener("click", (e) => {
-    if (e.target.closest("#cx-refresh") || e.target.closest("#cx-retry")) load(true);
+    if (e.target.closest("#cx-refresh") || e.target.closest("#cx-retry")) { load(true); return; }
+    const chip = e.target.closest(".cx-filter");
+    if (chip) {
+      const id = chip.dataset.cat;
+      if (id === "all") state.activeCats.clear();
+      else if (state.activeCats.has(id)) state.activeCats.delete(id);
+      else state.activeCats.add(id);
+      render();
+    }
   });
 
   document.addEventListener("tabchange", () => {

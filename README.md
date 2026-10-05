@@ -312,37 +312,65 @@ only a name/ticker/exchange — the UI fills their Price/Change live from
 Yahoo Finance and shows "—" for the Dhan-only columns (Volume, Market cap,
 P/E, returns, ROE, ROCE).
 
-## Capex Watch (new tab)
+## Announcements (new tab)
 
 Scans NSE's own live corporate-announcements feed
 (`nseindia.com/api/corporate-announcements`), year-to-date (Jan 1 of the
-current year through today), for filings whose summary mentions "capex",
-"capacity expansion" or "unit expansion", cross-checks each hit's
-NSE-tagged industry (`smIndustry`) against the industry we've already
-classified that company under (the same NSE/BSE list Universe uses), and
-— best-effort, using `pdf-text-lite.js` (no npm dependency, just Node's
-built-in `zlib`) — fetches and reads the actual filing PDF to confirm the
-phrase appears in the body, not just NSE's headline.
+current year through today), for filings that fall into any of five
+tracked categories, cross-checks each hit's NSE-tagged industry
+(`smIndustry`) against the industry we've already classified that company
+under (the same NSE/BSE list Universe uses), and — best-effort, using
+`pdf-text-lite.js` (no npm dependency, just Node's built-in `zlib`) —
+fetches and reads the actual filing PDF to confirm the match appears in
+the body, not just NSE's headline.
 
-- `nse-expansion.js` — fetch + cookie priming + keyword prefilter +
-  industry cross-reference + PDF confirmation for **one date-range chunk**.
-  `GET /api/filings/in/expansion?from=YYYY-MM-DD&to=YYYY-MM-DD`. NSE's API
-  has no pagination, and asking it for a ~9-month range in one call returns
-  a response too large to handle reliably (hit a 48MB response-size cap in
-  testing) — so the server always clamps the range to `maxChunkDays` (a
-  week by default), whatever `from`/`to` it's given. A chunk fully in the
-  past is cached for 12h (it never changes); a chunk that includes today is
-  cached for only 10 minutes.
+Started as a capex-only "Capex Watch" tab; generalized to scan for all of:
+
+- **Capex / Expansion** — "capex", "capacity expansion", "unit expansion".
+- **New Order / Contract Win** — new order, order/contract win, letter of
+  award, work order, purchase order, "bags/secures/wins an order".
+- **Product Launch** — product launch, new product, "launches a new
+  product", "unveils".
+- **M&A / Stake Acquisition** — acquisition, acquire(s)/acquiring, stake
+  sale/purchase, merger, amalgamation, joint venture.
+- **Management Change** — appointment, resignation, "ceases to be",
+  redesignation, change in the board/directorate/KMP.
+
+A filing can match more than one category (e.g. a capex update that also
+mentions a new CFO appointment) and is tagged with all of them. The
+keyword lists are in `CATEGORIES` in `nse-announcements.js` and are
+deliberately loose — a false positive just means a card that isn't that
+interesting on closer reading, a false negative means a filing gets missed
+entirely, and the latter is the worse failure mode for a watch tool.
+
+- `nse-announcements.js` — fetch + cookie priming + keyword prefilter
+  (checked against **every** category in one pass) + industry
+  cross-reference + PDF confirmation for **one date-range chunk**.
+  `GET /api/filings/in/announcements?from=YYYY-MM-DD&to=YYYY-MM-DD`. NSE's
+  API has no pagination, and asking it for a ~9-month range in one call
+  returns a response too large to handle reliably (hit a 48MB
+  response-size cap in testing) — so the server always clamps the range to
+  `maxChunkDays` (a week by default), whatever `from`/`to` it's given. A
+  chunk fully in the past is cached for 12h (it never changes); a chunk
+  that includes today is cached for only 10 minutes. The server never
+  filters by category itself — it always scans for all five and returns
+  every flagged item tagged with the categories it matched, plus a
+  `categories: [{id, label}]` list for the client to build filter chips
+  from, so switching filters client-side never re-hits NSE.
 - `pdf-text-lite.js` — minimal Flate-stream text extractor. Handles the
   common case (a text-based, FlateDecode-compressed PDF); gives up quietly
   on scanned PDFs or unusual encodings rather than guessing.
-- `public/capex-ui.js` — the tab itself. Walks Jan 1 → today one
+- `public/announcements-ui.js` — the tab itself. Walks Jan 1 → today one
   `CHUNK_DAYS`-sized window at a time (paced ~250ms apart), accumulating
-  checked/flagged counts and items into a running display as each chunk
-  comes back, so the scan shows live progress rather than appearing to
-  hang. `CHUNK_DAYS` here must stay in sync with `maxChunkDays` on the
-  server. If a chunk fails partway through (NSE blocks/rate-limits), the
-  results gathered so far are kept on screen alongside the error.
+  checked/flagged counts and items (each carrying its matched categories)
+  into a running display as each chunk comes back, so the scan shows live
+  progress rather than appearing to hang. `CHUNK_DAYS` here must stay in
+  sync with `maxChunkDays` on the server. A row of filter chips ("All" +
+  one per category, each showing a live count) lets the person narrow the
+  list to one or more categories — purely a client-side re-slice of
+  whatever's already been scanned. If a chunk fails partway through (NSE
+  blocks/rate-limits), the results gathered so far are kept on screen
+  alongside the error.
 
 A full year-to-date scan is dozens of sequential NSE round-trips (about
 one per week of the year so far), so it noticeably takes longer than

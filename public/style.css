@@ -3234,6 +3234,14 @@ em.pc { font-style: italic; }
 .cx-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .cx-card-head h3 { margin: 0; font-size: 1rem; }
 .cx-dim { color: var(--text-muted); }
+.cx-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.cx-cat { font-size: .66rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 2px 9px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--cc) 16%, transparent); color: var(--cc); }
+
+.cx-filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 2px 0 16px; }
+.cx-filter { font: inherit; font-size: .78rem; font-weight: 600; letter-spacing: .01em; color: var(--text-muted); background: var(--panel-soft); border: 1px solid var(--panel-border); border-radius: 999px; padding: 6px 12px 6px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.cx-filter:hover { color: var(--text-main); border-color: color-mix(in srgb, var(--cc) 50%, var(--panel-border)); }
+.cx-filter.active { color: var(--cc); border-color: var(--cc); background: color-mix(in srgb, var(--cc) 14%, transparent); }
+.cx-filter-n { font-size: .7rem; font-weight: 700; background: rgba(255, 255, 255, .08); border-radius: 999px; padding: 1px 7px; color: inherit; opacity: .85; }
 .cx-pill { font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .cx-pill.ok { background: rgba(46, 228, 118, .14); color: var(--up-strong); }
 .cx-pill.mismatch { background: rgba(255, 77, 67, .14); color: var(--down-strong); }
