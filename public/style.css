@@ -16,6 +16,17 @@
   --down-strong: #ff5a4a;
   --radius: 10px;
   font-size: 15px;
+  /* Three-role type system: the sans stack is the working face — tables,
+     tickers, buttons, nav — where tabular alignment and quick scanning
+     matter. Playfair Display is reserved for identity and the top of each
+     section (the wordmark, one h2 per panel, a company's name on its own
+     page) — rare enough that its weight carries presence. Cormorant is the
+     lighter editorial voice underneath those — taglines and subheads,
+     and a card's own title where the content itself (a filing, a fund,
+     a company) is the thing worth a little elegance. */
+  --font-sans: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-serif: "Cormorant", Georgia, serif;
 }
 
 * {
@@ -29,7 +40,7 @@ body {
   margin: 0;
   min-height: 100%;
   color: var(--text-main);
-  font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-sans);
 }
 
 body {
@@ -83,8 +94,8 @@ body {
   font-size: 0.95rem;
 }
 .brand-logo { flex: none; display: block; filter: drop-shadow(0 0 6px rgba(255,77,67,.45)); }
-.brand-name { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.02em; color: var(--text-main); }
-.brand-name b { font-weight: 800; color: var(--accent); margin-left: 0.18em; }
+.brand-name { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: 0; color: var(--text-main); }
+.brand-name b { font-weight: 900; color: var(--accent); margin-left: 0.2em; }
 
 /* ---- Asset-class filter ---- */
 .asset-filter {
@@ -574,14 +585,20 @@ body {
 }
 .k-title {
   margin: 0;
-  font-size: 1.5rem;
-  letter-spacing: 0.01em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.65rem;
+  letter-spacing: 0;
 }
 .k-sub {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
   color: var(--text-muted);
-  font-size: 0.9rem;
-  max-width: 60ch;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  max-width: 62ch;
 }
 
 .k-grid {
@@ -648,7 +665,9 @@ body {
   padding: 10px 12px 12px;
 }
 .k-card-name {
-  font-weight: 800;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.15rem;
   margin-bottom: 8px;
 }
 .k-card-meta {
@@ -1592,7 +1611,9 @@ mark {
 }
 .mf-name {
   margin: 0;
-  font-size: 1rem;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.15rem;
   line-height: 1.3;
 }
 .mf-bar {
@@ -3016,7 +3037,7 @@ body.mf-lock {
 
 .sc-head { padding: 18px 20px; }
 .sc-title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
-.sc-title h2 { margin: 0; font-size: 1.7rem; }
+.sc-title h2 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1.85rem; }
 .sc-pricebox { display: flex; align-items: baseline; gap: 10px; }
 .sc-price { font-size: 1.5rem; font-weight: 700; }
 .sc-chg { font-size: 0.9rem; font-weight: 700; }
@@ -3232,7 +3253,7 @@ em.pc { font-style: italic; }
 .cx-list { display: flex; flex-direction: column; gap: 12px; }
 .cx-card { background: rgba(17, 17, 19, .9); border: 1px solid var(--panel-border); border-radius: 12px; padding: 16px 18px; }
 .cx-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.cx-card-head h3 { margin: 0; font-size: 1rem; }
+.cx-card-head h3 { margin: 0; font-family: var(--font-serif); font-weight: 600; font-size: 1.2rem; }
 .cx-dim { color: var(--text-muted); }
 .cx-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .cx-cat { font-size: .66rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 2px 9px; border-radius: 999px; white-space: nowrap; background: color-mix(in srgb, var(--cc) 16%, transparent); color: var(--cc); }
