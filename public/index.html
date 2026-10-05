@@ -104,13 +104,21 @@
   </section>
 
   <section class="breadth-card card">
-    <div class="breadth-title"><span id="breadth-title-text">BREADTH</span> <span class="muted" id="breadth-updated">·</span></div>
-    <div class="breadth-row">
-      <span class="adv" id="adv-count">— ▲</span>
-      <span class="dec" id="dec-count">▼ —</span>
-      <span class="ad-ratio" id="ad-ratio">A/D —</span>
-      <div class="breadth-bar"><div class="breadth-fill" id="breadth-fill"></div></div>
+    <div class="breadth-title">
+      <span><span id="breadth-title-text">BREADTH</span> <span class="muted" id="breadth-updated">·</span></span>
+      <select id="breadth-universe" class="sector-filter" aria-label="Index universe" title="Index universe (India only)" hidden>
+        <option value="nifty50">NIFTY 50</option>
+      </select>
     </div>
+    <div id="breadth-rows" class="breadth-rows">
+      <div class="breadth-row">
+        <span class="adv" id="adv-count">— ▲</span>
+        <span class="dec" id="dec-count">▼ —</span>
+        <span class="ad-ratio" id="ad-ratio">A/D —</span>
+        <div class="breadth-bar"><div class="breadth-fill" id="breadth-fill"></div></div>
+      </div>
+    </div>
+    <div class="muted breadth-coverage" id="breadth-coverage" hidden></div>
   </section>
 
   <section class="card">

@@ -18,6 +18,8 @@ const { createFilings } = require("./filings");
 const { parseChart, parsePeriods } = require("./quotes");
 const { createNseAnnouncements } = require("./nse-announcements");
 const { createNseSectorIndices } = require("./nse-sector-indices");
+const { createNseIndexBreadth, INDEX_UNIVERSES } = require("./nse-index-breadth");
+const { createBreadthEngine } = require("./breadth");
 const tijori = require("./tijori");
 const companies = require("./companies");
 
@@ -172,5 +174,51 @@ app.get("/api/filings/in/announcements", createNseAnnouncements({ directory: com
 // can't. See nse-sector-indices.js. The client falls back to the
 // constituent-average heatmap if this fails or hasn't loaded yet.
 app.get("/api/indices/in/sectors", createNseSectorIndices());
+
+// Market Breadth (India): advance/decline across ~21 selectable NSE index
+// universes (Nifty 50 through Nifty Total Market), compared across six
+// lookback windows (1D/1W/20D/50D/100D/200D). See nse-index-breadth.js
+// (constituents + live 1D % change) and breadth.js (the multi-period
+// orchestration for the other five windows, built around a shared
+// cross-universe cache + time budget since the larger universes run to
+// hundreds of stocks). 1D uses NSE's own live pChange per stock rather
+// than a Yahoo-derived sign, since that's the same figure already shown
+// everywhere else in this app and needs no extra fetch.
+const nseIndexBreadth = createNseIndexBreadth();
+const breadthEngine = createBreadthEngine();
+app.get("/api/breadth/in", async (req, res) => {
+  const slug = (req.query.universe || "nifty50").toString();
+  try {
+    const constituents = await nseIndexBreadth.get(slug);
+    const yahooSymbols = constituents.stocks.map((s) => `${s.symbol}.NS`);
+    const { periods, coverage } = await breadthEngine.computeBreadth(yahooSymbols);
+
+    let adv1d = 0, dec1d = 0, flat1d = 0, checked1d = 0;
+    for (const s of constituents.stocks) {
+      if (s.pChange == null) continue;
+      checked1d++;
+      if (s.pChange > 0) adv1d++;
+      else if (s.pChange < 0) dec1d++;
+      else flat1d++;
+    }
+    periods["1D"] = { adv: adv1d, dec: dec1d, flat: flat1d };
+
+    res.set("Cache-Control", "public, max-age=30");
+    res.json({
+      asOf: constituents.asOf,
+      slug: constituents.slug,
+      label: constituents.label,
+      total: constituents.stocks.length,
+      periods,
+      coverage: { ...coverage, oneDay: { checked: checked1d, total: constituents.stocks.length } },
+    });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.code || "breadth_error", message: err.message });
+  }
+});
+app.get("/api/breadth/in/universes", (req, res) => {
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json({ universes: INDEX_UNIVERSES.map(({ slug, label, approxSize }) => ({ slug, label, approxSize })) });
+});
 
 module.exports = app;

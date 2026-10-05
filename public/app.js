@@ -457,21 +457,137 @@ function renderTreemap(map, sectorFilter = "") {
   }
 }
 
-function renderBreadth(map) {
-  document.getElementById("breadth-title-text").textContent = `${activeCountry.name.toUpperCase()} BREADTH`;
-  let adv = 0,
-    dec = 0;
+// ---- Market Breadth (India): advance/decline across a selectable NSE
+// index universe (Nifty 50 through Nifty Total Market — see
+// nse-index-breadth.js on the server), compared over six lookback windows
+// (1D/1W/20D/50D/100D/200D — see breadth.js). Lazy-loaded per universe,
+// cached client-side. Every other country, and India before the live
+// fetch resolves, shows the plain "today's A/D from the on-screen quotes"
+// figure this widget always showed — never a different universe's numbers
+// mislabeled as the selected one's. ----
+const BREADTH_UNIVERSE_KEY = "stalkingstocks.breadth.universe";
+const BREADTH_TTL = 45_000;
+let breadthUniverses = null; // [{slug,label,approxSize}, ...] once loaded
+let breadthUniverse = loadBreadthUniverse();
+const breadthState = new Map(); // slug -> { data, ts, promise }
+
+function loadBreadthUniverse() {
+  try {
+    return localStorage.getItem(BREADTH_UNIVERSE_KEY) || "nifty50";
+  } catch {
+    return "nifty50";
+  }
+}
+function saveBreadthUniverse() {
+  try {
+    localStorage.setItem(BREADTH_UNIVERSE_KEY, breadthUniverse);
+  } catch {
+    // selection just won't persist
+  }
+}
+
+function ensureBreadthUniverses() {
+  if (breadthUniverses) return Promise.resolve(breadthUniverses);
+  return fetch("/api/breadth/in/universes")
+    .then((res) => { if (!res.ok) throw new Error(`API error ${res.status}`); return res.json(); })
+    .then(({ universes }) => {
+      breadthUniverses = universes;
+      const select = document.getElementById("breadth-universe");
+      select.innerHTML = universes.map((u) => `<option value="${u.slug}">${u.label}</option>`).join("");
+      select.value = universes.some((u) => u.slug === breadthUniverse) ? breadthUniverse : "nifty50";
+      breadthUniverse = select.value;
+      return universes;
+    });
+}
+
+function ensureBreadth(slug) {
+  const cached = breadthState.get(slug);
+  if (cached?.data && Date.now() - cached.ts < BREADTH_TTL) return Promise.resolve(cached.data);
+  if (cached?.promise) return cached.promise;
+  const promise = fetch(`/api/breadth/in?universe=${encodeURIComponent(slug)}`)
+    .then((res) => { if (!res.ok) throw new Error(`API error ${res.status}`); return res.json(); })
+    .then((data) => { breadthState.set(slug, { data, ts: Date.now(), promise: null }); return data; })
+    .catch((err) => { breadthState.set(slug, { data: null, ts: 0, promise: null }); throw err; });
+  breadthState.set(slug, { ...(breadthState.get(slug) || {}), promise });
+  return promise;
+}
+
+const BREADTH_PERIOD_IDS = ["1D", "1W", "20D", "50D", "100D", "200D"];
+
+function breadthRowHtml(label, adv, dec) {
+  const total = adv + dec || 1;
+  const ratio = (adv / (dec || 1)).toFixed(2);
+  return `
+    <div class="breadth-row">
+      ${label ? `<span class="bp-label">${label}</span>` : ""}
+      <span class="adv">${adv} &#9650;</span>
+      <span class="dec">&#9660; ${dec}</span>
+      <span class="ad-ratio">A/D ${ratio}</span>
+      <div class="breadth-bar"><div class="breadth-fill" style="width:${(adv / total) * 100}%"></div></div>
+    </div>`;
+}
+
+// Today's A/D straight from live quotes already on screen — the one figure
+// this widget always showed. Used for every non-India country, and as
+// India's fallback for the default "nifty50" universe while the live
+// multi-period panel is loading or if it never resolves (activeCountry.stocks
+// *is* the Nifty 50 list, so this number is always correct for that one
+// universe specifically — never shown under a different universe's label).
+function localBreadthRow(map) {
+  let adv = 0, dec = 0;
   for (const s of activeCountry.stocks) {
     const q = map.get(s.symbol);
     if (!q || q.error) continue;
     if (q.changePercent > 0) adv++;
     else if (q.changePercent < 0) dec++;
   }
-  const total = adv + dec || 1;
-  document.getElementById("adv-count").textContent = `${adv} ▲`;
-  document.getElementById("dec-count").textContent = `▼ ${dec}`;
-  document.getElementById("ad-ratio").textContent = `A/D ${(adv / (dec || 1)).toFixed(2)}`;
-  document.getElementById("breadth-fill").style.width = `${(adv / total) * 100}%`;
+  return breadthRowHtml("", adv, dec);
+}
+
+function renderBreadth(map) {
+  document.getElementById("breadth-title-text").textContent = `${activeCountry.name.toUpperCase()} BREADTH`;
+  const universeSel = document.getElementById("breadth-universe");
+  const coverageEl = document.getElementById("breadth-coverage");
+  const rowsEl = document.getElementById("breadth-rows");
+
+  if (activeCountry.code !== "IN") {
+    universeSel.hidden = true;
+    coverageEl.hidden = true;
+    rowsEl.innerHTML = localBreadthRow(map);
+    return;
+  }
+
+  universeSel.hidden = false;
+  ensureBreadthUniverses().catch(() => {}); // the select just stays on nifty50 if this never resolves
+
+  const cached = breadthState.get(breadthUniverse);
+  const live = cached?.data;
+
+  if (live) {
+    rowsEl.innerHTML = BREADTH_PERIOD_IDS
+      .map((id) => breadthRowHtml(id, live.periods[id]?.adv ?? 0, live.periods[id]?.dec ?? 0))
+      .join("");
+    const cov = live.coverage;
+    const incomplete = cov && (cov.checked < cov.total || cov.timedOut);
+    coverageEl.hidden = !incomplete;
+    if (incomplete) coverageEl.textContent = `· based on ${cov.checked}/${cov.total} ${live.label} stocks so far (fills in as more load)`;
+  } else if (breadthUniverse === "nifty50") {
+    coverageEl.hidden = true;
+    rowsEl.innerHTML = localBreadthRow(map);
+  } else {
+    coverageEl.hidden = true;
+    rowsEl.innerHTML = `<div class="muted">Loading ${breadthUniverses?.find((u) => u.slug === breadthUniverse)?.label || breadthUniverse} breadth…</div>`;
+  }
+
+  if (!live) {
+    // Re-render only on success — the fallback above already covers the
+    // failure case, and retrying here on every catch would recurse through
+    // renderBreadth on each failed attempt. The next refresh() tick (30s)
+    // naturally retries instead, same as every other lazy-loaded panel.
+    ensureBreadth(breadthUniverse)
+      .then(() => { if (activeCountry.code === "IN" && window.__lastMap) renderBreadth(window.__lastMap); })
+      .catch(() => {});
+  }
 }
 
 function escapeHtml(str) {
@@ -567,6 +683,11 @@ document.getElementById("group-mode").addEventListener("change", (e) => {
   document.getElementById("sector-filter").value = "";
   renderSectorHeatmap(window.__lastMap);
   renderTreemap(window.__lastMap, "");
+});
+document.getElementById("breadth-universe").addEventListener("change", (e) => {
+  breadthUniverse = e.target.value;
+  saveBreadthUniverse();
+  if (window.__lastMap) renderBreadth(window.__lastMap);
 });
 refresh();
 setInterval(refresh, REFRESH_MS);

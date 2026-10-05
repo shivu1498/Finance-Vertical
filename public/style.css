@@ -413,12 +413,38 @@ body {
   font-size: 0.85rem;
   color: var(--accent);
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.breadth-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
 }
 .breadth-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   font-weight: 700;
+}
+/* Only present when a row represents a lookback period (the multi-period
+   India panel) — the plain single-row fallback has no label, so it starts
+   straight with the adv/dec figures, unchanged from before this. */
+.bp-label {
+  flex: none;
+  width: 34px;
+  color: var(--text-muted);
+  font-weight: 800;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+}
+.adv,
+.dec {
+  flex: none;
+  min-width: 52px;
+  font-variant-numeric: tabular-nums;
 }
 .adv {
   color: var(--up-strong);
@@ -427,8 +453,11 @@ body {
   color: var(--down-strong);
 }
 .ad-ratio {
+  flex: none;
+  min-width: 58px;
   color: var(--text-muted);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .breadth-bar {
   flex: 1;
@@ -442,6 +471,10 @@ body {
   background: var(--up-strong);
   width: 50%;
   transition: width 0.4s ease;
+}
+.breadth-coverage {
+  margin-top: 8px;
+  font-size: 0.72rem;
 }
 
 /* ---- Sector heatmap ---- */

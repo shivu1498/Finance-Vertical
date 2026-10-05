@@ -45,8 +45,13 @@ time you log in).
 - **Sector heatmap**: the selected country's constituents grouped into
   sectors (`public/data.js`), average % change per sector. Click a tile
   to filter the treemap below.
-- **Breadth strip**: advancing vs. declining count across the selected
-  country's tracked names.
+- **Breadth panel**: advancing vs. declining count across the selected
+  country's tracked names. For India, a dropdown selects any of ~21 NSE
+  index universes (Nifty 50 through Nifty Total Market) and the panel
+  compares advance/decline across six lookback windows at once (1D/1W/
+  20D/50D/100D/200D, in trading sessions — see "India Market Breadth"
+  below). Every other country keeps the single today's-A/D figure this
+  always showed.
 - **Stock treemap**: each tracked stock in the selected country, colored
   by day change intensity. Filterable by sector via the dropdown.
 
@@ -63,7 +68,8 @@ The header ticker is filtered by four asset classes, each with a dropdown:
 | Commodity | Gold, Silver, Crude Oil | Gold, Silver, WTI, Brent (futures, USD) |
 | Bond | Treasury yields, Bond ETFs | US 3M/5Y/10Y/30Y yields (change in basis points), TLT, AGG, LQD, HYG |
 
-- Scroll with the arrows; your choice is remembered in the browser.
+- Scrolls as a continuous marquee (never stops; pauses on hover to read a
+  figure) — your asset-class choice is remembered in the browser.
 - Only the visible instruments are fetched, every 30 seconds.
 - Edit the list in `ASSET_CLASSES` and `TICKERS` in `public/data.js`.
 - The symbols are Yahoo Finance tickers. They could not be tested live from the
@@ -429,3 +435,54 @@ start blocking this from a server IP at any time — unverified against the
 live site from this sandbox (no outbound access to nseindia.com here); if
 it starts failing, the tab shows a clear error (plus whatever it had
 already scanned) instead of breaking.
+
+## India Market Breadth (index-universe filter)
+
+The Markets tab's Breadth panel, for India, compares advance/decline
+across six lookback windows (1D/1W/20D/50D/100D/200D, counted in trading
+sessions — the usual moving-average convention, not calendar days) for any
+of ~21 NSE index universes: Nifty 50, Next 50, Midcap 50/100/150,
+Smallcap 50/100/250/500, Midsmallcap 400 (plain and 50:50), Nifty 100/200/
+500, the 500 Multicap and LargeMidSmall Equal-Cap strategy indices,
+Largemidcap 250, Midcap Select, Total Market, Microcap 250, and India
+FPI 150 — the same list NSE's own live heatmap page offers
+(`nseindia.com/market-data/live-market-indices/heatmap`).
+
+- `nse-index-breadth.js` — fetches that universe's constituent list and
+  each stock's live 1-day % change from NSE's `equity-stockIndices` API
+  (same cookie-priming anti-bot pattern as `nse-announcements.js`). This
+  endpoint's exact response shape couldn't be verified live (no outbound
+  access to nseindia.com from this sandbox), so field access is
+  deliberately defensive — several plausible field-name spellings are
+  tried, and a row is skipped, not a crash, if none match.
+- `breadth.js` — the 1W/20D/50D/100D/200D figures need actual price
+  history per stock, not just today's change, so this fetches each
+  constituent's 2-year daily bars from Yahoo (the same chart endpoint
+  `/api/quotes` and `/api/quotes/periods` already use) and derives a sign
+  at each lookback (`parseBreadthSigns` in `quotes.js`). The largest
+  universes run to 500-750 stocks, which is both too slow and too much for
+  Yahoo's free endpoint to fetch one request at a time inside a single
+  serverless invocation, so this is built around two things instead of a
+  naive per-request fetch loop:
+  1. A per-symbol cache **shared across every universe**, not scoped to
+     one request. NSE's broader indices are strict supersets of its
+     narrower ones (a Nifty 50 stock is also in Nifty 100, 200, 500, Total
+     Market, ...), so a stock's bars fetched for one universe are already
+     warm for every other universe containing it.
+  2. A wall-clock time budget (concurrency-capped fetches stop launching
+     new work once it elapses, rather than blowing past Vercel's function
+     time limit). Whatever didn't finish is left out of the tally, and the
+     response carries `coverage: { checked, total, timedOut }` so the UI
+     can show "based on 420/500 stocks so far" rather than silently
+     present a partial read as complete — coverage on a huge universe
+     climbs toward complete over a few requests rather than stalling the
+     same way every time, since (1) means each request only pays for
+     whatever's still missing.
+- `GET /api/breadth/in?universe=<slug>` — the combined result (1D from
+  NSE's own pChange, the rest from the above). `GET
+  /api/breadth/in/universes` — the slug/label list, for the dropdown.
+- The client (`public/app.js`) lazy-loads per universe, caches briefly,
+  and falls back to the plain locally-computed Nifty-50-only A/D figure
+  (from quotes already on screen) if the live fetch fails or a non-default
+  universe hasn't loaded yet — never shows one universe's numbers under a
+  different universe's label.

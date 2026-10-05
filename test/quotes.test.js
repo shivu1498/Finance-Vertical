@@ -1,4 +1,4 @@
-const { parseChart, parsePeriods } = require("../quotes");
+const { parseChart, parsePeriods, parseBreadthSigns, BREADTH_LOOKBACKS } = require("../quotes");
 let fails = 0;
 const near = (n, got, want, tol = 1e-9) => { const ok = got != null && Math.abs(got - want) <= tol; if (!ok) fails++; console.log((ok ? "PASS " : "FAIL ") + n + `  got ${got}, want ${want}`); };
 const is = (n, ok, x = "") => { if (!ok) fails++; console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  " + x : "")); };
@@ -102,6 +102,53 @@ const periodsChart = (meta, closes, ts) => ({ chart: { result: [{ meta, timestam
   const ts = Array.from({ length: N }, (_, i) => base + i * D);
   const p = parsePeriods(periodsChart({ regularMarketPrice: closes[N - 1], regularMarketTime: ts[N - 1] + 3600 }, closes, ts), "X");
   near("1W: a null bar at the cutoff falls back to the day before it", p.periods["1W"], (8 / (100 + N - 1 - 8)) * 100);
+}
+
+// ---- parseBreadthSigns: up/down/flat sign at each trading-bar lookback ----
+is("BREADTH_LOOKBACKS: the six windows the breadth panel compares", BREADTH_LOOKBACKS.map((l) => l[0]).join(",") === "1D,1W,20D,50D,100D,200D");
+
+{
+  // 250 rising daily closes: every lookback should read "up".
+  const N = 250;
+  const closes = Array.from({ length: N }, (_, i) => 100 + i); // strictly increasing
+  const s = parseBreadthSigns(chart({ regularMarketPrice: closes[N - 1] + 1 }, closes), "X");
+  is("rising series: every lookback is up (1)", BREADTH_LOOKBACKS.every(([label]) => s.signs[label] === 1), JSON.stringify(s.signs));
+}
+
+{
+  // 250 falling daily closes: every lookback should read "down".
+  const N = 250;
+  const closes = Array.from({ length: N }, (_, i) => 500 - i); // strictly decreasing
+  const s = parseBreadthSigns(chart({ regularMarketPrice: closes[N - 1] - 1 }, closes), "X");
+  is("falling series: every lookback is down (-1)", BREADTH_LOOKBACKS.every(([label]) => s.signs[label] === -1), JSON.stringify(s.signs));
+}
+
+{
+  // Exactly flat: 0, not up or down.
+  const closes = Array.from({ length: 250 }, () => 100);
+  const s = parseBreadthSigns(chart({ regularMarketPrice: 100 }, closes), "X");
+  is("flat series: every lookback is 0", BREADTH_LOOKBACKS.every(([label]) => s.signs[label] === 0), JSON.stringify(s.signs));
+}
+
+{
+  // Only 30 bars of history: 1D/1W/20D have enough bars, 50D/100D/200D don't (null, not a crash).
+  const closes = Array.from({ length: 30 }, (_, i) => 100 + i);
+  const s = parseBreadthSigns(chart({ regularMarketPrice: closes[29] + 5 }, closes), "X");
+  is("short history: 1D/1W/20D resolve", s.signs["1D"] === 1 && s.signs["1W"] === 1 && s.signs["20D"] === 1);
+  is("short history: 50D/100D/200D are null, not a crash", s.signs["50D"] === null && s.signs["100D"] === null && s.signs["200D"] === null);
+}
+
+{
+  // A recent IPO with only 1 bar: 1D itself has nothing to compare to either.
+  const s = parseBreadthSigns(chart({ regularMarketPrice: 42 }, [40]), "X");
+  is("single bar: 1D is also null (nothing 1 bar back)", s.signs["1D"] === null);
+}
+
+{
+  // No price available anywhere -> throws, same contract as parseChart/parsePeriods.
+  let threw = false;
+  try { parseBreadthSigns(chart({}, []), "X"); } catch { threw = true; }
+  is("no price at all: throws rather than returning a bogus sign", threw);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
