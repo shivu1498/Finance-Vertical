@@ -20,10 +20,10 @@
   var INTENSITY = 0.6; // overall flash strength (1 = original; 0.6 = 40% softer)
   var WASH_PEAK = INTENSITY; // peak opacity of the wash layer
 
-  // Each flash is one colour, cycling red -> trypan blue -> green. While a ray
-  // passes, the page's accent, text and borders take that colour for a blink.
+  // Each flash is one colour, cycling orange -> trypan blue -> green. While a
+  // ray passes, the page's accent, text and borders take that colour for a blink.
   var PALETTE = [
-    { rgb: "255,45,30",  hot: "255,200,170", head: "255,90,70",   accent: "#ff4d43", tint: "#ffb3ab", dim: "#ff8f85", border: "rgba(255,77,67,.55)" },
+    { rgb: "249,115,22", hot: "255,221,180", head: "255,160,70",   accent: "#f97316", tint: "#ffd8ae", dim: "#ffb066", border: "rgba(249,115,22,.55)" },
     { rgb: "30,95,255",  hot: "190,215,255", head: "90,140,255",  accent: "#4d86ff", tint: "#b8cfff", dim: "#8fb4ff", border: "rgba(77,134,255,.55)" },
     { rgb: "20,225,100", hot: "190,255,215", head: "70,240,140",  accent: "#2ee476", tint: "#b4ffd2", dim: "#7dffaa", border: "rgba(46,228,118,.55)" }
   ];

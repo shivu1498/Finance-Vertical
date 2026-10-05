@@ -30,7 +30,7 @@
   // arrives with the first chunk (and as the color lookup from then on —
   // color is a display-only concern the server doesn't need to know about).
   const CATEGORY_COLORS = {
-    capex: "#ff4d43",
+    capex: "#ef5350",
     new_order: "#4da3ff",
     product_launch: "#a78bfa",
     ma: "#ffc43d",

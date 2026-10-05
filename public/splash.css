@@ -179,8 +179,8 @@
   width: clamp(70px, 12vw, 130px);
   height: clamp(70px, 12vw, 130px);
   flex: none;
-  color: #ff4d43;
-  filter: drop-shadow(0 0 18px rgba(255, 77, 67, 0.6));
+  color: #f97316;
+  filter: drop-shadow(0 0 18px rgba(249, 115, 22, 0.6));
   opacity: 0;
   animation: sp-logo-in 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.15) 4.3s forwards;
 }
@@ -213,7 +213,7 @@
 }
 /* faux extrusion on top of the 3D flip */
 .sp-w1 .sp-l { color: #f6f6f8; text-shadow: 0 1px 0 #cfcfd4, 0 2px 0 #b5b5bb, 0 3px 0 #9c9ca3, 0 4px 0 #84848b, 0 5px 0 #6d6d74, 0 6px 0 #57575d, 0 12px 16px rgba(0, 0, 0, 0.65); }
-.sp-w2 .sp-l { color: #ff5a4f; text-shadow: 0 1px 0 #d93d33, 0 2px 0 #c2352c, 0 3px 0 #a92d25, 0 4px 0 #90261f, 0 5px 0 #781f19, 0 6px 0 #601813, 0 12px 16px rgba(0, 0, 0, 0.65), 0 0 34px rgba(255, 77, 67, 0.45); }
+.sp-w2 .sp-l { color: #ff8a3d; text-shadow: 0 1px 0 #e4650f, 0 2px 0 #cf580d, 0 3px 0 #b94c0b, 0 4px 0 #a34009, 0 5px 0 #8e3507, 0 6px 0 #782b05, 0 12px 16px rgba(0, 0, 0, 0.65), 0 0 34px rgba(249, 115, 22, 0.45); }
 
 .sp-lens {
   position: absolute;
