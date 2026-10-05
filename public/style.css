@@ -354,30 +354,28 @@ body {
 }
 .ci-periods {
   display: flex;
-  gap: 4px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-left: auto;
-  align-self: center;
 }
 .ci-period {
-  background: var(--panel-soft);
-  color: var(--text-muted);
-  border: 1px solid var(--panel-border);
-  border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
   white-space: nowrap;
+  color: var(--text-muted); /* the figure itself is colored by changeClass (up/down/flat); this is the fallback for "…" */
 }
-.ci-period:hover {
-  color: var(--text-main);
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--panel-border));
+.ci-period.up { color: var(--up-strong); }
+.ci-period.down { color: var(--down-strong); }
+.ci-period b {
+  font-weight: 600;
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  margin-right: 3px;
 }
-.ci-period.active {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
+.ci-period-sep {
+  color: var(--panel-border);
 }
 .country-index-label {
   color: var(--text-muted);

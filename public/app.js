@@ -228,7 +228,6 @@ function setCountry(code) {
   const country = COUNTRIES.find((c) => c.code === code);
   if (!country || country.code === activeCountry.code) return;
   activeCountry = country;
-  indexPeriod = "1D"; // switching markets starts the period chips fresh
   document.getElementById("detail-card").hidden = true;
   renderCountryFilter();
   populateSectorFilter();
@@ -274,12 +273,12 @@ function renderCountryFilter() {
 // ---- Country index: price is live every refresh tick (REFRESH_MS); the
 // 1W/1M/3M/6M/1Y figures come from a separate, heavier fetch (2y of daily
 // bars) that only needs to happen once per symbol, cached client-side on
-// top of the server's own cache. Switching chips after that is instant —
-// no refetch, just picking a different field out of what's cached. ----
-let indexPeriod = "1D";
+// top of the server's own cache. All six periods are shown at once (no
+// toggle/selection) — 1D is the always-live one, the rest fill in once
+// that fetch resolves. ----
 const indexPeriodsCache = new Map(); // indexSymbol -> { data, ts }
 const INDEX_PERIODS_TTL = 5 * 60_000;
-const INDEX_PERIOD_CHIPS = ["1D", "1W", "1M", "3M", "6M", "1Y"];
+const INDEX_PERIOD_IDS = ["1D", "1W", "1M", "3M", "6M", "1Y"];
 
 async function ensureIndexPeriods(symbol) {
   const cached = indexPeriodsCache.get(symbol);
@@ -302,33 +301,25 @@ function renderCountryIndex(map) {
   const symbol = activeCountry.indexSymbol;
   const cached = indexPeriodsCache.get(symbol);
   const periods = cached ? cached.data.periods : null;
-  // 1D always has a live figure from the regular quote, even before the
-  // periods fetch resolves; the other chips wait on that fetch.
-  const pct = indexPeriod === "1D" ? q.changePercent : periods ? periods[indexPeriod] : null;
-  const chips = INDEX_PERIOD_CHIPS.map(
-    (id) => `<button type="button" class="ci-period${indexPeriod === id ? " active" : ""}" data-period="${id}">${id}</button>`
-  ).join("");
+  const row = INDEX_PERIOD_IDS.map((id) => {
+    // 1D always has a live figure from the regular quote, even before the
+    // periods fetch resolves; the rest show "…" until it does.
+    const pct = id === "1D" ? q.changePercent : periods ? periods[id] : null;
+    return `<span class="ci-period ${changeClass(pct)}"><b>${id}</b> ${pct == null ? "…" : fmtPct(pct)}</span>`;
+  }).join(`<span class="ci-period-sep">|</span>`);
 
   el.innerHTML = `
     <span class="country-index-label">${activeCountry.flag} ${activeCountry.indexLabel} <span class="muted">(${activeCountry.exchange})</span></span>
     <span class="country-index-price">${fmtPrice(q.price)}</span>
-    <span class="country-index-pct ${changeClass(pct)}">${pct == null ? "…" : fmtPct(pct)}</span>
-    <div class="ci-periods" role="group" aria-label="Change over">${chips}</div>
+    <div class="ci-periods">${row}</div>
   `;
 
   if (!periods) {
     ensureIndexPeriods(symbol)
       .then(() => { if (activeCountry.indexSymbol === symbol && window.__lastMap) renderCountryIndex(window.__lastMap); })
-      .catch(() => {}); // 1D still shows live; other chips just stay "…" until the next render retries
+      .catch(() => {}); // 1D still shows live; the rest just stay "…" until the next render retries
   }
 }
-
-document.getElementById("country-index").addEventListener("click", (e) => {
-  const btn = e.target.closest(".ci-period");
-  if (!btn || btn.dataset.period === indexPeriod) return;
-  indexPeriod = btn.dataset.period;
-  if (window.__lastMap) renderCountryIndex(window.__lastMap);
-});
 
 function renderSectorHeatmap(map) {
   const bySector = new Map();
