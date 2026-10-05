@@ -137,7 +137,6 @@ function setAssetFilter(cls, sub = "") {
   saveAssetFilter();
   renderAssetFilter();
   renderTicker();
-  document.getElementById("ticker-strip").scrollTo({ left: 0, behavior: "auto" });
   refreshTicker();
 }
 
@@ -152,10 +151,14 @@ function tickerQuote(t) {
   return { price, change: prev == null ? 0 : price - prev, pct: q.changePercent, prev };
 }
 
+// Pixels/second the marquee moves at — picked so a figure is readable in
+// passing, not so slow it looks stalled.
+const TICKER_PX_PER_SEC = 55;
+
 function renderTicker() {
   const strip = document.getElementById("ticker-strip");
   const list = visibleTickers();
-  strip.innerHTML = list
+  const itemsHtml = list
     .map((t) => {
       const q = tickerQuote(t);
       const dp = t.dp ?? 2;
@@ -169,13 +172,21 @@ function renderTicker() {
       return `<div class="tk ${dir}${q ? "" : " na"}" role="listitem" title="${tip.replace(/"/g, "&quot;")}"><span class="tk-name">${t.label}</span><span class="tk-val">${val}</span><span class="tk-pct">${move}</span><span class="tk-arrow">${arrow}</span></div>`;
     })
     .join("");
-  updateTickerNav();
-}
 
-function updateTickerNav() {
-  const strip = document.getElementById("ticker-strip");
-  document.getElementById("ticker-prev").disabled = strip.scrollLeft <= 2;
-  document.getElementById("ticker-next").disabled = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 2;
+  if (!itemsHtml) {
+    strip.innerHTML = "";
+    return;
+  }
+
+  // Two back-to-back copies of the same items: animating the track from
+  // translateX(0) to translateX(-50%) moves exactly one copy's width, so
+  // the point where it loops back to the start is invisible — the strip
+  // just keeps running, like a train.
+  strip.innerHTML = `<div class="ticker-track">${itemsHtml}${itemsHtml}</div>`;
+  const track = strip.firstElementChild;
+  const singleWidth = track.scrollWidth / 2;
+  const duration = singleWidth > 0 ? singleWidth / TICKER_PX_PER_SEC : 40;
+  track.style.setProperty("--ticker-dur", `${duration}s`);
 }
 
 async function refreshTicker() {
@@ -218,12 +229,6 @@ document.addEventListener("keydown", (e) => {
   closeAssetMenus();
   open.parentElement.querySelector("[data-asset-toggle]").focus();
 });
-const tickerStrip = document.getElementById("ticker-strip");
-tickerStrip.addEventListener("scroll", updateTickerNav, { passive: true });
-window.addEventListener("resize", updateTickerNav);
-document.getElementById("ticker-prev").addEventListener("click", () => tickerStrip.scrollBy({ left: -tickerStrip.clientWidth * 0.8 }));
-document.getElementById("ticker-next").addEventListener("click", () => tickerStrip.scrollBy({ left: tickerStrip.clientWidth * 0.8 }));
-
 function setCountry(code) {
   const country = COUNTRIES.find((c) => c.code === code);
   if (!country || country.code === activeCountry.code) return;
