@@ -448,14 +448,18 @@ body {
 
 /* ---- Sector heatmap ---- */
 .sector-heatmap {
-  display: grid;
-  /* auto-fit (not auto-fill): empty leftover tracks collapse to 0 width, so
-     a short last row's tiles stretch to fill the full row instead of
-     leaving a gap on the right. */
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  /* flexbox, not grid: a CSS grid shares one set of column tracks across
+     every row, so a short last row can't reclaim width a fuller row above
+     it already "owns" (auto-fit only collapses a track that's empty in
+     EVERY row, which a short trailing row alone never achieves). Flexbox
+     computes stretch per line independently, so each row — full or
+     partial — grows its own tiles to fill the full width. */
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 .sector-tile {
+  flex: 1 1 130px;
   border-radius: 8px;
   padding: 10px 10px 8px;
   cursor: pointer;
