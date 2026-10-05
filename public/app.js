@@ -622,12 +622,27 @@ async function showFundamentals(stock) {
   }
 }
 
+// Markets and Stocks share one underlying fetch (same country's quotes
+// drive the country index, sector heatmap, breadth panel AND the stock
+// treemap), so they're gated together: refresh() only does its work while
+// one of those two tabs is actually showing. Every other tab (Universe,
+// Mutual Funds, Announcements, ...) already gates its own polling the same
+// way behind a local isActive() check — this extends that same convention
+// to Markets/Stocks, which previously kept fetching and re-rendering every
+// REFRESH_MS regardless of which tab was on screen.
+let marketsRefreshedAt = 0;
+function marketsSectionActive() {
+  const tab = document.querySelector("#tabs .tab.active")?.dataset.tab;
+  return (tab === "markets" || tab === "stocks") && !document.hidden;
+}
+
 async function refresh() {
   try {
     const countrySymbols = [activeCountry.indexSymbol, ...new Set(activeCountry.stocks.map((s) => s.symbol))];
     const allSymbols = [...new Set(countrySymbols)];
     const { map, updatedAt } = await fetchQuotes(allSymbols);
     window.__lastMap = map;
+    marketsRefreshedAt = Date.now();
 
     renderCountryIndex(map);
     renderSectorHeatmap(map);
@@ -689,5 +704,18 @@ document.getElementById("breadth-universe").addEventListener("change", (e) => {
   saveBreadthUniverse();
   if (window.__lastMap) renderBreadth(window.__lastMap);
 });
+// Only poll while Markets/Stocks is actually the visible tab (and the
+// browser tab itself isn't backgrounded) — switching away stops the
+// interval's work entirely rather than fetching and re-rendering a panel
+// nobody's looking at every REFRESH_MS. Arriving back at either tab (or
+// returning to a backgrounded browser tab) catches up immediately instead
+// of waiting out the rest of the current interval, as long as the data is
+// actually stale (avoids a redundant fetch if you're just flipping
+// quickly between Markets and Stocks, which share the same data).
 refresh();
-setInterval(refresh, REFRESH_MS);
+setInterval(() => { if (marketsSectionActive()) refresh(); }, REFRESH_MS);
+function refreshMarketsIfStale() {
+  if (marketsSectionActive() && Date.now() - marketsRefreshedAt > 5000) refresh();
+}
+document.addEventListener("tabchange", refreshMarketsIfStale);
+document.addEventListener("visibilitychange", refreshMarketsIfStale);
