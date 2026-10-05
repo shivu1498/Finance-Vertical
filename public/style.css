@@ -449,7 +449,10 @@ body {
 /* ---- Sector heatmap ---- */
 .sector-heatmap {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  /* auto-fit (not auto-fill): empty leftover tracks collapse to 0 width, so
+     a short last row's tiles stretch to fill the full row instead of
+     leaving a gap on the right. */
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 6px;
 }
 .sector-tile {
