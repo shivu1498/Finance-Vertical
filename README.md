@@ -382,6 +382,21 @@ entirely, and the latter is the worse failure mode for a watch tool.
   "error" — only the results gathered so far are kept on screen
   alongside the error.
 
+Above the filing list sits a "\<category\> by industry" grid — title and
+accent color follow whichever filter chip is active (so selecting "Capex /
+Expansion" shows capex grouped by industry; "All" shows every tracked
+category together). Each card rolls up filing/company counts and status
+dots (confirmed in the PDF body / flagged from NSE's summary only /
+industry mismatch) for that industry, purely from data the scan already
+has. Clicking a card opens a sector drill-down modal — one big headline
+capex figure and a smaller demand figure, a mini stats row, and a
+company-by-company table with the same status dots. NSE's feed never gives
+a rupee capex or demand figure, so both headline numbers are typed in by
+hand (click to edit) and persisted in this browser's `localStorage`
+(`stalkingstocks.industryFigures.v1`, keyed by industry) rather than
+fetched from anywhere — there's no server-side store or external API call
+behind them yet.
+
 A full year-to-date scan is dozens of NSE round-trips (about one per week
 of the year so far, 4 running at a time), so it still takes noticeably
 longer than scanning a single short window — that's expected, and the
