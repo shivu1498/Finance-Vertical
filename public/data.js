@@ -63,10 +63,10 @@ const TICKERS = [
 
 // Nifty 50 constituents with an approximate sector grouping.
 const NIFTY50 = [
-  { symbol: "ADANIENT.NS", name: "ADANIENT", sector: "Metal & Mining" },
+  { symbol: "ADANIENT.NS", name: "ADANIENT", sector: "Metal" },
   { symbol: "ADANIPORTS.NS", name: "ADANIPORTS", sector: "Infra" },
   { symbol: "APOLLOHOSP.NS", name: "APOLLOHOSP", sector: "Healthcare" },
-  { symbol: "ASIANPAINT.NS", name: "ASIANPAINT", sector: "Consumer Durables" },
+  { symbol: "ASIANPAINT.NS", name: "ASIANPAINT", sector: "Cons Durables" },
   { symbol: "AXISBANK.NS", name: "AXISBANK", sector: "Bank" },
   { symbol: "BAJAJ-AUTO.NS", name: "BAJAJ-AUTO", sector: "Auto" },
   { symbol: "BAJFINANCE.NS", name: "BAJFINANCE", sector: "Fin Services" },
@@ -107,7 +107,7 @@ const NIFTY50 = [
   { symbol: "TATASTEEL.NS", name: "TATASTEEL", sector: "Metal" },
   { symbol: "TCS.NS", name: "TCS", sector: "IT" },
   { symbol: "TECHM.NS", name: "TECHM", sector: "IT" },
-  { symbol: "TITAN.NS", name: "TITAN", sector: "Consumer Durables" },
+  { symbol: "TITAN.NS", name: "TITAN", sector: "Cons Durables" },
   { symbol: "TRENT.NS", name: "TRENT", sector: "Services" },
   { symbol: "ULTRACEMCO.NS", name: "ULTRACEMCO", sector: "Commodities" },
   { symbol: "WIPRO.NS", name: "WIPRO", sector: "IT" },

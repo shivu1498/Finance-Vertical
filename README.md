@@ -263,6 +263,16 @@ treemap and fundamentals panel; **Sector Knowledge** holds the research gallery.
   the existing session-aware previous-close logic; the longer windows just
   find the closest trading day on or before "N calendar days ago". Fetched
   once per index symbol and cached client-side for 5 minutes.
+- The Markets tab's Sector Heatmap (India, "classic" grouping) prefers
+  NSE's own live "SECTORAL INDICES" — a real % change and a real P/E per
+  sector — over the constituent-average fallback used everywhere else.
+  Served from `/api/indices/in/sectors` (`nse-sector-indices.js`, same
+  cookie-priming pattern as the Announcements feed), fuzzy-matched against
+  a fixed set of sector labels since NSE's exact index-name spelling isn't
+  something this could be verified against live. Falls back to the
+  stock-average heatmap (no P/E, no tile for sectors with no Nifty 50
+  constituent) if the live fetch fails, hasn't resolved yet, or the
+  country/grouping isn't India-classic.
 - To add another country: append an entry to `COUNTRIES` in
   `public/data.js` with its index symbol and a stock list — no backend
   changes needed, as long as Yahoo lists that exchange.

@@ -170,7 +170,7 @@ const K_SECTORS = [
   },
   {
     id: "cons-durables", name: "Cons Durables", icon: "tv", hue: ["#a855f7", "#be185d"],
-    dataSectors: ["Consumer Durables"],
+    dataSectors: ["Cons Durables"],
     overview: "Paints, jewellery, appliances and electronics. These are discretionary or semi-discretionary purchases that follow housing, incomes and replacement cycles.",
     drivers: ["Premiumisation and brand strength", "Housing and real-estate turnover", "Replacement cycles and rising incomes", "Organised-sector share gains"],
     risks: ["Raw-material inflation: crude derivatives, metals", "New competition squeezing incumbents", "Discretionary slowdowns", "Import dependence for components"],

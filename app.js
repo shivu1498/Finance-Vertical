@@ -17,6 +17,7 @@ const { createMf } = require("./mf");
 const { createFilings } = require("./filings");
 const { parseChart, parsePeriods } = require("./quotes");
 const { createNseAnnouncements } = require("./nse-announcements");
+const { createNseSectorIndices } = require("./nse-sector-indices");
 const tijori = require("./tijori");
 const companies = require("./companies");
 
@@ -164,5 +165,12 @@ app.use("/api/filings", filings.router);
 // filings, cross-checked against our own industry classification. See
 // nse-announcements.js.
 app.get("/api/filings/in/announcements", createNseAnnouncements({ directory: companies.loadDefault() }));
+
+// Sector Heatmap (India): NSE's own "SECTORAL INDICES" — real % change and
+// P/E per sector, covering sectors with no/too-few Nifty 50 constituents
+// (Capital Mkts, Media, Realty, MNC) that the constituent-average heatmap
+// can't. See nse-sector-indices.js. The client falls back to the
+// constituent-average heatmap if this fails or hasn't loaded yet.
+app.get("/api/indices/in/sectors", createNseSectorIndices());
 
 module.exports = app;

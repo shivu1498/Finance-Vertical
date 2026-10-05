@@ -321,26 +321,64 @@ function renderCountryIndex(map) {
   }
 }
 
+// ---- Sector Heatmap (India, classic grouping): NSE's own live "SECTORAL
+// INDICES" — a real % change and a real P/E per sector — replace the
+// constituent-average approach for India's classic grouping whenever
+// they're available, since they cover sectors with no/too-few Nifty 50
+// names (Capital Mkts, Media, Realty, MNC) and carry a P/E the averaging
+// approach has no way to produce. Lazy-loaded once, cached client-side; the
+// heatmap quietly falls back to the derived-from-constituents approach if
+// the fetch fails, hasn't resolved yet, or the country/grouping isn't
+// India-classic. See nse-sector-indices.js for the server side. ----
+const SECTOR_INDEX_TTL = 60_000;
+let sectorIndexState = { data: null, ts: 0, promise: null };
+
+function ensureSectorIndices() {
+  if (sectorIndexState.data && Date.now() - sectorIndexState.ts < SECTOR_INDEX_TTL) return Promise.resolve(sectorIndexState.data);
+  if (sectorIndexState.promise) return sectorIndexState.promise;
+  const promise = fetch("/api/indices/in/sectors")
+    .then((res) => { if (!res.ok) throw new Error(`API error ${res.status}`); return res.json(); })
+    .then((data) => { sectorIndexState = { data, ts: Date.now(), promise: null }; return data; })
+    .catch((err) => { sectorIndexState.promise = null; throw err; });
+  sectorIndexState.promise = promise;
+  return promise;
+}
+
 function renderSectorHeatmap(map) {
-  const bySector = new Map();
-  for (const s of activeCountry.stocks) {
-    const q = map.get(s.symbol);
-    if (!q || q.error) continue;
-    const g = groupOf(s);
-    if (!bySector.has(g)) bySector.set(g, []);
-    bySector.get(g).push(q.changePercent);
+  const liveEligible = activeCountry.code === "IN" && groupMode === "classic";
+  const live = liveEligible && sectorIndexState.data ? sectorIndexState.data.sectors : null;
+  const useLive = !!(live && live.length);
+
+  let rows;
+  if (useLive) {
+    const filterOptions = new Set([...document.getElementById("sector-filter").options].map((o) => o.value));
+    rows = live
+      .filter((s) => s.pct != null)
+      .map((s) => ({ sector: s.label, avg: s.pct, pe: s.pe, hasFilter: filterOptions.has(s.label) }))
+      .sort((a, b) => b.avg - a.avg);
+  } else {
+    const bySector = new Map();
+    for (const s of activeCountry.stocks) {
+      const q = map.get(s.symbol);
+      if (!q || q.error) continue;
+      const g = groupOf(s);
+      if (!bySector.has(g)) bySector.set(g, []);
+      bySector.get(g).push(q.changePercent);
+    }
+    rows = [...bySector.entries()]
+      .map(([sector, pcts]) => ({
+        sector,
+        avg: pcts.reduce((a, b) => a + b, 0) / pcts.length,
+        count: pcts.length,
+        hasFilter: true,
+      }))
+      .sort((a, b) => b.avg - a.avg);
   }
 
-  const rows = [...bySector.entries()]
-    .map(([sector, pcts]) => ({
-      sector,
-      avg: pcts.reduce((a, b) => a + b, 0) / pcts.length,
-      count: pcts.length,
-    }))
-    .sort((a, b) => b.avg - a.avg);
-
   const modeLabel = { classic: "", mes: " · grouped by NSE macro-economic sector", sec: " · grouped by NSE sector", ind: " · grouped by NSE industry" }[activeCountry.code === "IN" ? groupMode : "classic"];
-  document.getElementById("sector-heatmap-sub").textContent = `· derived from ${activeCountry.name} constituents${modeLabel}`;
+  document.getElementById("sector-heatmap-sub").textContent = useLive
+    ? "· NSE sectoral indices (live)"
+    : `· derived from ${activeCountry.name} constituents${modeLabel}`;
   const groupSel = document.getElementById("group-mode");
   groupSel.hidden = activeCountry.code !== "IN";
   groupSel.value = groupMode;
@@ -352,17 +390,24 @@ function renderSectorHeatmap(map) {
     const cls = changeClass(row.avg);
     tile.className = `sector-tile ${cls}`;
     tile.style.setProperty("--heat", heat(row.avg).toFixed(2));
+    const metric = row.pe != null ? `PE ${row.pe.toFixed(1)}` : row.count != null ? `${row.count} stk` : "";
     tile.innerHTML = `
       <div class="sector-name">${row.sector}</div>
       <div class="sector-pct">${fmtPct(row.avg)}</div>
-      <div class="sector-count">${row.count} stk</div>
+      <div class="sector-count">${metric}</div>
     `;
     tile.addEventListener("click", () => {
-      document.getElementById("sector-filter").value = row.sector;
-      renderTreemap(window.__lastMap, row.sector);
+      document.getElementById("sector-filter").value = row.hasFilter ? row.sector : "";
+      renderTreemap(window.__lastMap, row.hasFilter ? row.sector : "");
       showTab("stocks");
     });
     el.appendChild(tile);
+  }
+
+  if (liveEligible && !sectorIndexState.data) {
+    ensureSectorIndices()
+      .then(() => { if (activeCountry.code === "IN" && groupMode === "classic" && window.__lastMap) renderSectorHeatmap(window.__lastMap); })
+      .catch(() => {}); // stays on the derived heatmap if this never resolves
   }
 }
 
