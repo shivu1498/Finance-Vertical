@@ -1,8 +1,8 @@
-// "Capex Watch" — scans NSE's own live corporate-announcements feed for
-// filings that mention capex / capacity expansion / unit expansion, and
-// checks whether NSE's own industry tag for that company (smIndustry)
-// agrees with the industry we've already classified it under (from
-// companies.json / the NSE-BSE company list the Universe tab uses).
+// "Capex Watch" — scans NSE's own corporate-announcements feed for filings
+// that mention capex / capacity expansion / unit expansion, and checks
+// whether NSE's own industry tag for that company (smIndustry) agrees with
+// the industry we've already classified it under (from companies.json /
+// the NSE-BSE company list the Universe tab uses).
 //
 // Data source: https://www.nseindia.com/api/corporate-announcements — NSE's
 // own (undocumented, free, no key) JSON API behind the "Corporate Filings"
@@ -11,6 +11,15 @@
 // guarantee NSE keeps allowing this from a server IP; if it starts
 // blocking (401/403/429), this fails closed with a clear error, same as
 // the Screener and Finviz integrations.
+//
+// A year-to-date scan is thousands of filings, and NSE's own API has no
+// pagination — ask it for a ~9-month range in one call and it tries to hand
+// back a response in the tens of MB, which blew straight through a 48MB
+// response-size cap in testing. So this module deliberately only ever
+// answers for one short date range per call (clamped to maxChunkDays, a
+// week by default): the client is the one that walks a year-to-date scan
+// forward one chunk at a time (see public/capex-ui.js), which also keeps
+// each call well inside Vercel's request time limit.
 //
 // For the filings that mention the keywords, the PDF itself is fetched and
 // read with pdf-text-lite.js (no npm package — see that file for what it
@@ -22,7 +31,6 @@
 const { extractPdfText } = require("./pdf-text-lite");
 
 const WWW = "https://www.nseindia.com";
-const ARCHIVES = "https://nsearchives.nseindia.com";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
 const KEYWORDS = [
@@ -59,17 +67,26 @@ function industriesAgree(ours, nse) {
 
 function pad2(n) { return String(n).padStart(2, "0"); }
 function ddmmyyyy(d) { return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`; }
+function isoDate(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function parseIso(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || "").trim());
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 function createNseExpansion({
   directory,
   fetchImpl = fetch,
   wwwBase = WWW,
-  cacheMs = 20 * 60 * 1000,
-  windowDays = 3,
-  maxPrefilter = 300,
-  maxPdfChecks = 20,
+  maxChunkDays = 7,
+  maxPrefilter = 2000,
+  maxPdfChecks = 10,
+  pastCacheMs = 12 * 60 * 60 * 1000, // a chunk fully in the past never changes
+  todayCacheMs = 10 * 60 * 1000,     // a chunk that includes today still gets new filings
 } = {}) {
-  let cache = null; // { at, result }
+  const cache = new Map(); // "from|to" -> { at, ttl, result }
   let cookieJar = null; // "name=value; name2=value2"
   let cookieAt = 0;
   const COOKIE_TTL = 10 * 60 * 1000;
@@ -120,11 +137,16 @@ function createNseExpansion({
     }
   }
 
-  async function build() {
-    const to = new Date();
-    const from = new Date(to.getTime() - (windowDays - 1) * 86_400_000);
-    const raw = await fetchAnnouncements({ from, to });
+  // Builds one chunk. `from`/`to` are Dates (inclusive, day granularity);
+  // the range is silently clamped to maxChunkDays so a misbehaving caller
+  // can't trigger the oversized-response problem this module exists to avoid.
+  async function build(from, to) {
+    let f = startOfDay(from), t = startOfDay(to);
+    if (t < f) [f, t] = [t, f];
+    const maxEnd = new Date(f.getTime() + (maxChunkDays - 1) * 86_400_000);
+    if (t > maxEnd) t = maxEnd;
 
+    const raw = await fetchAnnouncements({ from: f, to: t });
     const checked = raw.length;
     const prefiltered = raw
       .slice(0, maxPrefilter)
@@ -132,12 +154,14 @@ function createNseExpansion({
       .filter((x) => x.hit.length);
 
     const items = [];
+    let pdfChecks = 0;
     for (const { r, hit } of prefiltered) {
       const rec = directory ? directory.find(r.symbol) : null;
       const ours = rec ? (rec.industry || rec.group) : null;
       let pdf = { checked: false };
-      if (r.attchmntFile && items.filter((it) => it.pdf.checked).length < maxPdfChecks) {
+      if (r.attchmntFile && pdfChecks < maxPdfChecks) {
         pdf = await confirmInPdf(r.attchmntFile);
+        pdfChecks++;
       }
       items.push({
         symbol: r.symbol,
@@ -158,26 +182,33 @@ function createNseExpansion({
       });
     }
     items.sort((a, b) => String(b.filedAt).localeCompare(String(a.filedAt)));
-    return { asOf: new Date().toISOString(), windowDays, checked, flagged: items.length, items };
+    return { from: isoDate(f), to: isoDate(t), asOf: new Date().toISOString(), checked, flagged: items.length, items };
   }
 
-  async function get() {
-    if (cache && Date.now() - cache.at < cacheMs) return cache.result;
-    const result = await build();
-    cache = { at: Date.now(), result };
+  async function get(from, to) {
+    const key = `${isoDate(startOfDay(from))}|${isoDate(startOfDay(to))}`;
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < hit.ttl) return hit.result;
+    const result = await build(from, to);
+    const chunkIsPast = startOfDay(to) < startOfDay(new Date());
+    cache.set(key, { at: Date.now(), ttl: chunkIsPast ? pastCacheMs : todayCacheMs, result });
     return result;
   }
 
   async function handler(req, res) {
+    const today = startOfDay(new Date());
+    const to = parseIso(req.query.to) || today;
+    const from = parseIso(req.query.from) || to;
     try {
       res.set("Cache-Control", "public, max-age=120");
-      res.json(await get());
+      res.json(await get(from, to));
     } catch (e) {
       res.status(e.status || 502).json({ error: e.code || "nse_error", message: e.message });
     }
   }
   handler.get = get;
   handler.build = build;
+  handler.maxChunkDays = maxChunkDays;
   return handler;
 }
 

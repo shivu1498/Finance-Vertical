@@ -3254,3 +3254,10 @@ em.pc { font-style: italic; }
 .cx-pdf.ok { color: var(--up-strong); }
 
 .cx-asof { text-align: center; color: var(--text-muted); font-size: .8rem; margin: 16px 0 4px; }
+
+.cx-progress { margin-bottom: 16px; }
+.cx-progress p.f-empty { margin-bottom: 10px; }
+.cx-bar { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.cx-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s ease; }
+.cx-progress .cx-dim { margin: 10px 0 0; font-size: .8rem; }
+.ur-browse.ghost[disabled] { opacity: .5; cursor: default; pointer-events: none; }

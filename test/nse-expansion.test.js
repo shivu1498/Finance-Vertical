@@ -64,8 +64,9 @@ const annRow = (over) => ({
     [/deepak\.pdf/, async () => ({ ok: true, status: 200, arrayBuffer: async () => pdfBuf.buffer.slice(pdfBuf.byteOffset, pdfBuf.byteOffset + pdfBuf.byteLength) })],
   ]);
 
+  const day = new Date(2026, 9, 4); // 04-Oct-2026, matching annRow's an_dt
   const h = createNseExpansion({ directory: dir, fetchImpl, wwwBase: "https://nseindia.com" });
-  const out = await h.get();
+  const out = await h.get(day, day);
   check("get(): one flagged item", out.flagged === 1, JSON.stringify(out));
   const it = out.items[0];
   check("item: company from directory", it.inUniverse === true);
@@ -78,7 +79,7 @@ const annRow = (over) => ({
 
   // cache: a second get() within cacheMs should not refetch
   const before = fetchImpl.calls.length;
-  await h.get();
+  await h.get(day, day);
   check("get(): cached (no extra fetch calls)", fetchImpl.calls.length === before);
 
   // industry mismatch case
@@ -89,7 +90,7 @@ const annRow = (over) => ({
     ]) })],
   ]);
   const h2 = createNseExpansion({ directory: dir, fetchImpl: fetchImpl2, wwwBase: "https://nseindia.com" });
-  const out2 = await h2.get();
+  const out2 = await h2.get(day, day);
   check("mismatch: flagged despite no PDF link", out2.items[0].industryMatch === false, JSON.stringify(out2.items[0]));
   check("mismatch: pdf not checked when no url", out2.items[0].pdfChecked === false);
 
@@ -100,8 +101,13 @@ const annRow = (over) => ({
   ]);
   const h3 = createNseExpansion({ directory: dir, fetchImpl: fetchImpl3, wwwBase: "https://nseindia.com" });
   let errCode = null;
-  try { await h3.get(); } catch (e) { errCode = e.code; }
+  try { await h3.get(day, day); } catch (e) { errCode = e.code; }
   check("blocked: surfaces a 'blocked' error", errCode === "blocked");
+
+  // chunking: a range wider than maxChunkDays gets clamped
+  const h4 = createNseExpansion({ directory: dir, fetchImpl, wwwBase: "https://nseindia.com", maxChunkDays: 7 });
+  const wide = await h4.get(day, new Date(2026, 9, 31));
+  check("chunking: wide range clamped to maxChunkDays", wide.to === "2026-10-10", JSON.stringify({ from: wide.from, to: wide.to }));
 
   console.log(fails === 0 ? "\nall passed" : `\n${fails} FAILED`);
   process.exit(fails === 0 ? 0 : 1);

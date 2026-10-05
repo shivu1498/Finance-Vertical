@@ -315,23 +315,43 @@ P/E, returns, ROE, ROCE).
 ## Capex Watch (new tab)
 
 Scans NSE's own live corporate-announcements feed
-(`nseindia.com/api/corporate-announcements`) for filings whose summary
-mentions "capex", "capacity expansion" or "unit expansion", cross-checks
-each hit's NSE-tagged industry (`smIndustry`) against the industry we've
-already classified that company under (the same NSE/BSE list Universe
-uses), and — best-effort, using `pdf-text-lite.js` (no npm dependency, just
-Node's built-in `zlib`) — fetches and reads the actual filing PDF to
-confirm the phrase appears in the body, not just NSE's headline.
+(`nseindia.com/api/corporate-announcements`), year-to-date (Jan 1 of the
+current year through today), for filings whose summary mentions "capex",
+"capacity expansion" or "unit expansion", cross-checks each hit's
+NSE-tagged industry (`smIndustry`) against the industry we've already
+classified that company under (the same NSE/BSE list Universe uses), and
+— best-effort, using `pdf-text-lite.js` (no npm dependency, just Node's
+built-in `zlib`) — fetches and reads the actual filing PDF to confirm the
+phrase appears in the body, not just NSE's headline.
 
 - `nse-expansion.js` — fetch + cookie priming + keyword prefilter +
-  industry cross-reference + PDF confirmation. `GET /api/filings/in/expansion`.
+  industry cross-reference + PDF confirmation for **one date-range chunk**.
+  `GET /api/filings/in/expansion?from=YYYY-MM-DD&to=YYYY-MM-DD`. NSE's API
+  has no pagination, and asking it for a ~9-month range in one call returns
+  a response too large to handle reliably (hit a 48MB response-size cap in
+  testing) — so the server always clamps the range to `maxChunkDays` (a
+  week by default), whatever `from`/`to` it's given. A chunk fully in the
+  past is cached for 12h (it never changes); a chunk that includes today is
+  cached for only 10 minutes.
 - `pdf-text-lite.js` — minimal Flate-stream text extractor. Handles the
   common case (a text-based, FlateDecode-compressed PDF); gives up quietly
   on scanned PDFs or unusual encodings rather than guessing.
-- `public/capex-ui.js` — the tab itself.
+- `public/capex-ui.js` — the tab itself. Walks Jan 1 → today one
+  `CHUNK_DAYS`-sized window at a time (paced ~250ms apart), accumulating
+  checked/flagged counts and items into a running display as each chunk
+  comes back, so the scan shows live progress rather than appearing to
+  hang. `CHUNK_DAYS` here must stay in sync with `maxChunkDays` on the
+  server. If a chunk fails partway through (NSE blocks/rate-limits), the
+  results gathered so far are kept on screen alongside the error.
 
-NSE's feed is a rolling recent window, not a searchable archive (same
-caveat as the existing Annual Reports feed), and NSE's anti-bot layer may
+A full year-to-date scan is dozens of sequential NSE round-trips (about
+one per week of the year so far), so it noticeably takes longer than
+scanning a single short window — that's expected, and the progress bar is
+what tells the difference between "still working" and "stuck."
+
+NSE's feed is a rolling recent window at the API level (each chunk request
+only reaches back as far as `from`/`to` ask), and NSE's anti-bot layer may
 start blocking this from a server IP at any time — unverified against the
 live site from this sandbox (no outbound access to nseindia.com here); if
-it starts failing, the tab shows a clear error instead of breaking.
+it starts failing, the tab shows a clear error (plus whatever it had
+already scanned) instead of breaking.
