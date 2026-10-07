@@ -25,7 +25,7 @@
      and a card's own title where the content itself (a filing, a fund,
      a company) is the thing worth a little elegance. */
   --font-sans: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-display: "Fredoka", "Poppins", "Segoe UI", sans-serif;
   --font-serif: "Cormorant", Georgia, serif;
 }
 
@@ -45,16 +45,108 @@ body {
 
 body {
   position: relative;
-  background: var(--blue-1);
+  background: #0a0b2e;
 }
 
-/* ---- Flat matte black backdrop (static, no animation) ---- */
+/* ---- "Global trade map" backdrop: deep purple-to-blue gradient, a
+   scattered constellation of stars + faint linking lines, and a slowly
+   spinning Earth tucked in the corner. Everything here is static/cheap
+   (gradients + a couple of opacity keyframes) so it never competes with
+   the dashboard's own data for CPU. ---- */
 .field-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: #0b0b0c; /* matte black, no gradients or grid */
   overflow: hidden;
+  background-color: #0a0b2e;
+  background-image:
+    radial-gradient(ellipse 1100px 650px at 18% -8%, rgba(150, 110, 255, 0.4), transparent 60%),
+    radial-gradient(ellipse 900px 700px at 100% 10%, rgba(80, 130, 255, 0.28), transparent 65%),
+    linear-gradient(150deg, #1c1256 0%, #211869 16%, #1b2b7a 38%, #142f74 58%, #0d2459 78%, #080f38 100%);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.constellation {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 10% 15%, #fff 60%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 72% 62%, #fff 60%, transparent 100%),
+    radial-gradient(1px 1px at 34% 80%, #fff 60%, transparent 100%),
+    radial-gradient(1px 1px at 85% 22%, #fff 60%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 55% 38%, #fff 60%, transparent 100%),
+    radial-gradient(1px 1px at 20% 48%, #fff 60%, transparent 100%),
+    radial-gradient(1px 1px at 92% 78%, #fff 60%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 44% 12%, #fff 60%, transparent 100%),
+    radial-gradient(1px 1px at 64% 90%, #fff 60%, transparent 100%),
+    radial-gradient(1px 1px at 4% 70%, #fff 60%, transparent 100%);
+  opacity: 0.55;
+  animation: constellation-twinkle 7s ease-in-out infinite;
+}
+
+.constellation.c2 {
+  background-image:
+    radial-gradient(1px 1px at 26% 30%, #fff 60%, transparent 100%),
+    radial-gradient(1px 1px at 48% 68%, #fff 60%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 66% 14%, #fff 60%, transparent 100%),
+    radial-gradient(1px 1px at 96% 48%, #fff 60%, transparent 100%),
+    radial-gradient(1px 1px at 14% 92%, #fff 60%, transparent 100%);
+  animation-delay: 3.2s;
+}
+
+@keyframes constellation-twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .constellation { animation: none; opacity: 0.5; }
+}
+
+/* ---- The spinning Earth: a circular viewport over a two-tile texture
+   strip, so shifting the texture by exactly one tile's width loops it
+   forever with no visible seam (same trick as the ticker marquee). ---- */
+.earth-wrap {
+  position: absolute;
+  right: -36px;
+  bottom: -54px;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-image: url("assets/earth-texture.svg");
+  background-size: 480px 240px;
+  background-repeat: repeat-x;
+  animation: earth-spin 150s linear infinite;
+  box-shadow:
+    inset -28px -12px 46px rgba(0, 0, 0, 0.55),
+    inset 10px 8px 26px rgba(255, 255, 255, 0.08),
+    0 0 70px 14px rgba(100, 140, 255, 0.35);
+  opacity: 0.92;
+}
+
+@keyframes earth-spin {
+  from { background-position-x: 0px; }
+  to { background-position-x: -240px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .earth-wrap { animation: none; }
+}
+
+@media (max-width: 720px) {
+  .earth-wrap {
+    width: 150px;
+    height: 150px;
+    right: -26px;
+    bottom: -34px;
+    background-size: 300px 150px;
+  }
+  @keyframes earth-spin {
+    from { background-position-x: 0px; }
+    to { background-position-x: -150px; }
+  }
 }
 
 /* ---- Top bar ---- */
