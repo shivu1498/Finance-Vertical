@@ -155,6 +155,7 @@
   <a class="tab" data-tab="knowledge" href="#knowledge">Sector Knowledge</a>
   <a class="tab" data-tab="universe" href="#universe">Universe</a>
   <a class="tab" data-tab="announcements" href="#announcements">Announcements</a>
+  <a class="tab" data-tab="memo" href="#memo">The Memo</a>
 </nav>
 
 <main class="main">
@@ -309,6 +310,17 @@
     <div id="an-root"></div>
   </div>
 
+  <div class="tab-panel" data-panel="memo" hidden>
+    <section class="card k-head">
+      <div>
+        <span class="eyebrow">Library &middot; Dispatches</span>
+        <h2 class="k-title">The <em>Memo</em></h2>
+        <p class="k-sub">Short, dated notes on how to read what's on this site &mdash; breadth, sector moves, earnings, methodology. Not stock tips.</p>
+      </div>
+    </section>
+    <div id="mo-root"></div>
+  </div>
+
   <footer class="footer">
     Data: Yahoo Finance (free, unauthenticated, ~15s cache) · constituents &amp; sectors mapped locally per country · Not investment advice · Updated <span id="footer-updated">—</span>
   </footer>
@@ -334,6 +346,8 @@
 <script src="universe-ui.js"></script>
 <script src="filings-ui.js"></script>
 <script src="announcements-ui.js"></script>
+<script src="memo.js"></script>
+<script src="memo-ui.js"></script>
 <script src="chart-ui.js"></script>
 <script src="pct-italic.js"></script>
 </body>

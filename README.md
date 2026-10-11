@@ -457,6 +457,26 @@ live site from this sandbox (no outbound access to nseindia.com here); if
 it starts failing, the tab shows a clear error (plus whatever it had
 already scanned) instead of breaking.
 
+## The Memo (new tab)
+
+A small, purely local editorial section: short, dated notes on *how to
+read* what's elsewhere on the site (a sector heatmap tile, a breadth
+divergence, an earnings print, the mechanical fund ranking) rather than
+stock tips or buy/sell calls — the distinction is stated on the tab
+itself and was the reason this replaced an earlier "Tipsheet" idea.
+
+- `public/memo.js` — the content: a `MEMOS` array, newest-first by
+  `date`, each entry `{ id, date, title, dek, tags, body }` with `body`
+  as a small block list (`{ p: "…" }` paragraphs, `{ ul: […] }` lists).
+  No server, no fetch — adding a memo is adding an object here.
+- `public/memo-ui.js` — list view (tag filter chips + a card per memo)
+  and a focus view per entry (prev/older, next/newer, "Copy link"),
+  same shape and hash-routing convention as the Sector Knowledge tab
+  (`#memo/<id>`, driven off the `tabchange` event app.js dispatches).
+  Each focus view sets `data-report-id="memo:<id>"` so the Notes &
+  Highlights sidebar works on memo entries exactly as it does on sector
+  reports.
+
 ## India Market Breadth (index-universe filter)
 
 The Markets tab's Breadth panel, for India, compares advance/decline

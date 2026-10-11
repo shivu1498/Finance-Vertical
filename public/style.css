@@ -1755,6 +1755,62 @@ mark {
   font-weight: 700;
 }
 
+/* ---- The Memo tab ---- */
+.mo-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.mo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mo-item {
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.mo-item:hover,
+.mo-item:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  outline: none;
+}
+.mo-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.mo-item-title {
+  margin: 0 0 4px;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+.mo-item-dek {
+  margin: 0;
+  color: var(--text-muted);
+}
+.mo-empty {
+  text-align: center;
+  color: var(--text-muted);
+}
+.mo-hero {
+  margin-bottom: 16px;
+}
+.mo-hero .eyebrow {
+  margin-top: 10px;
+}
+.mo-body {
+  max-width: 72ch;
+}
+.mo-body .k-list {
+  margin-bottom: 14px;
+}
+
 /* ---- Mutual Funds tab ---- */
 #mf-root {
   display: block;
