@@ -20,6 +20,7 @@ const { createNseAnnouncements } = require("./nse-announcements");
 const { createNseSectorIndices } = require("./nse-sector-indices");
 const { createNseIndexBreadth, INDEX_UNIVERSES } = require("./nse-index-breadth");
 const { createBreadthEngine } = require("./breadth");
+const { createTrendIndia, TREND_MARKETS } = require("./trend-india");
 const tijori = require("./tijori");
 const companies = require("./companies");
 
@@ -219,6 +220,18 @@ app.get("/api/breadth/in", async (req, res) => {
 app.get("/api/breadth/in/universes", (req, res) => {
   res.set("Cache-Control", "public, max-age=3600");
   res.json({ universes: INDEX_UNIVERSES.map(({ slug, label, approxSize }) => ({ slug, label, approxSize })) });
+});
+
+// Trend & momentum (India): The Memo tab's dashboard. Full-history daily
+// bars from Yahoo Finance, scored into a 0-100 trend reading and an
+// uptrend/downtrend state. See trend-india.js for the method and why only
+// three markets (all using Yahoo symbols already confirmed elsewhere in
+// this app) are wired in so far.
+const trendIndia = createTrendIndia();
+app.get("/api/trend/in/:slug", trendIndia);
+app.get("/api/trend/in-markets", (req, res) => {
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json({ markets: TREND_MARKETS.map(({ slug, label }) => ({ slug, label })) });
 });
 
 module.exports = app;

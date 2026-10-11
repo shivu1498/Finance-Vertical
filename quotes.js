@@ -141,4 +141,23 @@ function parseBreadthSigns(json, symbol) {
   return { symbol, price, signs };
 }
 
-module.exports = { parseChart, parsePeriods, parseBreadthSigns, BREADTH_LOOKBACKS };
+// Turns a Yahoo "chart" response (expects a very wide range — e.g.
+// range=max or an explicit period1 far in the past — the only way this app
+// asks Yahoo for multi-year daily history) into a plain [{t, close}] series,
+// oldest first, non-finite bars dropped. Used by trend-india.js to compute
+// moving averages, drawdowns and percentile-of-own-history from real price
+// history rather than a single current reading.
+function parseLongSeries(json, symbol) {
+  const result = json?.chart?.result?.[0];
+  if (!result) throw new Error(`no data for ${symbol}`);
+  const ts = result.timestamp || [];
+  const raw = result.indicators?.quote?.[0]?.close || [];
+  const out = [];
+  for (let i = 0; i < ts.length; i++) {
+    if (Number.isFinite(raw[i])) out.push({ t: ts[i], close: raw[i] });
+  }
+  if (!out.length) throw new Error(`no price history for ${symbol}`);
+  return out;
+}
+
+module.exports = { parseChart, parsePeriods, parseBreadthSigns, parseLongSeries, BREADTH_LOOKBACKS };

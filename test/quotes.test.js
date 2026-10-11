@@ -1,4 +1,4 @@
-const { parseChart, parsePeriods, parseBreadthSigns, BREADTH_LOOKBACKS } = require("../quotes");
+const { parseChart, parsePeriods, parseBreadthSigns, parseLongSeries, BREADTH_LOOKBACKS } = require("../quotes");
 let fails = 0;
 const near = (n, got, want, tol = 1e-9) => { const ok = got != null && Math.abs(got - want) <= tol; if (!ok) fails++; console.log((ok ? "PASS " : "FAIL ") + n + `  got ${got}, want ${want}`); };
 const is = (n, ok, x = "") => { if (!ok) fails++; console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  " + x : "")); };
@@ -149,6 +149,24 @@ is("BREADTH_LOOKBACKS: the six windows the breadth panel compares", BREADTH_LOOK
   let threw = false;
   try { parseBreadthSigns(chart({}, []), "X"); } catch { threw = true; }
   is("no price at all: throws rather than returning a bogus sign", threw);
+}
+
+// ---- parseLongSeries: multi-year history for trend-india.js ----
+{
+  const withTs = (ts, closes) => ({ chart: { result: [{ timestamp: ts, indicators: { quote: [{ close: closes }] } }] } });
+  const out = parseLongSeries(withTs([1, 2, 3, 4], [100, null, 102, 103]), "X");
+  is("parseLongSeries: drops non-finite bars", out.length === 3, JSON.stringify(out));
+  is("parseLongSeries: pairs each close with its own timestamp", out[0].t === 1 && out[0].close === 100 && out.at(-1).t === 4 && out.at(-1).close === 103, JSON.stringify(out));
+}
+{
+  let threw = false;
+  try { parseLongSeries({ chart: { result: [{ timestamp: [1, 2], indicators: { quote: [{ close: [null, null] }] } }] } }, "X"); } catch { threw = true; }
+  is("parseLongSeries: no usable bars at all -> throws", threw);
+}
+{
+  let threw = false;
+  try { parseLongSeries({ chart: { result: [] } }, "X"); } catch { threw = true; }
+  is("parseLongSeries: no result at all -> throws", threw);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

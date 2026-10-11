@@ -1755,60 +1755,142 @@ mark {
   font-weight: 700;
 }
 
-/* ---- The Memo tab ---- */
-.mo-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+/* ---- The Memo tab: trend & momentum dashboard ---- */
+.tr-switch {
   margin-bottom: 16px;
 }
-.mo-list {
+.tr-hero {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
-.mo-item {
-  cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.mo-item:hover,
-.mo-item:focus-visible {
-  transform: translateY(-2px);
-  border-color: var(--accent);
-  outline: none;
-}
-.mo-item-meta {
+.tr-hero-top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  justify-content: space-between;
+  gap: 10px;
 }
-.mo-item-title {
-  margin: 0 0 4px;
-  font-family: var(--font-serif);
+.tr-score-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.tr-score-num {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--text-main);
+  flex: none;
+}
+.tr-score-max {
+  font-size: 1.1rem;
   font-weight: 600;
-  font-size: 1.2rem;
-}
-.mo-item-dek {
-  margin: 0;
   color: var(--text-muted);
+  margin-left: 2px;
 }
-.mo-empty {
+.tr-score-sub {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+.tr-score-sub .k-p {
+  margin-bottom: 4px;
+  font-size: 0.86rem;
+}
+.tr-range {
+  margin-top: 4px;
+}
+.tr-range-svg {
+  width: 100%;
+  height: 14px;
+  display: block;
+}
+.tr-range-track {
+  fill: var(--panel-soft);
+}
+.tr-range-band {
+  fill: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.tr-range-dot {
+  fill: var(--accent);
+  stroke: var(--panel);
+  stroke-width: 1.5;
+}
+.tr-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.tr-range-now {
+  font-weight: 700;
+  color: var(--text-main);
+}
+.tr-chart-card {
+  margin-bottom: 16px;
+}
+.tr-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 6px;
+}
+.tr-grid {
+  stroke: var(--panel-border);
+  stroke-width: 1;
+}
+.tr-axis {
+  font-size: 9px;
+  fill: var(--text-muted);
+}
+.tr-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.tr-returns {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+.tr-returns th {
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-bottom: 6px;
+}
+.tr-returns td {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding-right: 24px;
+}
+.tr-returns td.up {
+  color: var(--up-strong);
+}
+.tr-returns td.down {
+  color: var(--down-strong);
+}
+.tr-method {
+  margin-top: 4px;
+}
+.tr-method .k-p {
+  margin: 0;
+}
+.tr-loading,
+.tr-error {
   text-align: center;
   color: var(--text-muted);
 }
-.mo-hero {
-  margin-bottom: 16px;
-}
-.mo-hero .eyebrow {
-  margin-top: 10px;
-}
-.mo-body {
-  max-width: 72ch;
-}
-.mo-body .k-list {
-  margin-bottom: 14px;
+.tr-error .k-btn {
+  margin-top: 8px;
 }
 
 /* ---- Mutual Funds tab ---- */

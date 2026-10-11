@@ -459,23 +459,55 @@ already scanned) instead of breaking.
 
 ## The Memo (new tab)
 
-A small, purely local editorial section: short, dated notes on *how to
-read* what's elsewhere on the site (a sector heatmap tile, a breadth
-divergence, an earnings print, the mechanical fund ranking) rather than
-stock tips or buy/sell calls — the distinction is stated on the tab
-itself and was the reason this replaced an earlier "Tipsheet" idea.
+Started as a small local editorial section (short dated notes on how to
+read the rest of the site) and was then repurposed into a real data
+dashboard, the first of several planned in the spirit of a site like
+tipsheet.markets: a reading shown against its own history, not a tip.
+Every number here is computed in this codebase from data this app
+already pulls, not copied from any other site.
 
-- `public/memo.js` — the content: a `MEMOS` array, newest-first by
-  `date`, each entry `{ id, date, title, dek, tags, body }` with `body`
-  as a small block list (`{ p: "…" }` paragraphs, `{ ul: […] }` lists).
-  No server, no fetch — adding a memo is adding an object here.
-- `public/memo-ui.js` — list view (tag filter chips + a card per memo)
-  and a focus view per entry (prev/older, next/newer, "Copy link"),
-  same shape and hash-routing convention as the Sector Knowledge tab
-  (`#memo/<id>`, driven off the `tabchange` event app.js dispatches).
-  Each focus view sets `data-report-id="memo:<id>"` so the Notes &
-  Highlights sidebar works on memo entries exactly as it does on sector
-  reports.
+**Live now: Trend & momentum.**
+- `trend-india.js` — for Nifty 50, Nifty Bank and BSE Sensex (Yahoo
+  symbols `^NSEI`, `^NSEBANK`, `^BSESN`, already used elsewhere in this
+  app — see `public/data.js` — so this reuses symbols already known to
+  work rather than guessing new ones), fetches the full available daily
+  history in one call (`range=max` on the same Yahoo chart endpoint
+  `fetchQuote`/`fetchPeriods` in `app.js` already use — see
+  `quotes.js`'s `parseLongSeries`) and computes a 0-100 trend score: the
+  share of 8 signals (price vs. its 20/50/100/200-day average, and vs.
+  its own close that many sessions back) pointing up. An uptrend starts
+  the first time the score reaches 70, a downtrend the first time it
+  falls to 30, each lasting until the opposite threshold — same rule
+  tipsheet describes, reimplemented independently against this app's own
+  (simpler, 8- not 24-signal) score. Also computes drawdown from the
+  running all-time high, percentile-of-own-history for both readings,
+  and calendar-period returns (1M/3M/6M/1Y). Pure computation logic
+  (`computeTrendSeries`) is unit-tested in `test/trend-india.test.js`
+  against synthetic rising/falling/flat price series, independent of any
+  network call.
+- `public/trend-ui.js` — market switcher, a headline score card with a
+  "usual range" bar (shaded 25th-75th-percentile band + a marker for
+  today, the same device tipsheet uses, drawn fresh here), a price-history
+  chart, a drawdown-from-high reading, and a returns table. Same
+  `#mo-root`/`tabchange`-driven mount point the editorial version used.
+- Honest limits, stated on the page itself: Yahoo's history for these
+  symbols runs to roughly 2007, far short of the 20+ years a site like
+  tipsheet draws on, so "usual range" here describes a shorter and more
+  recent period. The 8-signal score is a simplification, not a
+  reproduction of anyone else's exact methodology.
+
+**Planned next, in rough priority order** (see the session notes for the
+full reasoning): Valuation (Nifty P/E — needs NSE's historical
+`indicesHistory` endpoint, not yet confirmed against a live response from
+this sandbox) and Breadth-over-time, both NSE- or Yahoo-sourced and
+plausible soon; Flows (DII/FII) and Mutual Fund/SIP data next, since
+AMFI's NAV feed is already wired in via `mf.js`; India macro (CPI/GDP)
+and RBI data after that, pending a clean public endpoint. **Likely out of
+reach without a paid feed:** ownership/promoter-pledge breakdowns (NSE's
+public filings only cover this per-company, not aggregated — PRIME
+Database, which tipsheet credits for this, is a commercial data vendor)
+and a full systematic-models/portfolio-backtest library (tipsheet's own
+is many weeks of dedicated quant engineering on its own).
 
 ## India Market Breadth (index-universe filter)
 
