@@ -2,8 +2,16 @@
 
 A simple, live stock market dashboard: a global indices ticker, a
 country filter spanning 14 major markets, a sector heatmap, an
-advance/decline breadth strip, and a stock treemap — all in a
-trypan-blue theme.
+advance/decline breadth strip, and a stock treemap.
+
+**Theme:** light by default — a warm-paper, bordered-card "research
+library" look (Fraunces for headings, a mono eyebrow label above section
+titles, a terracotta accent) — with a dark "global trade map" theme
+(deep purple/blue gradient, a twinkling constellation, a slowly spinning
+Earth) behind the sun/moon toggle in the top bar. The choice is saved
+per browser (`localStorage`, key `stalkingstocks.theme`); `theme.js` and
+the `:root` / `:root[data-theme="dark"]` token blocks at the top of
+`style.css` are where both live.
 
 Data comes from Yahoo Finance's free, unauthenticated chart endpoint
 (`query1.finance.yahoo.com`). A small Node/Express server proxies the

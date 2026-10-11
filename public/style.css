@@ -1,4 +1,40 @@
 :root {
+  /* Light theme (default): a warm paper background, bordered cards and a
+     terracotta accent, modeled on an editorial equity-research library.
+     Dark mode — the previous black/cosmic theme — lives under
+     [data-theme="dark"] below and is reached via the topbar's sun/moon
+     toggle (theme.js), so nothing from that build was thrown away. */
+  --blue-1: #faf8f3;
+  --blue-2: #ffffff;
+  --blue-3: #f4efe5;
+  --blue-4: #ece3d3;
+  --accent: #c85a2a;
+  --on-accent: #fff8f2;
+  --panel: #ffffff;
+  --panel-soft: #f6f1e7;
+  --panel-border: #e6ddc9;
+  --text-main: #211c14;
+  --text-muted: #746c5c;
+  --up: #2f9e52;
+  --up-strong: #1f8a44;
+  --down: #c9432f;
+  --down-strong: #b5361f;
+  --card-shadow: 0 10px 28px rgba(60, 42, 20, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --radius: 14px;
+  font-size: 15px;
+  /* Four-role type system: the sans stack is the working face — tables,
+     tickers, buttons, nav — where tabular alignment and quick scanning
+     matter. The display serif is reserved for identity and the top of
+     each section (the wordmark, one h2 per panel), with its italic cut
+     used for a single emphasised word, editorial-style. The mono face is
+     for short uppercase "eyebrow" labels above a headline. */
+  --font-sans: "Inter", "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Fraunces", "Playfair Display", Georgia, serif;
+  --font-serif: "Fraunces", Georgia, serif;
+  --font-mono: "JetBrains Mono", "Space Mono", "SFMono-Regular", Menlo, monospace;
+}
+
+:root[data-theme="dark"] {
   --blue-1: #0b0b0c;
   --blue-2: #131315;
   --blue-3: #1b1b1e;
@@ -14,17 +50,7 @@
   --up-strong: #2ecc71;
   --down: #e05d44;
   --down-strong: #ff5a4a;
-  --radius: 10px;
-  font-size: 15px;
-  /* Three-role type system: the sans stack is the working face — tables,
-     tickers, buttons, nav — where tabular alignment and quick scanning
-     matter. Playfair Display is reserved for identity and the top of each
-     section (the wordmark, one h2 per panel, a company's name on its own
-     page) — rare enough that its weight carries presence. Cormorant is the
-     lighter editorial voice underneath those — taglines and subheads,
-     and a card's own title where the content itself (a filing, a fund,
-     a company) is the thing worth a little elegance. */
-  --font-sans: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --font-display: "Fredoka", "Poppins", "Segoe UI", sans-serif;
   --font-serif: "Cormorant", Georgia, serif;
 }
@@ -45,19 +71,30 @@ body {
 
 body {
   position: relative;
-  background: #0a0b2e;
+  background: var(--blue-1);
 }
 
-/* ---- "Global trade map" backdrop: deep purple-to-blue gradient, a
-   scattered constellation of stars + faint linking lines, and a slowly
-   spinning Earth tucked in the corner. Everything here is static/cheap
-   (gradients + a couple of opacity keyframes) so it never competes with
-   the dashboard's own data for CPU. ---- */
+/* ---- Backdrop. Light (default): a flat warm-paper field with a
+   whisper of depth near the top — the "research library" look. Dark
+   (opt-in, via the topbar's sun/moon toggle): the previous "global trade
+   map" backdrop — deep purple-to-blue gradient, a twinkling constellation
+   and a slowly spinning Earth — preserved as-is under [data-theme="dark"]
+   rather than thrown away. ---- */
 .field-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   overflow: hidden;
+  background-color: var(--blue-1);
+  background-image: radial-gradient(ellipse 1000px 560px at 20% -10%, rgba(200, 90, 42, 0.06), transparent 65%);
+}
+
+.constellation,
+.earth-wrap {
+  display: none;
+}
+
+:root[data-theme="dark"] .field-bg {
   background-color: #0a0b2e;
   background-image:
     radial-gradient(ellipse 1100px 650px at 18% -8%, rgba(150, 110, 255, 0.4), transparent 60%),
@@ -67,7 +104,12 @@ body {
   background-size: cover;
 }
 
-.constellation {
+:root[data-theme="dark"] .constellation,
+:root[data-theme="dark"] .earth-wrap {
+  display: block;
+}
+
+:root[data-theme="dark"] .constellation {
   position: absolute;
   inset: 0;
   background-image:
@@ -85,7 +127,7 @@ body {
   animation: constellation-twinkle 7s ease-in-out infinite;
 }
 
-.constellation.c2 {
+:root[data-theme="dark"] .constellation.c2 {
   background-image:
     radial-gradient(1px 1px at 26% 30%, #fff 60%, transparent 100%),
     radial-gradient(1px 1px at 48% 68%, #fff 60%, transparent 100%),
@@ -101,7 +143,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .constellation { animation: none; opacity: 0.5; }
+  :root[data-theme="dark"] .constellation { animation: none; opacity: 0.5; }
 }
 
 /* ---- The spinning Earth: a circular viewport over a two-tile texture
@@ -175,7 +217,8 @@ body {
   white-space: nowrap;
   font-size: 0.95rem;
 }
-.brand-logo { flex: none; display: block; filter: drop-shadow(0 0 6px rgba(249,115,22,.45)); }
+.brand-logo { flex: none; display: block; filter: drop-shadow(0 0 5px rgba(200, 90, 42, .35)); }
+:root[data-theme="dark"] .brand-logo { filter: drop-shadow(0 0 6px rgba(249, 115, 22, .45)); }
 .brand-name { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: 0; color: var(--text-main); }
 .brand-name b { font-weight: 900; color: var(--accent); margin-left: 0.2em; }
 
@@ -373,7 +416,7 @@ body {
   background: var(--panel);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
   backdrop-filter: blur(12px) saturate(140%);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: var(--card-shadow);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   padding: 14px 16px;
@@ -613,7 +656,7 @@ body {
 }
 .sector-count {
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -647,12 +690,12 @@ body {
 }
 .stock-price {
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-muted);
 }
 .stock-pct {
   font-weight: 800;
   font-size: 0.95rem;
-  color: #fff;
+  color: var(--text-main);
 }
 
 /* ---- Footer / loading ---- */
@@ -662,6 +705,10 @@ body {
   font-weight: 500;
   font-size: 0.75rem;
   padding: 10px 0 64px; /* clears the background switcher */
+}
+/* The dark theme's cosmic backdrop has enough going on behind this text
+   that it needs a halo to stay legible; the light paper backdrop doesn't. */
+:root[data-theme="dark"] .footer {
   text-shadow: 0 1px 8px #000, 0 0 3px #000;
 }
 .ticker-loading {
@@ -773,7 +820,7 @@ body {
   border-radius: 14px;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--card-shadow);
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 .k-card:hover,
@@ -1587,8 +1634,8 @@ kbd {
   font: inherit;
   font-size: 0.72rem;
   font-weight: 700;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
   border-radius: 999px;
   padding: 2px 9px;
   background: var(--panel-soft);
@@ -1601,7 +1648,7 @@ kbd {
   background: color-mix(in srgb, var(--down-strong) 40%, var(--panel));
 }
 .ind-stock:hover {
-  border-color: #fff;
+  border-color: var(--accent);
 }
 .ind-def {
   margin: 2px 0 8px 14px;
@@ -2576,11 +2623,11 @@ body.mf-lock {
   color: var(--accent);
   font-weight: 600;
   text-decoration: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  border-bottom: 1px solid var(--panel-border);
 }
 .kc-link:hover {
-  color: #fff;
-  border-bottom-color: #fff;
+  color: var(--text-main);
+  border-bottom-color: var(--text-main);
 }
 .kc-by {
   color: var(--text-main);
@@ -3231,7 +3278,7 @@ em.pc { font-style: italic; }
   background: rgba(8, 8, 9, 0.62); border: 1px solid rgba(255, 255, 255, 0.35); color: #fff;
 }
 .kg-hero {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--c1) 35%, #0b0b0c), color-mix(in srgb, var(--c2) 45%, #0b0b0c));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c1) 35%, var(--blue-2)), color-mix(in srgb, var(--c2) 45%, var(--blue-2)));
   border-color: color-mix(in srgb, var(--c1) 55%, transparent);
 }
 .kg-hero-row { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
@@ -3800,4 +3847,46 @@ mark.np-marked {
 
 @media (max-width: 720px) {
   .notes-panel { width: calc(100vw - 20px); top: 58px; }
+}
+
+/* ---- Theme toggle (sun / moon, topbar) ---- */
+.theme-toggle {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-soft);
+  border: 1px solid var(--panel-border);
+  border-radius: 50%;
+  color: var(--text-main);
+  cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.theme-icon { width: 17px; height: 17px; }
+.theme-icon-moon { display: none; }
+:root[data-theme="dark"] .theme-icon-sun { display: none; }
+:root[data-theme="dark"] .theme-icon-moon { display: block; }
+
+/* ---- Eyebrow: a short mono, uppercase, letter-spaced label above a
+   section headline — the "01 · THE LIBRARY" editorial marker. ---- */
+.eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+/* Editorial emphasis: one italic, accent-colored word inside a headline,
+   e.g. "NSE *Indices*" — the same device the reference design repeats
+   throughout ("Inside the *library*.", "Pure *Intelligence*."). */
+.k-title em {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--accent);
 }
