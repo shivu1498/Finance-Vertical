@@ -4,14 +4,27 @@ A simple, live stock market dashboard: a global indices ticker, a
 country filter spanning 14 major markets, a sector heatmap, an
 advance/decline breadth strip, and a stock treemap.
 
-**Theme:** light by default — a warm-paper, bordered-card "research
-library" look (Fraunces for headings, a mono eyebrow label above section
-titles, a terracotta accent) — with a dark "global trade map" theme
-(deep purple/blue gradient, a twinkling constellation, a slowly spinning
-Earth) behind the sun/moon toggle in the top bar. The choice is saved
-per browser (`localStorage`, key `stalkingstocks.theme`); `theme.js` and
-the `:root` / `:root[data-theme="dark"]` token blocks at the top of
-`style.css` are where both live.
+**Theme:** a swatch button in the top bar opens a menu of four named
+color themes, picked from a dropdown rather than a single toggle:
+
+- **Light · Library** (default) — a warm-paper, bordered-card "research
+  library" look (Fraunces for headings, a mono eyebrow label above
+  section titles, a terracotta accent).
+- **Dark · Global Trade Map** — a deep purple/blue gradient background
+  with a twinkling constellation and a slowly spinning Earth, orange
+  accent, Fredoka headings.
+- **Matte Black** — a flat black backdrop with an orange accent/hover,
+  restoring the site's original pre-cosmic look.
+- **Trypan Blue** — a navy/indigo backdrop with a grey accent/hover and
+  Playfair Display headings, restoring the site's very first theme.
+
+The choice is saved per browser (`localStorage`, key
+`stalkingstocks.theme`); `theme.js` drives the dropdown's open/close/
+selection behavior and an inline head script applies the saved theme
+before first paint (no flash on reload). The actual color tokens for
+all four themes live in the `:root` / `:root[data-theme="dark"]` /
+`:root[data-theme="matte"]` / `:root[data-theme="trypan"]` blocks at
+the top of `style.css`.
 
 Data comes from Yahoo Finance's free, unauthenticated chart endpoint
 (`query1.finance.yahoo.com`). A small Node/Express server proxies the

@@ -8,12 +8,13 @@
   // Applied synchronously, before the stylesheet paints, so a returning
   // dark-mode visitor never sees a flash of the light theme first.
   try {
-    if (localStorage.getItem("stalkingstocks.theme") === "dark") document.documentElement.dataset.theme = "dark";
+    var t = localStorage.getItem("stalkingstocks.theme");
+    if (t === "dark" || t === "matte" || t === "trypan") document.documentElement.dataset.theme = t;
   } catch {}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,500;0,600;1,500;1,600&family=Fredoka:wght@400;500;600;700&family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;0,900;1,500;1,600&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,500;0,600;1,500;1,600&family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700&family=Fredoka:wght@400;500;600;700&family=Fraunces:ital,wght@0,400;0,500;0,600;0,700;0,900;1,500;1,600&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" />
 <link rel="stylesheet" href="splash.css" />
 <link rel="stylesheet" href="style.css" />
 </head>
@@ -116,10 +117,25 @@
       <span class="brand-name">Stalking<b>Stocks</b></span>
     </div>
     <div id="asset-filter" class="asset-filter" role="group" aria-label="Asset class"></div>
-    <button type="button" id="theme-toggle" class="theme-toggle" title="Switch to dark theme" aria-label="Switch to dark theme" aria-pressed="false">
-      <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-    </button>
+    <div class="theme-switcher">
+      <button type="button" id="theme-toggle" class="theme-toggle" aria-haspopup="menu" aria-expanded="false" aria-controls="theme-menu" title="Color theme">
+        <span class="theme-swatch theme-swatch-current" aria-hidden="true"></span>
+      </button>
+      <div class="theme-dropdown" id="theme-menu" role="menu" aria-label="Color theme" hidden>
+        <button type="button" role="menuitem" class="theme-option" data-theme-value="">
+          <span class="theme-swatch theme-swatch-light" aria-hidden="true"></span>Light &middot; Library
+        </button>
+        <button type="button" role="menuitem" class="theme-option" data-theme-value="dark">
+          <span class="theme-swatch theme-swatch-dark" aria-hidden="true"></span>Dark &middot; Global Trade Map
+        </button>
+        <button type="button" role="menuitem" class="theme-option" data-theme-value="matte">
+          <span class="theme-swatch theme-swatch-matte" aria-hidden="true"></span>Matte Black &middot; orange
+        </button>
+        <button type="button" role="menuitem" class="theme-option" data-theme-value="trypan">
+          <span class="theme-swatch theme-swatch-trypan" aria-hidden="true"></span>Trypan Blue &middot; grey
+        </button>
+      </div>
+    </div>
     <div class="clock" id="clock">--:--:--</div>
   </div>
   <div class="ticker-row">

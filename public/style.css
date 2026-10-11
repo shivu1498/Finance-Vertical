@@ -55,6 +55,57 @@
   --font-serif: "Cormorant", Georgia, serif;
 }
 
+/* Matte Black: the same neutral/orange palette as "dark" above (this was
+   the site's original look, before the cosmic backdrop) — the only
+   difference is the backdrop itself, which stays a flat, static black
+   instead of the animated gradient (see .field-bg further down). Hover
+   states read orange because --accent does. */
+:root[data-theme="matte"] {
+  --blue-1: #0b0b0c;
+  --blue-2: #131315;
+  --blue-3: #1b1b1e;
+  --blue-4: #2a2a2f;
+  --accent: #f97316;
+  --on-accent: #1f0f02;
+  --panel: rgba(17, 17, 19, 0.9);
+  --panel-soft: rgba(36, 36, 40, 0.62);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --text-main: #f2f2f3;
+  --text-muted: #a4a4ac;
+  --up: #6fbf3f;
+  --up-strong: #2ecc71;
+  --down: #e05d44;
+  --down-strong: #ff5a4a;
+  --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --font-display: "Fredoka", "Poppins", "Segoe UI", sans-serif;
+  --font-serif: "Cormorant", Georgia, serif;
+}
+
+/* Trypan Blue: the deep-navy theme this site first shipped with, restored
+   as a picked option — cool grey accent and hover (not orange), Playfair
+   Display back as the identity/headline face it was originally paired
+   with. */
+:root[data-theme="trypan"] {
+  --blue-1: #0a1130;
+  --blue-2: #101a42;
+  --blue-3: #17224f;
+  --blue-4: #223066;
+  --accent: #9aa6bb;
+  --on-accent: #10172a;
+  --panel: rgba(16, 26, 66, 0.88);
+  --panel-soft: rgba(34, 48, 102, 0.5);
+  --panel-border: rgba(255, 255, 255, 0.12);
+  --text-main: #edf0f7;
+  --text-muted: #9099b3;
+  --up: #6fbf3f;
+  --up-strong: #2ecc71;
+  --down: #e05d44;
+  --down-strong: #ff5a4a;
+  --card-shadow: 0 8px 30px rgba(3, 6, 24, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-serif: "Cormorant", Georgia, serif;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -102,6 +153,19 @@ body {
     linear-gradient(150deg, #1c1256 0%, #211869 16%, #1b2b7a 38%, #142f74 58%, #0d2459 78%, #080f38 100%);
   background-repeat: no-repeat;
   background-size: cover;
+}
+
+/* Matte Black: flat, no gradient, no animation — on purpose. */
+:root[data-theme="matte"] .field-bg {
+  background-color: #0b0b0c;
+  background-image: none;
+}
+
+/* Trypan Blue: a quiet navy gradient, no stars or Earth (those stay a
+   "dark"-theme-only flourish). */
+:root[data-theme="trypan"] .field-bg {
+  background-color: #0a1130;
+  background-image: radial-gradient(ellipse 1000px 600px at 15% -10%, rgba(90, 110, 180, 0.22), transparent 65%);
 }
 
 :root[data-theme="dark"] .constellation,
@@ -218,7 +282,9 @@ body {
   font-size: 0.95rem;
 }
 .brand-logo { flex: none; display: block; filter: drop-shadow(0 0 5px rgba(200, 90, 42, .35)); }
-:root[data-theme="dark"] .brand-logo { filter: drop-shadow(0 0 6px rgba(249, 115, 22, .45)); }
+:root[data-theme="dark"] .brand-logo,
+:root[data-theme="matte"] .brand-logo { filter: drop-shadow(0 0 6px rgba(249, 115, 22, .45)); }
+:root[data-theme="trypan"] .brand-logo { filter: drop-shadow(0 0 6px rgba(154, 166, 187, .4)); }
 .brand-name { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: 0; color: var(--text-main); }
 .brand-name b { font-weight: 900; color: var(--accent); margin-left: 0.2em; }
 
@@ -3849,7 +3915,9 @@ mark.np-marked {
   .notes-panel { width: calc(100vw - 20px); top: 58px; }
 }
 
-/* ---- Theme toggle (sun / moon, topbar) ---- */
+/* ---- Theme switcher (topbar): a swatch button that opens a menu of
+   named color themes, reusing the asset-filter's dropdown look. ---- */
+.theme-switcher { flex: none; position: relative; }
 .theme-toggle {
   flex: none;
   width: 32px;
@@ -3860,14 +3928,68 @@ mark.np-marked {
   background: var(--panel-soft);
   border: 1px solid var(--panel-border);
   border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex: none;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+}
+/* The trigger's own swatch always reflects the theme currently applied,
+   via the live custom properties — no JS class-swapping needed. */
+.theme-swatch-current { background: linear-gradient(135deg, var(--blue-2) 50%, var(--accent) 50%); }
+
+/* A standalone dropdown (not .asset-menu) on purpose: app.js's asset-filter
+   dropdowns close/focus themselves via generic ".asset-menu" /
+   "[data-asset-toggle]" queries, which would reach into this menu too if
+   it reused those classes and throw on the parts (like
+   [data-asset-toggle]) this menu doesn't have. */
+.theme-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 215px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: color-mix(in srgb, var(--blue-1) 88%, #000);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  animation: k-fade 0.15s ease;
+}
+.theme-dropdown[hidden] { display: none; }
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
   color: var(--text-main);
+  border: none;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: left;
   cursor: pointer;
 }
-.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
-.theme-icon { width: 17px; height: 17px; }
-.theme-icon-moon { display: none; }
-:root[data-theme="dark"] .theme-icon-sun { display: none; }
-:root[data-theme="dark"] .theme-icon-moon { display: block; }
+.theme-option:hover,
+.theme-option:focus-visible { background: var(--panel-soft); outline: none; }
+.theme-option.on::after { content: "\2713"; color: var(--accent); margin-left: auto; }
+.theme-option .theme-swatch { margin: 0; }
+/* Each menu option previews ITS OWN theme's colors, regardless of which
+   theme is currently active, so literal hex values (not custom
+   properties) on purpose here. */
+.theme-swatch-light { background: linear-gradient(135deg, #ffffff 50%, #c85a2a 50%); }
+.theme-swatch-dark { background: linear-gradient(135deg, #1c1256 50%, #f97316 50%); }
+.theme-swatch-matte { background: linear-gradient(135deg, #0b0b0c 50%, #f97316 50%); }
+.theme-swatch-trypan { background: linear-gradient(135deg, #0a1130 50%, #9aa6bb 50%); }
 
 /* ---- Eyebrow: a short mono, uppercase, letter-spaced label above a
    section headline — the "01 · THE LIBRARY" editorial marker. ---- */
