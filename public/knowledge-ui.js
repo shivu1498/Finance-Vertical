@@ -3,7 +3,9 @@
   const root = document.getElementById("k-root");
   const FAV_KEY = "stalkingstocks.knowledge.favs";
 
-  const NOTES_KEY = "stalkingstocks.knowledge.notes";
+  // Notes are now owned by the Notes & Highlights sidebar (notes-sidebar.js),
+  // which reads/writes this same "stalkingstocks.knowledge.notes" key so
+  // nothing written by the old inline "My notes" box here is lost.
   const SECTIONS = [
     ["drivers", "Key drivers"],
     ["risks", "Risks to watch"],
@@ -12,14 +14,12 @@
     ["nse", "NSE industry classification"],
     ["react", "How it reacts (what-if)"],
     ["stocks", "Tracked stocks (live)"],
-    ["notes", "My notes"],
   ];
 
   const state = {
     sectorId: null,
     quotes: new Map(),
     favs: new Set(readStore(FAV_KEY, [])),
-    notes: readStore(NOTES_KEY, {}),
     open: new Set(readStore("stalkingstocks.knowledge.open", ["drivers", "risks", "react", "stocks"])),
     query: "",
     sort: "default",
@@ -334,49 +334,49 @@
       nse: nseSection(sec),
       react: `<div id="k-react">${reactRows(sec)}</div>`,
       stocks: `<div id="k-live-stocks">${stockTiles(sec)}</div>`,
-      notes: `<textarea id="k-notes" class="k-notes" rows="5" placeholder="Your own research notes for ${esc(sec.name)}: thesis, stocks to look at, things to verify. Saved in this browser only."></textarea>
-        <div class="k-saved muted" id="k-saved">Notes save automatically in this browser.</div>`,
     };
     return `
       <div class="k-strip" role="tablist" aria-label="Sectors">
         ${K_SECTORS.map((s) => `<button type="button" role="tab" class="k-subtab${s.id === sec.id ? " active" : ""}" aria-selected="${s.id === sec.id}" data-go="${s.id}">${esc(s.name)}</button>`).join("")}
       </div>
-      <section class="card k-hero">
-        <div class="k-hero-thumb">${thumb(sec, "h-" + sec.id)}</div>
-        <div class="k-hero-main">
-          <div class="k-hero-top">
-            <button type="button" class="k-link" data-go="">&larr; All sectors</button>
-            <div class="k-nav">
-              <button type="button" class="k-btn" data-go="${prev.id}" title="Previous: ${esc(prev.name)} (&larr;)">&lsaquo; ${esc(prev.name)}</button>
-              <button type="button" class="k-btn" data-go="${next.id}" title="Next: ${esc(next.name)} (&rarr;)">${esc(next.name)} &rsaquo;</button>
+      <div data-report-id="sector:${sec.id}">
+        <section class="card k-hero">
+          <div class="k-hero-thumb">${thumb(sec, "h-" + sec.id)}</div>
+          <div class="k-hero-main">
+            <div class="k-hero-top">
+              <button type="button" class="k-link" data-go="">&larr; All sectors</button>
+              <div class="k-nav">
+                <button type="button" class="k-btn" data-go="${prev.id}" title="Previous: ${esc(prev.name)} (&larr;)">&lsaquo; ${esc(prev.name)}</button>
+                <button type="button" class="k-btn" data-go="${next.id}" title="Next: ${esc(next.name)} (&rarr;)">${esc(next.name)} &rsaquo;</button>
+              </div>
+            </div>
+            <h3 class="k-hero-name">${esc(sec.name)} <span id="k-live-chip">${perfChip(sec)}</span> <span id="k-hero-impact">${impactBadge(sec)}</span></h3>
+            <p class="k-p">${esc(sec.overview)}</p>
+            <div class="k-actions">
+              <button type="button" class="k-btn${fav ? " on" : ""}" data-act="fav">${fav ? "★ Favorited" : "☆ Favorite"}</button>
+              ${sec.dataSectors.length && sectorStocks(sec).length ? `<button type="button" class="k-btn primary" data-act="stocks">View in Stocks tab</button>` : ""}
+              <button type="button" class="k-btn" data-act="copy">Copy link</button>
+              <span class="k-toast muted" id="k-toast" aria-live="polite"></span>
             </div>
           </div>
-          <h3 class="k-hero-name">${esc(sec.name)} <span id="k-live-chip">${perfChip(sec)}</span> <span id="k-hero-impact">${impactBadge(sec)}</span></h3>
-          <p class="k-p">${esc(sec.overview)}</p>
-          <div class="k-actions">
-            <button type="button" class="k-btn${fav ? " on" : ""}" data-act="fav">${fav ? "★ Favorited" : "☆ Favorite"}</button>
-            ${sec.dataSectors.length && sectorStocks(sec).length ? `<button type="button" class="k-btn primary" data-act="stocks">View in Stocks tab</button>` : ""}
-            <button type="button" class="k-btn" data-act="copy">Copy link</button>
-            <span class="k-toast muted" id="k-toast" aria-live="polite"></span>
-          </div>
+        </section>
+        <div class="k-toolbar">
+          <button type="button" class="k-btn" data-act="expand">Expand all</button>
+          <button type="button" class="k-btn" data-act="collapse">Collapse all</button>
         </div>
-      </section>
-      <div class="k-toolbar">
-        <button type="button" class="k-btn" data-act="expand">Expand all</button>
-        <button type="button" class="k-btn" data-act="collapse">Collapse all</button>
-      </div>
-      <section class="card k-accs">
-        ${SECTIONS.map(([key, title]) => section(key, title, inner[key])).join("")}
-      </section>`;
+        <section class="card k-accs">
+          ${SECTIONS.map(([key, title]) => section(key, title, inner[key])).join("")}
+        </section>
+      </div>`;
   }
 
   function render() {
     const sec = state.sectorId && bySectorId(state.sectorId);
     root.innerHTML = sec ? renderFocus(sec) : renderGrid();
     if (sec) {
-      const ta = document.getElementById("k-notes");
-      if (ta) ta.value = state.notes[sec.id] || "";
+      window.NotesSidebar?.setReport(`sector:${sec.id}`, `${sec.name} – Sector`);
     } else {
+      window.NotesSidebar?.clearReport();
       document.getElementById("k-search").value = state.query;
       updateGrid(false);
       if (focusSearchAfterRender) document.getElementById("k-search").focus();
@@ -507,21 +507,10 @@
     true
   );
 
-  let notesTimer;
   root.addEventListener("input", (e) => {
-    if (e.target.id === "k-search") {
-      state.query = e.target.value;
-      return updateGrid();
-    }
-    if (e.target.id !== "k-notes") return;
-    state.notes[state.sectorId] = e.target.value;
-    document.getElementById("k-saved").textContent = "Saving…";
-    clearTimeout(notesTimer);
-    notesTimer = setTimeout(() => {
-      writeStore(NOTES_KEY, state.notes);
-      const el = document.getElementById("k-saved");
-      if (el) el.textContent = "Saved ✓ (this browser only)";
-    }, 400);
+    if (e.target.id !== "k-search") return;
+    state.query = e.target.value;
+    updateGrid();
   });
   root.addEventListener("keydown", (e) => {
     if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("k-card")) {

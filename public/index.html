@@ -57,6 +57,37 @@
   <div class="earth-wrap" aria-hidden="true"></div>
 </div>
 
+<div id="notes-dock" class="notes-dock">
+  <button type="button" id="notes-handle" class="notes-handle" aria-expanded="false" aria-controls="notes-panel" title="Notes &amp; Highlights">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5V6a2 2 0 0 1 2-2h8.5L20 8.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 4v4.5H18.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7.5 12h7M7.5 15h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <span class="notes-handle-label">Notes</span>
+    <span class="notes-handle-count" id="notes-handle-count" hidden>0</span>
+  </button>
+  <aside id="notes-panel" class="notes-panel" role="complementary" aria-label="Notes and highlights">
+    <div class="np-header">
+      <div class="np-kicker">NOTES &amp; HIGHLIGHTS</div>
+      <div class="np-head-actions">
+        <button type="button" class="np-icon-btn" id="np-pin" title="Keep open" aria-label="Keep open">&#128204;</button>
+        <button type="button" class="np-icon-btn" id="np-collapse" title="Close (Esc)" aria-label="Close">&#10005;</button>
+      </div>
+    </div>
+    <div class="np-title" id="np-title">No report open</div>
+    <div class="np-tabs" role="tablist">
+      <button type="button" class="np-tab active" data-np-tab="report" role="tab" aria-selected="true">This report <span class="np-count" id="np-count-report">0</span></button>
+      <button type="button" class="np-tab" data-np-tab="notebooks" role="tab" aria-selected="false">My notebooks <span class="np-count" id="np-count-all">0</span></button>
+    </div>
+    <div class="np-body" id="np-body"></div>
+    <div class="np-shortcuts">
+      <span><kbd>/</kbd>Search</span>
+      <span><kbd>N</kbd>New note</span>
+      <span><kbd>F</kbd>Focus</span>
+      <span><kbd>E</kbd>Expand all</span>
+      <span><kbd>?</kbd>Shortcuts</span>
+      <span><kbd>Esc</kbd>Back</span>
+    </div>
+  </aside>
+</div>
+
 <header class="topbar">
   <div class="topbar-row">
     <div class="brand" aria-label="Stalking Stocks">
@@ -258,6 +289,7 @@
 <script src="app.js"></script>
 <script src="knowledge-ui.js"></script>
 <script src="company-knowledge.js"></script>
+<script src="notes-sidebar.js"></script>
 <script src="company-ui.js"></script>
 <script src="sector-groups-ui.js"></script>
 <script src="indices-ui.js"></script>

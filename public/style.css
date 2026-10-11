@@ -3411,3 +3411,393 @@ em.pc { font-style: italic; }
   .cx-modal-title { font-size: 1.4rem; }
   .cx-modal-fig { font-size: 1.5rem; }
 }
+
+/* ======================================================================
+   Notes & Highlights: a hover-reveal dock pinned to the right edge of the
+   viewport. A slim handle is always visible; hovering (or clicking, which
+   pins it open) slides the full panel in. Content is scoped to whatever
+   "report" is currently open (a sector knowledge page, for now) via
+   window.NotesSidebar.setReport()/clearReport(), called from knowledge-ui.js.
+   ====================================================================== */
+.notes-dock {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+.notes-handle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  color: var(--text-main);
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: -6px 0 18px rgba(0, 0, 0, 0.35);
+  transition: right 0.22s ease, background 0.15s ease;
+  z-index: 1;
+}
+/* Once the panel is open it covers the same right edge, so slide the
+   handle out to the panel's left edge instead of letting it get buried
+   underneath (and stay clickable there, as a flush "collapse" tab). */
+.notes-dock.open .notes-handle { right: 384px; }
+@media (max-width: 720px) {
+  .notes-dock.open .notes-handle { right: calc(100vw - 20px); }
+}
+.notes-handle svg { width: 17px; height: 17px; flex: none; color: var(--accent); }
+.notes-handle-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  color: var(--text-muted);
+}
+.notes-handle-count {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.64rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.notes-dock.open .notes-handle,
+.notes-dock:hover .notes-handle { background: var(--blue-4); }
+
+.notes-panel {
+  position: absolute;
+  top: 64px;
+  right: 0;
+  bottom: 14px;
+  width: 384px;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-right: none;
+  border-radius: 14px 0 0 14px;
+  box-shadow: -14px 0 40px rgba(0, 0, 0, 0.45);
+  transform: translateX(calc(100% + 24px));
+  opacity: 0;
+  transition: transform 0.22s ease, opacity 0.22s ease;
+  pointer-events: auto;
+  overflow: hidden;
+}
+.notes-dock.open .notes-panel {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.np-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 0;
+}
+.np-kicker {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+.np-head-actions { display: flex; align-items: center; gap: 4px; }
+.np-icon-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.np-icon-btn:hover { background: var(--blue-4); color: var(--text-main); }
+
+.np-title {
+  padding: 6px 16px 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.np-tabs {
+  display: flex;
+  gap: 18px;
+  padding: 12px 16px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+.np-tab {
+  background: none;
+  border: none;
+  padding: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.np-tab.active { color: var(--text-main); border-bottom-color: var(--accent); }
+.np-count {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.np-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.np-empty, .np-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.np-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.np-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.np-count-sm {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--blue-4);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.np-highlights { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.np-highlight {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(249, 115, 22, 0.08);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.np-hi-text { flex: 1; color: var(--text-main); }
+.np-hi-remove {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.65rem;
+  border-radius: 5px;
+}
+.np-hi-remove:hover { background: var(--blue-4); color: var(--down-strong); }
+
+.np-editor { border: 1px solid var(--panel-border); border-radius: 10px; overflow: hidden; }
+.np-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--blue-3);
+  border-bottom: 1px solid var(--panel-border);
+  flex-wrap: wrap;
+}
+.np-toolbar button {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+}
+.np-toolbar button svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.np-toolbar button:hover { background: var(--blue-4); color: var(--text-main); }
+.np-tb-sep { width: 1px; height: 18px; background: var(--panel-border); margin: 0 4px; }
+.np-tb-md {
+  margin-left: auto;
+  width: auto !important;
+  padding: 0 8px !important;
+  gap: 5px;
+  font-size: 0.62rem !important;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.np-tb-md.on { color: var(--accent); background: rgba(249, 115, 22, 0.12); }
+
+.np-note-text {
+  display: block;
+  width: 100%;
+  min-height: 150px;
+  padding: 11px 12px;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: vertical;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+.np-preview {
+  padding: 11px 12px;
+  min-height: 150px;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--text-main);
+}
+.np-preview h2, .np-preview h3, .np-preview h4 { font-family: var(--font-display); margin: 0.6em 0 0.3em; }
+.np-preview p { margin: 0 0 0.6em; }
+.np-preview blockquote { margin: 0 0 0.6em; padding-left: 10px; border-left: 3px solid var(--panel-border); color: var(--text-muted); }
+.np-preview code { background: var(--blue-4); padding: 1px 5px; border-radius: 4px; font-size: 0.82em; }
+.np-preview pre { background: var(--blue-4); padding: 8px 10px; border-radius: 6px; overflow-x: auto; }
+.np-preview table { border-collapse: collapse; width: 100%; margin-bottom: 0.6em; }
+.np-preview th, .np-preview td { border: 1px solid var(--panel-border); padding: 5px 8px; font-size: 0.8rem; }
+.np-preview img { max-width: 100%; border-radius: 6px; }
+.np-preview ul, .np-preview ol { margin: 0 0 0.6em; padding-left: 1.3em; }
+
+.np-editor-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+  flex-wrap: wrap;
+}
+.np-editor-foot .muted { font-size: 0.72rem; }
+.np-save-btn {
+  flex: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.np-save-btn:hover { filter: brightness(1.08); }
+.np-save-btn:disabled { opacity: 0.5; cursor: default; filter: none; }
+
+.np-notebooks-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.np-nb-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 11px;
+  background: var(--blue-3);
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+}
+.np-nb-row:hover { border-color: var(--accent); }
+.np-nb-title { font-weight: 700; font-size: 0.85rem; color: var(--text-main); }
+.np-nb-meta { font-size: 0.7rem; color: var(--text-muted); }
+.np-nb-snippet { font-size: 0.76rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.np-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--panel-border);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+.np-shortcuts kbd {
+  display: inline-block;
+  min-width: 16px;
+  text-align: center;
+  padding: 1px 5px;
+  margin-right: 4px;
+  background: var(--blue-4);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 0.66rem;
+  color: var(--text-main);
+}
+
+/* Floating "Highlight" button that appears above a text selection inside a
+   report body ([data-report-id]). */
+.np-hi-float {
+  position: fixed;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  background: var(--blue-4);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  color: var(--text-main);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.np-hi-float svg { width: 13px; height: 13px; color: var(--accent); }
+.np-hi-float:hover { background: var(--blue-3); }
+
+mark.np-marked {
+  background: rgba(249, 115, 22, 0.28);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+@media (max-width: 720px) {
+  .notes-panel { width: calc(100vw - 20px); top: 58px; }
+}
