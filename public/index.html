@@ -156,6 +156,7 @@
   <a class="tab" data-tab="universe" href="#universe">Universe</a>
   <a class="tab" data-tab="announcements" href="#announcements">Announcements</a>
   <a class="tab" data-tab="memo" href="#memo">The Memo</a>
+  <a class="tab" data-tab="feargreed" href="#feargreed">Fear &amp; Greed</a>
 </nav>
 
 <main class="main">
@@ -321,6 +322,10 @@
     <div id="mo-root"></div>
   </div>
 
+  <div class="tab-panel" data-panel="feargreed" hidden>
+    <div id="fg-root"></div>
+  </div>
+
   <footer class="footer">
     Data: Yahoo Finance (free, unauthenticated, ~15s cache) · constituents &amp; sectors mapped locally per country · Not investment advice · Updated <span id="footer-updated">—</span>
   </footer>
@@ -347,6 +352,7 @@
 <script src="filings-ui.js"></script>
 <script src="announcements-ui.js"></script>
 <script src="trend-ui.js"></script>
+<script src="fg-ui.js"></script>
 <script src="chart-ui.js"></script>
 <script src="pct-italic.js"></script>
 </body>

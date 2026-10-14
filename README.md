@@ -509,6 +509,43 @@ Database, which tipsheet credits for this, is a commercial data vendor)
 and a full systematic-models/portfolio-backtest library (tipsheet's own
 is many weeks of dedicated quant engineering on its own).
 
+## Fear & Greed (new tab)
+
+A single composite 0-100 reading, in the spirit of the "fear & greed" style
+page tipsheet.markets publishes (a big score + word label, a 0-100 scale
+with five zones, a week/month/year-ago comparison, a component breakdown,
+and score-history charts) — but computed independently, from this app's own
+pipeline and its own disclosed method, not scraped from their page or
+copying their (undisclosed) methodology.
+
+- `fear-greed-india.js` — fetches full-history daily closes for the Nifty 50
+  (`^NSEI`) and a gold ETF (`GOLDBEES.NS`, Nippon India ETF Gold BeES) via
+  the same Yahoo `range=max` call `trend-india.js` already uses. `.NS`-suffixed
+  Yahoo symbols are the same convention the breadth engine already fetches
+  at scale (`app.js`'s `/api/breadth` route), so this isn't a new, unverified
+  kind of symbol — just a new one, not yet confirmed against a live response
+  from this sandbox (no outbound network here right now — see the sandbox
+  note elsewhere in this file). Computes four signals, each ranked as a
+  percentile against its own history, then averaged: momentum (price vs. its
+  125-day average), realised volatility (21-day, annualised — a rough
+  stand-in for India VIX, which this app has no source for yet, inverted so
+  calmer reads greedier), safe-haven demand (Nifty's trailing-20-day return
+  minus gold's), and distance from the highest close to date. Zones: Extreme
+  Fear 0-20, Fear 20-40, Neutral 40-60, Greed 60-80, Extreme Greed 80-100 —
+  clean round bands, not a copy of tipsheet's own (unpublished) thresholds.
+  Pure computation logic (`computeFearGreedSeries`) is unit-tested in
+  `test/fear-greed-india.test.js` against synthetic series (flat, a recent
+  breakout, a recent crash), independent of any network call.
+- `public/fg-ui.js` — the score gauge (five colour-banded zones + marker),
+  week/month/year-ago comparison tiles, a component breakdown table, two
+  score-history charts (full history, thinned, and the last ~2 years at
+  daily resolution), and the method disclaimer. Mounts on `#fg-root`, same
+  `tabchange`-driven pattern as every other tab.
+- Honest limits, stated on the page itself: this is a simpler 4-signal
+  method, not a reproduction of tipsheet's or CNN's exact (larger,
+  undisclosed) models, and GOLDBEES.NS's own listing history caps how far
+  back the composite's "own history" can reach.
+
 ## India Market Breadth (index-universe filter)
 
 The Markets tab's Breadth panel, for India, compares advance/decline

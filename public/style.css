@@ -1893,6 +1893,216 @@ mark {
   margin-top: 8px;
 }
 
+/* ---- Fear & Greed tab ---- */
+.fg-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.fg-hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.fg-score-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.fg-score-num {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--text-main);
+  flex: none;
+}
+.fg-score-num.up { color: var(--up-strong); }
+.fg-score-num.down { color: var(--down-strong); }
+.fg-score-max {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+.fg-score-sub {
+  flex: 1 1 260px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.fg-score-sub .k-p {
+  margin: 0;
+  font-size: 0.86rem;
+}
+.fg-gauge {
+  margin-top: 2px;
+}
+.fg-gauge-track {
+  display: flex;
+  width: 100%;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--panel-border);
+}
+.fg-gauge-seg.fg-fear2 { background: color-mix(in srgb, var(--down-strong) 75%, var(--panel-soft)); }
+.fg-gauge-seg.fg-fear1 { background: color-mix(in srgb, var(--down-strong) 38%, var(--panel-soft)); }
+.fg-gauge-seg.fg-neutral { background: var(--panel-soft); }
+.fg-gauge-seg.fg-greed1 { background: color-mix(in srgb, var(--up-strong) 38%, var(--panel-soft)); }
+.fg-gauge-seg.fg-greed2 { background: color-mix(in srgb, var(--up-strong) 75%, var(--panel-soft)); }
+.fg-gauge-marker {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  background: var(--text-main);
+  border-radius: 2px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 2px var(--panel);
+}
+.fg-gauge-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: center;
+}
+.fg-gauge-labels span {
+  flex: 1;
+}
+.fg-gauge-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.fg-compare {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 4px;
+}
+.fg-compare-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--panel-soft);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+}
+.fg-compare-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.fg-compare-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--text-main);
+}
+.fg-compare-val.up { color: var(--up-strong); }
+.fg-compare-val.down { color: var(--down-strong); }
+.fg-compare-zone {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.fg-components {
+  margin-bottom: 16px;
+}
+.fg-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+.fg-table th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 10px 8px 0;
+}
+.fg-table td {
+  padding: 10px 10px 10px 0;
+  border-top: 1px solid var(--panel-border);
+  vertical-align: top;
+}
+.fg-sig-name {
+  display: block;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.fg-sig-desc {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  max-width: 34ch;
+  margin-top: 2px;
+}
+.fg-sig-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.fg-chart-card {
+  margin-bottom: 16px;
+}
+.fg-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 6px;
+}
+.fg-band {
+  opacity: 0.5;
+}
+.fg-band-greed {
+  fill: color-mix(in srgb, var(--up-strong) 14%, transparent);
+}
+.fg-band-fear {
+  fill: color-mix(in srgb, var(--down-strong) 14%, transparent);
+}
+.fg-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.fg-method {
+  margin-top: 4px;
+}
+.fg-method .k-p {
+  margin: 0;
+}
+.fg-loading,
+.fg-error {
+  text-align: center;
+  color: var(--text-muted);
+}
+.fg-error .k-btn {
+  margin-top: 8px;
+}
+@media (max-width: 640px) {
+  .fg-compare {
+    grid-template-columns: 1fr;
+  }
+  .fg-gauge-labels span:not(:first-child):not(:last-child) {
+    visibility: hidden;
+  }
+}
+
 /* ---- Mutual Funds tab ---- */
 #mf-root {
   display: block;

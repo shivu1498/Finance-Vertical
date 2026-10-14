@@ -21,6 +21,7 @@ const { createNseSectorIndices } = require("./nse-sector-indices");
 const { createNseIndexBreadth, INDEX_UNIVERSES } = require("./nse-index-breadth");
 const { createBreadthEngine } = require("./breadth");
 const { createTrendIndia, TREND_MARKETS } = require("./trend-india");
+const { createFearGreedIndia } = require("./fear-greed-india");
 const tijori = require("./tijori");
 const companies = require("./companies");
 
@@ -233,5 +234,11 @@ app.get("/api/trend/in-markets", (req, res) => {
   res.set("Cache-Control", "public, max-age=3600");
   res.json({ markets: TREND_MARKETS.map(({ slug, label }) => ({ slug, label })) });
 });
+
+// Fear & Greed (India): one composite 0-100 reading from four disclosed
+// signals (momentum, volatility, safe-haven demand vs. gold, distance from
+// highs), each ranked against its own history. See fear-greed-india.js.
+const fearGreedIndia = createFearGreedIndia();
+app.get("/api/fear-greed/in", fearGreedIndia);
 
 module.exports = app;
