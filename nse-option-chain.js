@@ -4,7 +4,13 @@
 // other NSE integration here (see nse-sector-indices.js). Two calls:
 //
 //   1. /api/option-chain-contract-info?symbol=NIFTY   -> expiryDates[]
-//   2. /api/option-chain-v3?type=Indices&symbol=NIFTY&expiry=<expiry>
+//   2. /api/option-chain-v3?type=Indices|Equity&symbol=<SYM>&expiry=<expiry>
+//
+// Both are the calls https://www.nseindia.com/option-chain makes itself; that
+// page is sent as the Referer, and is a JS app, so there is nothing to scrape
+// from its HTML — the API behind it is the only usable surface. The same page
+// serves the index chains and single-stock chains, so `type` is chosen from
+// the symbol rather than hardcoded.
 //
 // The older /api/option-chain-indices is RETIRED and now answers 404 — this
 // code called it until a 404 surfaced in the spreadsheet. Response shapes
@@ -36,6 +42,11 @@
 // labelled as such.
 
 const WWW = "https://www.nseindia.com";
+// The indices NSE lists option chains for. Anything else is treated as a
+// single stock (type=Equity) — getting this wrong returns an empty chain
+// rather than an error, which is why it is an explicit list.
+const INDEX_SYMBOLS = new Set(["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "NIFTYNXT50"]);
+const chainType = (sym) => (INDEX_SYMBOLS.has(String(sym).toUpperCase()) ? "Indices" : "Equity");
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
 function num(v) {
@@ -221,32 +232,49 @@ function createNseOptionChain({ fetchImpl = fetch, wwwBase = WWW, cacheMs = 60_0
     return res.json().catch(() => null);
   }
 
-  // Nearest expiry first; NSE returns them in order.
-  async function fetchExpiry(sym) {
+  async function fetchExpiries(sym) {
     const json = await nseGet(`/api/option-chain-contract-info?symbol=${encodeURIComponent(sym)}`, "expiry list");
     const list = json?.expiryDates || json?.records?.expiryDates;
     if (!Array.isArray(list) || !list.length) {
-      throw Object.assign(new Error("NSE returned no expiry dates."), { status: 502, code: "unreadable" });
+      throw Object.assign(new Error(`NSE returned no expiry dates for ${sym}.`), { status: 502, code: "unreadable" });
     }
-    return list[0];
+    return list;
   }
 
-  async function fetchChain(sym = symbol) {
-    if (cached && cached.sym === sym && Date.now() - cachedAt < cacheMs) return cached.result;
-    const expiry = await fetchExpiry(sym);
+  // `want` picks an expiry: omitted or "nearest" takes the front month, a
+  // number takes the Nth (0-based), anything else is matched against the
+  // dates NSE returned. An unmatched date fails loudly rather than silently
+  // serving a different expiry than asked for.
+  function chooseExpiry(list, want) {
+    if (want == null || want === "" || want === "nearest") return list[0];
+    const n = Number(want);
+    if (Number.isInteger(n) && n >= 0) {
+      if (n >= list.length) throw Object.assign(new Error(`only ${list.length} expiries available`), { status: 400, code: "bad_expiry" });
+      return list[n];
+    }
+    const hit = list.find((d) => String(d).toUpperCase() === String(want).toUpperCase());
+    if (!hit) throw Object.assign(new Error(`expiry "${want}" not listed; have ${list.join(", ")}`), { status: 400, code: "bad_expiry" });
+    return hit;
+  }
+
+  async function fetchChain(sym = symbol, want = null) {
+    const key = `${sym}|${want || "nearest"}`;
+    if (cached && cached.key === key && Date.now() - cachedAt < cacheMs) return cached.result;
+    const expiries = await fetchExpiries(sym);
+    const expiry = chooseExpiry(expiries, want);
     const json = await nseGet(
-      `/api/option-chain-v3?type=Indices&symbol=${encodeURIComponent(sym)}&expiry=${encodeURIComponent(expiry)}`,
+      `/api/option-chain-v3?type=${chainType(sym)}&symbol=${encodeURIComponent(sym)}&expiry=${encodeURIComponent(expiry)}`,
       "option chain"
     );
-    const result = buildChain(json, { expiry });
-    cached = { sym, result }; cachedAt = Date.now();
+    const result = { ...buildChain(json, { expiry }), symbol: sym, expiries };
+    cached = { key, result }; cachedAt = Date.now();
     return result;
   }
 
   async function handler(req, res) {
     const sym = String(req?.query?.symbol || symbol).toUpperCase().slice(0, 20);
     try {
-      const chain = await fetchChain(sym);
+      const chain = await fetchChain(sym, req?.query?.expiry ?? null);
       res.set("Content-Type", "text/csv; charset=utf-8");
       res.set("Cache-Control", "public, max-age=60");
       res.set("Access-Control-Allow-Origin", "*");
@@ -263,7 +291,7 @@ function createNseOptionChain({ fetchImpl = fetch, wwwBase = WWW, cacheMs = 60_0
   handler.get = fetchChain;
   handler.summary = async function summaryHandler(req, res) {
     try {
-      const { rows, ...meta } = await fetchChain(String(req?.query?.symbol || symbol).toUpperCase().slice(0, 20));
+      const { rows, ...meta } = await fetchChain(String(req?.query?.symbol || symbol).toUpperCase().slice(0, 20), req?.query?.expiry ?? null);
       res.set("Cache-Control", "public, max-age=60");
       res.json({ ...meta, strikes: rows.length });
     } catch (err) {
@@ -273,4 +301,4 @@ function createNseOptionChain({ fetchImpl = fetch, wwwBase = WWW, cacheMs = 60_0
   return handler;
 }
 
-module.exports = { createNseOptionChain, buildChain, chainRows, chainSpot, toCsv, impliedFuture, maxPain, nearestStrike, HEADER };
+module.exports = { createNseOptionChain, buildChain, chainRows, chainSpot, toCsv, impliedFuture, maxPain, nearestStrike, chainType, INDEX_SYMBOLS, HEADER };

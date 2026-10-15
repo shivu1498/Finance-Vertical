@@ -4,7 +4,7 @@
 // and asserts this code reproduces that tool's INTRINSIC, TIME VAL and
 // LTP TOTAL to the paisa. If NSE ever changes shape, or someone "fixes" the
 // signed/floored intrinsic asymmetry, these fail loudly.
-const { createNseOptionChain, buildChain, chainRows, chainSpot, toCsv, impliedFuture, maxPain, nearestStrike, HEADER } = require("../nse-option-chain");
+const { createNseOptionChain, buildChain, chainRows, chainSpot, toCsv, impliedFuture, maxPain, nearestStrike, chainType, INDEX_SYMBOLS, HEADER } = require("../nse-option-chain");
 
 let fails = 0;
 const check = (n, ok, x = "") => { if (!ok) fails++; console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  -> " + x : "")); };
@@ -155,6 +155,59 @@ for (const [label, bad] of [["no records", {}], ["no data array", { records: {} 
   const ocEmpty = createNseOptionChain({ fetchImpl: mk((u) => (u.includes("contract-info") ? { ok: true, status: 200, json: async () => ({}) } : null)) });
   try { await ocEmpty.get("NIFTY"); check("flow: no expiries rejects", false); }
   catch (e) { check("flow: an empty expiry list rejects cleanly", e.code === "unreadable", e.code); }
+
+  // ---- symbol routing: index vs single stock ----
+  check("chainType: NIFTY is an index", chainType("NIFTY") === "Indices");
+  check("chainType: BANKNIFTY is an index", chainType("BANKNIFTY") === "Indices");
+  check("chainType: MIDCPNIFTY is an index", chainType("midcpnifty") === "Indices");
+  check("chainType: RELIANCE is an equity", chainType("RELIANCE") === "Equity");
+  check("INDEX_SYMBOLS: covers the five NSE lists chains for", INDEX_SYMBOLS.size === 5, String(INDEX_SYMBOLS.size));
+
+  {
+    const seen = [];
+    const impl = async (url) => {
+      const u = String(url); seen.push(u);
+      if (u.endsWith("/")) return { ok: true, status: 200, headers: { getSetCookie: () => ["nsit=a"] } };
+      if (u.includes("contract-info")) return { ok: true, status: 200, json: async () => expiries };
+      return { ok: true, status: 200, json: async () => chainJson };
+    };
+    const bn = createNseOptionChain({ fetchImpl: impl });
+    await bn.get("BANKNIFTY");
+    check("routing: an index symbol requests type=Indices", seen.some((u) => u.includes("type=Indices&symbol=BANKNIFTY")), seen.at(-1));
+    const eq = createNseOptionChain({ fetchImpl: impl });
+    await eq.get("RELIANCE");
+    check("routing: a stock symbol requests type=Equity", seen.some((u) => u.includes("type=Equity&symbol=RELIANCE")), seen.at(-1));
+  }
+
+  // ---- expiry selection ----
+  {
+    const seen = [];
+    const impl = async (url) => {
+      const u = String(url); seen.push(u);
+      if (u.endsWith("/")) return { ok: true, status: 200, headers: { getSetCookie: () => ["nsit=a"] } };
+      if (u.includes("contract-info")) return { ok: true, status: 200, json: async () => expiries };
+      return { ok: true, status: 200, json: async () => chainJson };
+    };
+    const oc2 = createNseOptionChain({ fetchImpl: impl });
+    const near = await oc2.get("NIFTY");
+    check("expiry: default takes the nearest", near.expiry === "19-Oct-2026", String(near.expiry));
+    check("expiry: the full list is returned for a picker", near.expiries.length === 2, String(near.expiries.length));
+
+    await oc2.get("NIFTY", 1);
+    check("expiry: an index picks the Nth", seen.at(-1).includes("expiry=26-Oct-2026"), seen.at(-1));
+
+    await oc2.get("NIFTY", "26-Oct-2026");
+    check("expiry: an explicit date is honoured", seen.at(-1).includes("expiry=26-Oct-2026"), seen.at(-1));
+
+    try { await oc2.get("NIFTY", "01-Jan-2030"); check("expiry: an unlisted date rejects", false); }
+    catch (e) { check("expiry: an unlisted date fails loudly rather than serving another", e.code === "bad_expiry", e.code); }
+
+    try { await oc2.get("NIFTY", 9); check("expiry: an out-of-range index rejects", false); }
+    catch (e) { check("expiry: an out-of-range index rejects", e.code === "bad_expiry", e.code); }
+
+    check("expiry: caching is per symbol AND expiry, not per symbol alone",
+      (await oc2.get("NIFTY", 0)).expiry === "19-Oct-2026" && (await oc2.get("NIFTY", 1)).expiry === "26-Oct-2026");
+  }
 
   // The CSV handler answers 200 even when upstream failed, so IMPORTDATA can
   // display the reason instead of a bare #N/A.

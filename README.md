@@ -559,7 +559,18 @@ copying their (undisclosed) methodology.
 priming — two calls:
 
 1. `/api/option-chain-contract-info?symbol=NIFTY` for the expiry list
-2. `/api/option-chain-v3?type=Indices&symbol=NIFTY&expiry=<nearest>`
+2. `/api/option-chain-v3?type=Indices|Equity&symbol=<SYM>&expiry=<expiry>`
+
+These are the same calls https://www.nseindia.com/option-chain makes itself,
+and that page is sent as the Referer. The page is a JS app, so its HTML holds
+no data — the API behind it is the only usable surface.
+
+`?symbol=` accepts anything that page covers: the five index chains (NIFTY,
+BANKNIFTY, FINNIFTY, MIDCPNIFTY, NIFTYNXT50) and single stocks, with `type`
+chosen from the symbol — passing the wrong one returns an empty chain rather
+than an error, so the index list is explicit. `?expiry=` takes `nearest`
+(default), an integer Nth, or a literal date; an unlisted date fails with
+`bad_expiry` rather than quietly serving a different expiry.
 
 The older `/api/option-chain-indices` is **retired and answers 404**. This
 code called it first and the breakage only became visible once the CSV
