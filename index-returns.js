@@ -150,3 +150,113 @@ function createIndexReturns({
 }
 
 module.exports = { createIndexReturns, computeReturns, normalizeName, PERIODS, YAHOO_INDEX_SYMBOLS };
+
+// ---------------------------------------------------------------------------
+// Daily history as a wide CSV, for spreadsheets.
+//
+// The snapshot feed (nse-all-indices.js) answers "where is everything right
+// now". A rolling window needs the opposite: one row per day, going back
+// years. This serves that — Date plus one column per index Yahoo actually
+// covers — so a sheet can build a rolling window immediately instead of
+// waiting months for daily snapshots to accumulate.
+//
+// All columns share the Nifty 50 trading-day spine, since every index here is
+// NSE-listed and keeps the same calendar. A symbol missing a bar on some day
+// leaves that cell blank rather than shifting the column out of alignment.
+const HISTORY_MAX_ROWS = 2600; // ~10 trading years
+
+function toIsoDay(t) {
+  return new Date(t * 1000).toISOString().slice(0, 10);
+}
+
+function buildHistoryCsv(seriesByName, spineName, maxRows = HISTORY_MAX_ROWS) {
+  const names = Object.keys(seriesByName);
+  const spine = seriesByName[spineName];
+  if (!spine || !spine.length) return "Date\n";
+
+  // day -> close, per index, so the spine can look each one up in O(1).
+  const byDay = {};
+  for (const n of names) {
+    const m = new Map();
+    for (const p of seriesByName[n]) m.set(toIsoDay(p.t), p.close);
+    byDay[n] = m;
+  }
+
+  const days = spine.slice(-maxRows).map((p) => toIsoDay(p.t));
+  const lines = [["Date", ...names].join(",")];
+  for (const day of days) {
+    const cells = names.map((n) => {
+      const v = byDay[n].get(day);
+      return Number.isFinite(v) ? Math.round(v * 100) / 100 : "";
+    });
+    lines.push([day, ...cells].join(","));
+  }
+  return lines.join("\n");
+}
+
+// Express handler. Shares the symbol map with the returns layer, so adding a
+// symbol there extends both at once.
+function createHistoryCsv({
+  fetchImpl = fetch,
+  yahooBase = "https://query1.finance.yahoo.com",
+  cacheMs = 6 * 60 * 60 * 1000,
+  symbols = YAHOO_INDEX_SYMBOLS,
+  spineName = "NIFTY 50",
+} = {}) {
+  const inner = createIndexReturns({ fetchImpl, yahooBase, symbols });
+  let cachedCsv = null;
+  let cachedAt = 0;
+
+  async function fetchCsv() {
+    if (cachedCsv && Date.now() - cachedAt < cacheMs) return cachedCsv;
+
+    const entries = Object.entries(symbols);
+    const settled = await Promise.allSettled(
+      entries.map(async ([, sym]) => {
+        const url = `${yahooBase}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=max`;
+        const res = await fetchImpl(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+            Accept: "application/json",
+          },
+        });
+        if (!res.ok) throw new Error(`upstream ${res.status} for ${sym}`);
+        return parseLongSeries(await res.json(), sym);
+      })
+    );
+
+    const seriesByName = {};
+    settled.forEach((r, i) => {
+      if (r.status === "fulfilled" && r.value.length) seriesByName[entries[i][0]] = r.value;
+    });
+    if (!seriesByName[spineName]) {
+      throw Object.assign(new Error(`no history for the ${spineName} spine`), { status: 502, code: "no_spine" });
+    }
+
+    cachedCsv = buildHistoryCsv(seriesByName, spineName);
+    cachedAt = Date.now();
+    return cachedCsv;
+  }
+
+  async function handler(req, res) {
+    try {
+      const csv = await fetchCsv();
+      res.set("Content-Type", "text/csv; charset=utf-8");
+      res.set("Cache-Control", "public, max-age=3600");
+      res.set("Access-Control-Allow-Origin", "*");
+      res.send(csv);
+    } catch (err) {
+      res.status(err.status || 502);
+      res.set("Content-Type", "text/csv; charset=utf-8");
+      res.send(`Error,Message\n${err.code || "history_error"},"${String(err.message).replace(/"/g, '""')}"`);
+    }
+  }
+  handler.get = fetchCsv;
+  handler.returns = inner;
+  return handler;
+}
+
+module.exports.createHistoryCsv = createHistoryCsv;
+module.exports.buildHistoryCsv = buildHistoryCsv;
+module.exports.toIsoDay = toIsoDay;
+module.exports.HISTORY_MAX_ROWS = HISTORY_MAX_ROWS;

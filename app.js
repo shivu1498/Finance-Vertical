@@ -23,6 +23,7 @@ const { createBreadthEngine } = require("./breadth");
 const { createTrendIndia, TREND_MARKETS } = require("./trend-india");
 const { createFearGreedIndia } = require("./fear-greed-india");
 const { createNseAllIndices } = require("./nse-all-indices");
+const { createHistoryCsv } = require("./index-returns");
 const tijori = require("./tijori");
 const companies = require("./companies");
 
@@ -249,5 +250,10 @@ app.get("/api/fear-greed/in", fearGreedIndia);
 const nseAllIndices = createNseAllIndices();
 app.get("/api/sheets/indices.csv", nseAllIndices);
 app.get("/api/indices/all", nseAllIndices.json);
+
+// Daily history, wide: Date + one column per index Yahoo covers. The snapshot
+// feed above says where things are now; this says where they have been, which
+// is what a rolling window in a spreadsheet needs. See index-returns.js.
+app.get("/api/sheets/history.csv", createHistoryCsv());
 
 module.exports = app;

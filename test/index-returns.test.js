@@ -80,6 +80,24 @@ check("computeReturns: an empty series yields no periods", Object.keys(computeRe
   check("merge: an uncovered index leaves 10Y blank", cellOf(csv2, "10Y") === "", `"${cellOf(csv2, "10Y")}"`);
 }
 
+// ---- buildHistoryCsv: the wide daily table ----
+{
+  const { buildHistoryCsv, toIsoDay } = require("../index-returns");
+  const spine = backSeries(10, (ago) => 100 + ago);          // NIFTY 50
+  const partial = spine.slice(3).map((p) => ({ ...p, close: 50 })); // starts later
+  const csv = buildHistoryCsv({ "NIFTY 50": spine, "NIFTY IT": partial }, "NIFTY 50");
+  const lines = csv.split("\n");
+
+  check("history: header is Date plus one column per index", lines[0] === "Date,NIFTY 50,NIFTY IT", lines[0]);
+  check("history: one row per spine bar", lines.length === spine.length + 1, String(lines.length));
+  check("history: dates are ISO so Sheets parses them", /^\d{4}-\d{2}-\d{2},/.test(lines[1]), lines[1]);
+  check("history: a column with no bar that day is blank, not shifted", lines[1].endsWith(","), lines[1]);
+  check("history: the later-starting column fills in once it begins", lines.at(-1).split(",")[2] === "50", lines.at(-1));
+  check("history: rows run oldest to newest", lines[1].split(",")[0] < lines.at(-1).split(",")[0]);
+  check("history: an empty spine degrades to a header only", buildHistoryCsv({}, "NIFTY 50") === "Date\n");
+  check("toIsoDay: converts an epoch second to yyyy-mm-dd", /^\d{4}-\d{2}-\d{2}$/.test(toIsoDay(NOW)));
+}
+
 // ---- createIndexReturns: one dead symbol never poisons the others ----
 (async () => {
   const good = backSeries(3000, (ago) => 100 * Math.pow(1.0004, 3000 - ago));
