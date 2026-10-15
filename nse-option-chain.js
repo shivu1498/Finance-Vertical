@@ -1,8 +1,16 @@
 // Live NSE option chain, for the spreadsheet.
 //
-// Source: https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY —
-// the JSON behind NSE's own option-chain page, behind the same cookie wall
-// as every other NSE integration here (see nse-sector-indices.js).
+// Source: NSE's v3 option-chain flow, behind the same cookie wall as every
+// other NSE integration here (see nse-sector-indices.js). Two calls:
+//
+//   1. /api/option-chain-contract-info?symbol=NIFTY   -> expiryDates[]
+//   2. /api/option-chain-v3?type=Indices&symbol=NIFTY&expiry=<expiry>
+//
+// The older /api/option-chain-indices is RETIRED and now answers 404 — this
+// code called it until a 404 surfaced in the spreadsheet. Response shapes
+// differ between the old and new endpoints and could not be verified live
+// from the dev sandbox, so the parser accepts several plausible shapes
+// rather than assuming one.
 //
 // DERIVED COLUMNS. These were reverse-engineered from a screenshot of the
 // "LTP Calculator" tool and verified to the paisa against 9 strikes of its
@@ -84,17 +92,33 @@ function maxPain(rows) {
   return best;
 }
 
-function buildChain(json, { strikeWindow = 20 } = {}) {
-  const recs = json?.records;
-  const data = Array.isArray(recs?.data) ? recs.data : null;
+// v3 returns { records: { data: [...] } } or a bare { data: [...] }; the
+// legacy endpoint nested everything under `records`. Try each in turn.
+function chainRows(json) {
+  for (const arr of [json?.records?.data, json?.data, json?.filtered?.data]) {
+    if (Array.isArray(arr) && arr.length) return arr;
+  }
+  return null;
+}
+function chainSpot(json) {
+  for (const v of [json?.records?.underlyingValue, json?.underlyingValue, json?.filtered?.underlyingValue]) {
+    const n = num(v);
+    if (n) return n;
+  }
+  return 0;
+}
+
+function buildChain(json, { strikeWindow = 20, expiry: wantExpiry = null } = {}) {
+  const data = chainRows(json);
   if (!data) throw Object.assign(new Error("NSE returned an option chain this app couldn't read."), { status: 502, code: "unreadable" });
 
-  const expiries = Array.isArray(recs.expiryDates) ? recs.expiryDates : [];
-  const expiry = expiries[0] || null;
-  const spot = num(recs.underlyingValue) ?? 0;
+  // v3 is already scoped to one expiry, so only filter when the caller named
+  // one AND the rows actually carry an expiryDate to filter on.
+  const expiry = wantExpiry || json?.records?.expiryDates?.[0] || data[0]?.expiryDate || null;
+  const spot = chainSpot(json);
 
   let rows = data
-    .filter((d) => !expiry || d.expiryDate === expiry)
+    .filter((d) => !expiry || !d.expiryDate || d.expiryDate === expiry)
     .map((d) => ({ strike: num(d.strikePrice), call: leg(d.CE), put: leg(d.PE) }))
     .filter((r) => r.strike != null)
     .sort((a, b) => a.strike - b.strike);
@@ -131,7 +155,7 @@ function buildChain(json, { strikeWindow = 20 } = {}) {
   const totCallVol = sum(out, (r) => r.call.vol), totPutVol = sum(out, (r) => r.put.vol);
 
   return {
-    asOf: recs.timestamp || new Date().toISOString(),
+    asOf: json?.records?.timestamp || json?.timestamp || new Date().toISOString(),
     expiry, spot,
     future: Math.round(fut * 100) / 100,
     ref,
@@ -175,16 +199,46 @@ function createNseOptionChain({ fetchImpl = fetch, wwwBase = WWW, cacheMs = 60_0
     return cookieJar;
   }
 
+  async function nseGet(path, what) {
+    const cookie = await primeCookies();
+    const res = await fetchImpl(`${wwwBase}${path}`, {
+      headers: {
+        "User-Agent": UA,
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "en,gu;q=0.9,hi;q=0.8",
+        Referer: `${wwwBase}/option-chain`,
+        ...(cookie ? { Cookie: cookie } : {}),
+      },
+    });
+    if (res.status === 401 || res.status === 403) {
+      // A stale cookie is the usual cause; drop it so the next call re-primes.
+      cookieJar = null;
+      throw Object.assign(new Error(`NSE blocked this server's ${what} request.`), { status: 502, code: "blocked" });
+    }
+    if (res.status === 429) throw Object.assign(new Error("NSE is rate-limiting right now."), { status: 429, code: "rate_limited" });
+    if (res.status === 404) throw Object.assign(new Error(`NSE has retired the ${what} endpoint (404).`), { status: 502, code: "retired" });
+    if (!res.ok) throw Object.assign(new Error(`NSE responded ${res.status} for ${what}`), { status: 502, code: "upstream" });
+    return res.json().catch(() => null);
+  }
+
+  // Nearest expiry first; NSE returns them in order.
+  async function fetchExpiry(sym) {
+    const json = await nseGet(`/api/option-chain-contract-info?symbol=${encodeURIComponent(sym)}`, "expiry list");
+    const list = json?.expiryDates || json?.records?.expiryDates;
+    if (!Array.isArray(list) || !list.length) {
+      throw Object.assign(new Error("NSE returned no expiry dates."), { status: 502, code: "unreadable" });
+    }
+    return list[0];
+  }
+
   async function fetchChain(sym = symbol) {
     if (cached && cached.sym === sym && Date.now() - cachedAt < cacheMs) return cached.result;
-    const cookie = await primeCookies();
-    const res = await fetchImpl(`${wwwBase}/api/option-chain-indices?symbol=${encodeURIComponent(sym)}`, {
-      headers: { "User-Agent": UA, Accept: "application/json, text/plain, */*", Referer: `${wwwBase}/option-chain`, ...(cookie ? { Cookie: cookie } : {}) },
-    });
-    if (res.status === 401 || res.status === 403) throw Object.assign(new Error("NSE blocked this server's option-chain request."), { status: 502, code: "blocked" });
-    if (res.status === 429) throw Object.assign(new Error("NSE is rate-limiting right now."), { status: 429, code: "rate_limited" });
-    if (!res.ok) throw Object.assign(new Error(`NSE responded ${res.status}`), { status: 502, code: "upstream" });
-    const result = buildChain(await res.json().catch(() => null));
+    const expiry = await fetchExpiry(sym);
+    const json = await nseGet(
+      `/api/option-chain-v3?type=Indices&symbol=${encodeURIComponent(sym)}&expiry=${encodeURIComponent(expiry)}`,
+      "option chain"
+    );
+    const result = buildChain(json, { expiry });
     cached = { sym, result }; cachedAt = Date.now();
     return result;
   }
@@ -219,4 +273,4 @@ function createNseOptionChain({ fetchImpl = fetch, wwwBase = WWW, cacheMs = 60_0
   return handler;
 }
 
-module.exports = { createNseOptionChain, buildChain, toCsv, impliedFuture, maxPain, nearestStrike, HEADER };
+module.exports = { createNseOptionChain, buildChain, chainRows, chainSpot, toCsv, impliedFuture, maxPain, nearestStrike, HEADER };

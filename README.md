@@ -553,10 +553,19 @@ copying their (undisclosed) methodology.
 
 ## Option chain (and what REVERSAL is not)
 
-`nse-option-chain.js` serves NIFTY's live option chain from NSE's own
-`/api/option-chain-indices`, behind the usual cookie priming, at
+`nse-option-chain.js` serves NIFTY's live option chain at
 `/api/sheets/option-chain.csv` (plus a JSON summary at
-`/api/option-chain/summary`).
+`/api/option-chain/summary`), via NSE's **v3** flow behind the usual cookie
+priming — two calls:
+
+1. `/api/option-chain-contract-info?symbol=NIFTY` for the expiry list
+2. `/api/option-chain-v3?type=Indices&symbol=NIFTY&expiry=<nearest>`
+
+The older `/api/option-chain-indices` is **retired and answers 404**. This
+code called it first and the breakage only became visible once the CSV
+feeds started returning 200 with an error row — a 502 had been rendering in
+the sheet as a bare `#N/A`. A 404 is now reported as `retired` specifically,
+to keep that distinction diagnosable.
 
 Several derived columns were **reverse-engineered from a screenshot of the
 LTP Calculator tool** and verified to the paisa against nine of its strikes,

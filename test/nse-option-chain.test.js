@@ -4,7 +4,7 @@
 // and asserts this code reproduces that tool's INTRINSIC, TIME VAL and
 // LTP TOTAL to the paisa. If NSE ever changes shape, or someone "fixes" the
 // signed/floored intrinsic asymmetry, these fail loudly.
-const { buildChain, toCsv, impliedFuture, maxPain, nearestStrike, HEADER } = require("../nse-option-chain");
+const { createNseOptionChain, buildChain, chainRows, chainSpot, toCsv, impliedFuture, maxPain, nearestStrike, HEADER } = require("../nse-option-chain");
 
 let fails = 0;
 const check = (n, ok, x = "") => { if (!ok) fails++; console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  -> " + x : "")); };
@@ -99,5 +99,71 @@ for (const [label, bad] of [["no records", {}], ["no data array", { records: {} 
   check("impliedFuture: the same junk WOULD have wrecked a mean (why median)", Math.abs(mean - F) > 500, mean.toFixed(0));
 }
 
-console.log(fails === 0 ? "\nall passed" : `\n${fails} FAILED`);
-process.exit(fails === 0 ? 0 : 1);
+// ---- response-shape tolerance: v3 vs the retired endpoint ----
+{
+  const rowsOnly = [{ strikePrice: 100, CE: { lastPrice: 5 }, PE: { lastPrice: 5 } }];
+  check("chainRows: reads records.data (legacy shape)", chainRows({ records: { data: rowsOnly } }).length === 1);
+  check("chainRows: reads a bare data array (v3 shape)", chainRows({ data: rowsOnly }).length === 1);
+  check("chainRows: reads filtered.data", chainRows({ filtered: { data: rowsOnly } }).length === 1);
+  check("chainRows: null when no shape matches", chainRows({ nope: 1 }) === null);
+  check("chainSpot: reads records.underlyingValue", chainSpot({ records: { underlyingValue: 123 } }) === 123);
+  check("chainSpot: reads a top-level underlyingValue", chainSpot({ underlyingValue: 456 }) === 456);
+  // v3 rows carry no expiryDate; they must NOT be filtered away.
+  const v3 = buildChain({ data: rowsOnly, underlyingValue: 100 }, { expiry: "19-Oct-2026" });
+  check("buildChain: v3 rows without expiryDate survive the expiry filter", v3.rows.length === 1, String(v3.rows.length));
+}
+
+// ---- the two-call v3 flow ----
+(async () => {
+  const calls = [];
+  const expiries = { expiryDates: ["19-Oct-2026", "26-Oct-2026"] };
+  const chainJson = { records: { timestamp: "15-Oct-2026 15:40:00", underlyingValue: 22997.35,
+    data: Object.entries(SNAP).map(([k, [c, p]]) => ({ strikePrice: Number(k),
+      CE: { lastPrice: c, openInterest: 1, totalTradedVolume: 1 },
+      PE: { lastPrice: p, openInterest: 1, totalTradedVolume: 1 } })) } };
+
+  const mk = (behaviour) => async (url) => {
+    const u = String(url); calls.push(u);
+    if (u.endsWith("/")) return { ok: true, status: 200, headers: { getSetCookie: () => ["nsit=a; Path=/"] } };
+    if (behaviour && behaviour(u)) return behaviour(u);
+    if (u.includes("option-chain-contract-info")) return { ok: true, status: 200, json: async () => expiries };
+    if (u.includes("option-chain-v3")) return { ok: true, status: 200, json: async () => chainJson };
+    return { ok: false, status: 404 };
+  };
+
+  const oc = createNseOptionChain({ fetchImpl: mk(null) });
+  const r = await oc.get("NIFTY");
+  check("flow: primes cookies first", calls[0].endsWith("/"), calls[0]);
+  check("flow: asks contract-info for expiries", calls[1].includes("/api/option-chain-contract-info?symbol=NIFTY"), calls[1]);
+  check("flow: then calls option-chain-v3 with type, symbol and expiry",
+    calls[2].includes("/api/option-chain-v3?type=Indices&symbol=NIFTY&expiry=19-Oct-2026"), calls[2]);
+  check("flow: never calls the retired option-chain-indices", !calls.some((c) => c.includes("option-chain-indices")));
+  check("flow: uses the NEAREST expiry", r.expiry === "19-Oct-2026", String(r.expiry));
+  check("flow: still decodes REF correctly end-to-end", r.ref === 22950, String(r.ref));
+  check("flow: caches, so a repeat makes no extra calls", (await oc.get("NIFTY")) && calls.length === 3, String(calls.length));
+
+  // A 404 must say "retired", not a vague upstream error — that distinction
+  // is what made the real breakage diagnosable from the spreadsheet.
+  const oc404 = createNseOptionChain({ fetchImpl: mk((u) => (u.includes("contract-info") ? { ok: false, status: 404 } : null)) });
+  try { await oc404.get("NIFTY"); check("flow: a 404 rejects", false); }
+  catch (e) { check("flow: a 404 is reported as 'retired', not a generic upstream error", e.code === "retired", e.code); }
+
+  const oc403 = createNseOptionChain({ fetchImpl: mk((u) => (u.includes("contract-info") ? { ok: false, status: 403 } : null)) });
+  try { await oc403.get("NIFTY"); check("flow: a 403 rejects", false); }
+  catch (e) { check("flow: a 403 is reported as blocked", e.code === "blocked", e.code); }
+
+  const ocEmpty = createNseOptionChain({ fetchImpl: mk((u) => (u.includes("contract-info") ? { ok: true, status: 200, json: async () => ({}) } : null)) });
+  try { await ocEmpty.get("NIFTY"); check("flow: no expiries rejects", false); }
+  catch (e) { check("flow: an empty expiry list rejects cleanly", e.code === "unreadable", e.code); }
+
+  // The CSV handler answers 200 even when upstream failed, so IMPORTDATA can
+  // display the reason instead of a bare #N/A.
+  let body = null, status = 200;
+  const res = { set() { return this; }, status(c) { status = c; return this; }, send(b) { body = b; } };
+  await createNseOptionChain({ fetchImpl: mk((u) => (u.includes("contract-info") ? { ok: false, status: 404 } : null)) })({ query: {} }, res);
+  check("handler: upstream failure still answers 200", status === 200, String(status));
+  check("handler: body names the reason in CSV", String(body).startsWith("Error,Message") && String(body).includes("retired"), String(body).slice(0, 80));
+
+  console.log(fails === 0 ? "\nall passed" : `\n${fails} FAILED`);
+  process.exit(fails === 0 ? 0 : 1);
+})();
