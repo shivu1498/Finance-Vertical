@@ -528,8 +528,13 @@ copying their (undisclosed) methodology.
   note elsewhere in this file). Computes four signals, each ranked as a
   percentile against its own history, then averaged: momentum (price vs. its
   125-day average), realised volatility (21-day, annualised — a rough
-  stand-in for India VIX, which this app has no source for yet, inverted so
-  calmer reads greedier), safe-haven demand (Nifty's trailing-20-day return
+  India VIX where Yahoo has history for ^INDIAVIX, falling back to 21-day
+  realised volatility where it doesn't — inverted either way, so calmer
+  reads greedier. The two are ranked in separate percentile pools, since
+  their raw values are different quantities on different scales; only the
+  resulting percentiles are interchangeable, which keeps the composite's
+  history intact back past wherever VIX coverage begins. The response and
+  the page both state which source a given reading used), safe-haven demand (Nifty's trailing-20-day return
   minus gold's), and distance from the highest close to date. Zones: Extreme
   Fear 0-20, Fear 20-40, Neutral 40-60, Greed 60-80, Extreme Greed 80-100 —
   clean round bands, not a copy of tipsheet's own (unpublished) thresholds.

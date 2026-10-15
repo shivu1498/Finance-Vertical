@@ -12,10 +12,12 @@
 // averaged into one 0-100 score:
 //
 //  1. Momentum       — Nifty 50 close vs. its own 125-trading-day average.
-//  2. Volatility      — 21-day realised volatility of Nifty 50 daily returns,
-//                        annualised (a rough stand-in for India VIX, since
-//                        this app has no VIX data source yet) — inverted,
-//                        so a calmer market scores greedier.
+//  2. Volatility      — India VIX, the market's own priced expectation of
+//                        near-term swings, where history for it is available;
+//                        otherwise 21-day realised volatility of Nifty 50
+//                        daily returns, annualised. Either way it is
+//                        inverted, so a calmer market scores greedier, and
+//                        the response says which of the two was used.
 //  3. Safe-haven demand — Nifty 50's trailing-20-day return minus gold's
 //                        (GOLDBEES.NS, an NSE-listed gold ETF, so it shares
 //                        Nifty's own trading calendar — no date-alignment
@@ -38,6 +40,11 @@ const { percentileOf } = require("./trend-india");
 
 const NIFTY_SYMBOL = "^NSEI";
 const GOLD_SYMBOL = "GOLDBEES.NS"; // Nippon India ETF Gold BeES
+// India VIX. Yahoo's coverage of it couldn't be checked from the dev sandbox,
+// so nothing depends on it: if the fetch fails or the history is too thin,
+// the volatility signal silently falls back to realised volatility and the
+// response reports which source was actually used.
+const VIX_SYMBOL = "^INDIAVIX";
 
 const MOMENTUM_DAYS = 125; // trading bars, ~6 months
 const VOL_DAYS = 21; // trading bars, ~1 month of returns
@@ -52,7 +59,7 @@ const SIGNALS = [
   {
     key: "volatility",
     label: "Volatility",
-    description: "How calm or turbulent daily moves have been over the last month, annualised. A rough stand-in for India VIX; calmer reads greedier.",
+    description: "How calm or turbulent the market is. Calmer reads greedier.",
   },
   {
     key: "safeHaven",
@@ -79,12 +86,14 @@ function dayOf(t) {
   return Math.floor(t / 86400);
 }
 
-// Forward-filled gold close aligned to each Nifty bar's calendar day. Both
-// symbols are NSE-listed (same trading calendar), so this is a same-day
-// lookup in the overwhelming majority of cases — the forward-fill only
-// matters for the rare day one series has a bar and the other doesn't.
-function alignGold(niftySeries, goldSeries) {
-  const byDay = new Map(goldSeries.map((p) => [dayOf(p.t), p.close]));
+// Forward-fills another series onto each Nifty bar's calendar day. Used for
+// both gold and India VIX, each NSE-listed and so sharing Nifty's trading
+// calendar — a same-day lookup in the overwhelming majority of cases, with
+// the forward-fill only mattering for the rare day one series has a bar and
+// the other doesn't. Returns nulls for days before that series begins.
+function alignSeries(niftySeries, otherSeries) {
+  if (!otherSeries || !otherSeries.length) return niftySeries.map(() => null);
+  const byDay = new Map(otherSeries.map((p) => [dayOf(p.t), p.close]));
   let last = null;
   return niftySeries.map((p) => {
     const d = dayOf(p.t);
@@ -102,13 +111,14 @@ function logReturn(a, b) {
 // parseLongSeries), computes the full day-by-day composite history, the
 // component breakdown for the latest day, week/month/year-ago comparisons,
 // and the chart series the UI shows.
-function computeFearGreedSeries(niftySeries, goldSeries) {
+function computeFearGreedSeries(niftySeries, goldSeries, vixSeries) {
   const closes = niftySeries.map((p) => p.close);
   const n = closes.length;
-  const gold = alignGold(niftySeries, goldSeries);
+  const gold = alignSeries(niftySeries, goldSeries);
+  const vix = alignSeries(niftySeries, vixSeries);
 
   const momentumRaw = new Array(n).fill(null);
-  const volRaw = new Array(n).fill(null);
+  const realisedRaw = new Array(n).fill(null);
   const safeHavenRaw = new Array(n).fill(null);
   const offHigh = new Array(n).fill(null);
 
@@ -133,7 +143,7 @@ function computeFearGreedSeries(niftySeries, goldSeries) {
       }
       const mean = sum / VOL_DAYS;
       const variance = Math.max(sumSq / VOL_DAYS - mean * mean, 0);
-      volRaw[i] = Math.sqrt(variance * 252) * 100;
+      realisedRaw[i] = Math.sqrt(variance * 252) * 100;
     }
 
     if (i >= SAFE_HAVEN_DAYS && gold[i] != null && gold[i - SAFE_HAVEN_DAYS] != null) {
@@ -147,20 +157,37 @@ function computeFearGreedSeries(niftySeries, goldSeries) {
     return arr.filter((v) => v != null).sort((a, b) => a - b);
   }
   const momSorted = sortedValid(momentumRaw);
-  const volSorted = sortedValid(volRaw);
+  const vixSorted = sortedValid(vix);
+  const realisedSorted = sortedValid(realisedRaw);
   const shSorted = sortedValid(safeHavenRaw);
   const dhSorted = sortedValid(offHigh);
 
+  // India VIX and realised volatility are different quantities on different
+  // scales, so their RAW values must never share one percentile pool. Each is
+  // ranked against its own history first; only the resulting percentiles —
+  // same unit, same meaning ("how calm is this, for this market") — are
+  // interchangeable. Where VIX history exists it wins; elsewhere the realised
+  // proxy carries the day, so the composite still spans the full history.
   const momPct = new Array(n).fill(null);
   const volPct = new Array(n).fill(null);
+  const volRaw = new Array(n).fill(null);
+  const volSource = new Array(n).fill(null);
   const shPct = new Array(n).fill(null);
   const dhPct = new Array(n).fill(null);
   const scores = new Array(n).fill(null);
 
   for (let i = 0; i < n; i++) {
-    if (momentumRaw[i] == null || volRaw[i] == null || safeHavenRaw[i] == null || offHigh[i] == null) continue;
+    if (vix[i] != null) {
+      volPct[i] = 100 - percentileOf(vixSorted, vix[i]); // calmer = greedier
+      volRaw[i] = vix[i];
+      volSource[i] = "india-vix";
+    } else if (realisedRaw[i] != null) {
+      volPct[i] = 100 - percentileOf(realisedSorted, realisedRaw[i]);
+      volRaw[i] = realisedRaw[i];
+      volSource[i] = "realised";
+    }
+    if (momentumRaw[i] == null || volPct[i] == null || safeHavenRaw[i] == null || offHigh[i] == null) continue;
     momPct[i] = percentileOf(momSorted, momentumRaw[i]);
-    volPct[i] = 100 - percentileOf(volSorted, volRaw[i]); // calmer = greedier
     shPct[i] = percentileOf(shSorted, safeHavenRaw[i]);
     dhPct[i] = percentileOf(dhSorted, offHigh[i]);
     scores[i] = Math.round((momPct[i] + volPct[i] + shPct[i] + dhPct[i]) / 4);
@@ -183,8 +210,14 @@ function computeFearGreedSeries(niftySeries, goldSeries) {
 
   const rawByKey = { momentum: momentumRaw, volatility: volRaw, safeHaven: safeHavenRaw, distanceFromHigh: offHigh };
   const pctByKey = { momentum: momPct, volatility: volPct, safeHaven: shPct, distanceFromHigh: dhPct };
+  const VOL_TEXT = {
+    "india-vix": "India VIX — the market's own priced expectation of near-term swings. A calmer reading is greedier.",
+    realised: "How far daily moves have swung over the last month, annualised (a stand-in, used where India VIX history isn't available). Calmer reads greedier.",
+  };
   const components = SIGNALS.map((s) => ({
     ...s,
+    description: s.key === "volatility" ? (VOL_TEXT[volSource[lastIdx]] || s.description) : s.description,
+    unit: s.key === "volatility" && volSource[lastIdx] === "india-vix" ? "level" : "percent",
     value: rawByKey[s.key][lastIdx],
     percentile: pctByKey[s.key][lastIdx],
     contribution: pctByKey[s.key][lastIdx] != null ? Math.round(pctByKey[s.key][lastIdx] / SIGNALS.length) : null,
@@ -212,6 +245,7 @@ function computeFearGreedSeries(niftySeries, goldSeries) {
       close: closes[lastIdx],
       score: latestScore,
       zone: zoneOf(latestScore),
+      volatilitySource: volSource[lastIdx],
     },
     components,
     comparisons: {
@@ -241,8 +275,18 @@ function createFearGreedIndia({ fetchImpl = fetch, yahooBase = "https://query1.f
 
   async function fetchFearGreed() {
     if (cached && Date.now() - cached.at < cacheMs) return cached.result;
-    const [niftySeries, goldSeries] = await Promise.all([fetchSeries(NIFTY_SYMBOL), fetchSeries(GOLD_SYMBOL)]);
-    const result = computeFearGreedSeries(niftySeries, goldSeries);
+    // Nifty and gold are required; India VIX is a bonus. allSettled rather
+    // than all, so an unavailable VIX history degrades the volatility signal
+    // back to the realised-volatility proxy instead of failing the page.
+    const [nifty, gold, vix] = await Promise.allSettled([
+      fetchSeries(NIFTY_SYMBOL),
+      fetchSeries(GOLD_SYMBOL),
+      fetchSeries(VIX_SYMBOL),
+    ]);
+    if (nifty.status !== "fulfilled") throw nifty.reason;
+    if (gold.status !== "fulfilled") throw gold.reason;
+    const vixSeries = vix.status === "fulfilled" ? vix.value : null;
+    const result = computeFearGreedSeries(nifty.value, gold.value, vixSeries);
     cached = { at: Date.now(), result };
     return result;
   }
@@ -259,4 +303,4 @@ function createFearGreedIndia({ fetchImpl = fetch, yahooBase = "https://query1.f
   return handler;
 }
 
-module.exports = { createFearGreedIndia, computeFearGreedSeries, zoneOf, SIGNALS, NIFTY_SYMBOL, GOLD_SYMBOL, MOMENTUM_DAYS, VOL_DAYS, SAFE_HAVEN_DAYS };
+module.exports = { createFearGreedIndia, computeFearGreedSeries, zoneOf, SIGNALS, NIFTY_SYMBOL, GOLD_SYMBOL, VIX_SYMBOL, MOMENTUM_DAYS, VOL_DAYS, SAFE_HAVEN_DAYS };

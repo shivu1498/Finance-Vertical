@@ -7,6 +7,7 @@ const {
   SIGNALS,
   NIFTY_SYMBOL,
   GOLD_SYMBOL,
+  VIX_SYMBOL,
 } = require("../fear-greed-india");
 
 let fails = 0;
@@ -116,7 +117,47 @@ check("zoneOf: null -> null", zoneOf(null) === null);
   check("chartRecent: every point has a finite score", r.chartRecent.every((p) => Number.isFinite(p.score)));
 }
 
-// ---- createFearGreedIndia: handler + caching, mocked fetch (two symbols) ----
+// ---- India VIX as the volatility signal ----
+{
+  const nifty = series(400, (i) => 100 * Math.exp(0.0006 * i));
+  const gold = series(400, (i) => 50 * Math.exp(0.0002 * i));
+  // VIX spikes hard at the very end -> today should read as fearful on the
+  // volatility signal specifically.
+  const vix = series(400, (i) => (i < 380 ? 13 + 2 * Math.sin(i / 30) : 34));
+
+  const withVix = computeFearGreedSeries(nifty, gold, vix);
+  const withoutVix = computeFearGreedSeries(nifty, gold);
+
+  check("VIX: latest reading reports india-vix as its source", withVix.latest.volatilitySource === "india-vix", String(withVix.latest.volatilitySource));
+  check("VIX: without a VIX series it reports the realised fallback", withoutVix.latest.volatilitySource === "realised", String(withoutVix.latest.volatilitySource));
+
+  const volWith = withVix.components.find((c) => c.key === "volatility");
+  check("VIX: the shown value is the VIX level itself, not an annualised %", Math.abs(volWith.value - 34) < 1e-9, String(volWith.value));
+  check("VIX: a spike ranks the volatility signal as fearful", volWith.percentile < 15, String(volWith.percentile));
+  check("VIX: the component description names India VIX", /India VIX/.test(volWith.description), volWith.description);
+  check("VIX: the fallback description does not name India VIX as the source", !/^India VIX/.test(withoutVix.components.find((c) => c.key === "volatility").description));
+  check("VIX: a spike drags the composite below the no-VIX reading", withVix.latest.score < withoutVix.latest.score, `${withVix.latest.score} vs ${withoutVix.latest.score}`);
+}
+
+// ---- Partial VIX history: recent days use VIX, older days the proxy ----
+{
+  const nifty = series(400, (i) => 100 * Math.exp(0.0006 * i));
+  const gold = series(400, (i) => 50 * Math.exp(0.0002 * i));
+  // VIX only exists for the last 150 bars.
+  const vix = series(400, (i) => 14 + Math.sin(i / 25)).slice(250);
+
+  const r = computeFearGreedSeries(nifty, gold, vix);
+  const vixStartT = vix[0].t;
+  const beforeVix = r.chartLong.filter((p) => p.t < vixStartT);
+  check("partial VIX: today still uses india-vix", r.latest.volatilitySource === "india-vix", String(r.latest.volatilitySource));
+  // The point of the split-percentile design: days predating VIX still carry
+  // a score, computed from the realised proxy, so the composite's history
+  // isn't truncated to wherever VIX happens to begin.
+  check("partial VIX: days predating VIX are still scored via the proxy", beforeVix.length > 0, `${beforeVix.length} scored points before VIX starts`);
+  check("partial VIX: every score stays within 0-100", r.chartRecent.every((p) => p.score >= 0 && p.score <= 100));
+}
+
+// ---- createFearGreedIndia: handler + caching, mocked fetch (three symbols) ----
 (async () => {
   let calls = 0;
   const nifty = series(300, (i) => 100 * Math.exp(0.001 * i));
@@ -135,10 +176,11 @@ check("zoneOf: null -> null", zoneOf(null) === null);
 
   const first = await fg.get();
   check("get(): returns a computed fear/greed reading", first.latest.score != null && first.components.length === 4);
-  check("get(): fetched both symbols once each", calls === 2, String(calls));
+  check("get(): fetched all three symbols once each", calls === 3, String(calls));
+  check("get(): an unavailable India VIX falls back to realised volatility", first.latest.volatilitySource === "realised", String(first.latest.volatilitySource));
 
   await fg.get();
-  check("get(): second call within cacheMs reuses the cache (no extra fetches)", calls === 2, String(calls));
+  check("get(): second call within cacheMs reuses the cache (no extra fetches)", calls === 3, String(calls));
 
   // Express-shaped handler smoke test (req/res stand-ins, no real server).
   let jsonBody = null, statusCode = 200;

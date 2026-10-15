@@ -98,7 +98,7 @@
           <tbody>
             ${d.components.map((c) => `<tr>
               <td><span class="fg-sig-name">${esc(c.label)}</span><span class="fg-sig-desc">${esc(c.description)}</span></td>
-              <td class="fg-sig-val">${c.value == null ? "—" : fmtSigned(c.value)}</td>
+              <td class="fg-sig-val">${c.value == null ? "—" : c.unit === "level" ? c.value.toFixed(2) : fmtSigned(c.value)}</td>
               <td class="fg-sig-val">${c.percentile == null ? "—" : c.percentile + "th"}</td>
               <td class="fg-sig-val">${c.contribution == null ? "—" : c.contribution}</td>
             </tr>`).join("")}
@@ -117,7 +117,7 @@
       </section>
 
       <section class="card fg-method muted">
-        <p class="k-p">Computed from ${d.bars.toLocaleString("en-IN")} daily closes of the Nifty 50 and a gold ETF (GOLDBEES.NS), both from Yahoo Finance. Four signals — momentum vs. the 125-day average, 21-day realised volatility (a rough stand-in for India VIX), one-month equities-vs-gold return, and distance from the highest close to date — each ranked as a percentile against its own history, then averaged. A simpler, disclosed method, built independently of tipsheet.markets' own (undisclosed) model — not investment advice.</p>
+        <p class="k-p">Computed from ${d.bars.toLocaleString("en-IN")} daily closes of the Nifty 50 and a gold ETF (GOLDBEES.NS), plus ${d.latest.volatilitySource === "india-vix" ? "India VIX" : "the Nifty\u2019s own realised volatility"} for the volatility signal \u2014 all from Yahoo Finance. Four signals \u2014 momentum vs. the 125-day average, volatility, one-month equities-vs-gold return, and distance from the highest close to date \u2014 each ranked as a percentile against its own history, then averaged. ${d.latest.volatilitySource === "realised" ? "India VIX history wasn\u2019t available for this reading, so realised volatility stood in for it. " : ""}A simpler, disclosed method, built independently of tipsheet.markets\u2019 own (undisclosed) model \u2014 not investment advice.</p>
       </section>`;
   }
 
