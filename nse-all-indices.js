@@ -215,11 +215,39 @@ function createNseAllIndices({
     }
   }
   handler.get = fetchAll;
+  // Clean contract for the site's own Indices table: NSE's snapshot fields
+  // flattened, every return window under `periods`, and a weekly sparkline
+  // where history exists. Raw NSE field spellings stay out of the UI.
   handler.json = async function jsonHandler(req, res) {
     try {
-      const { asOf, count, rows } = await fetchAll();
+      const { asOf, count, rows, coverage } = await fetchAll();
+      const indices = rows.map((r) => {
+        const ret = r.returns || {};
+        const periods = {};
+        for (const [label] of PERIODS) {
+          const fromNse = {
+            "1D": num(pick(r.raw, ["percentChange", "perChange", "pChange"])),
+            "1M": num(pick(r.raw, ["perChange30d", "percentChange30d"])),
+            "12M": num(pick(r.raw, ["perChange365d", "percentChange365d"])),
+            "1Y": num(pick(r.raw, ["perChange365d", "percentChange365d"])),
+          }[label];
+          const v = fromNse !== undefined && fromNse !== null ? fromNse : ret[label];
+          periods[label] = Number.isFinite(v) ? Math.round(v * 100) / 100 : null;
+        }
+        periods.YTD = Number.isFinite(ret.YTD) ? Math.round(ret.YTD * 100) / 100 : null;
+        return {
+          name: text(pick(r.raw, ["index", "indexSymbol", "indexName"])),
+          group: text(pick(r.raw, ["key", "indexType"])),
+          last: num(pick(r.raw, ["last", "lastPrice", "indexValue"])),
+          pe: num(pick(r.raw, ["pe"])),
+          advances: num(pick(r.raw, ["advances"])),
+          declines: num(pick(r.raw, ["declines"])),
+          periods,
+          spark: ret.spark || null,
+        };
+      });
       res.set("Cache-Control", "public, max-age=60");
-      res.json({ asOf, count, indices: rows.map((r) => ({ ...r.raw, weekPct: r.weekPct })) });
+      res.json({ asOf, count, coverage, periods: PERIODS.map(([l]) => l).concat(["YTD"]), indices });
     } catch (err) {
       res.status(err.status || 502).json({ error: err.code || "nse_error", message: err.message });
     }

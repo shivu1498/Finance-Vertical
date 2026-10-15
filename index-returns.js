@@ -26,6 +26,7 @@ const { parseLongSeries, dailyChartUrl } = require("./quotes");
 // definition; both are emitted because both were asked for.
 const PERIODS = [
   ["1D", 1],
+  ["1W", 7],
   ["15D", 15],
   ["1M", 30],
   ["3M", 91],
@@ -94,6 +95,28 @@ function computeReturns(series, nowT) {
     // never a zero or a wrong number computed off the oldest available bar.
     out[label] = base && base !== 0 ? ((latest - base) / base) * 100 : null;
   }
+
+  // YTD is not a fixed number of days back: it measures from the last close
+  // of LAST year, so the window shrinks to nothing each January and widens
+  // across the year. Computed against 1 Jan of the as-of date's own year.
+  const jan1 = Math.floor(Date.UTC(new Date(asOf * 1000).getUTCFullYear(), 0, 1) / 1000);
+  const ytdBase = closeBefore(jan1);
+  out.YTD = ytdBase && ytdBase !== 0 ? ((latest - ytdBase) / ytdBase) * 100 : null;
+
+  return out;
+}
+
+// ~52 weekly points from the last trading year, for the row sparkline. Weekly
+// rather than daily keeps the payload small: 139 indices x 252 daily closes
+// would be megabytes, and a 60px sparkline cannot show that detail anyway.
+function sparkline(series, points = 52) {
+  if (!series || series.length < 2) return null;
+  const year = series.slice(-252);
+  const step = Math.max(1, Math.ceil(year.length / points));
+  const out = [];
+  for (let i = 0; i < year.length; i += step) out.push(Math.round(year[i].close * 100) / 100);
+  const lastClose = Math.round(year[year.length - 1].close * 100) / 100;
+  if (out[out.length - 1] !== lastClose) out.push(lastClose);
   return out;
 }
 
@@ -134,7 +157,7 @@ function createIndexReturns({
     settled.forEach((r, i) => {
       const [name, sym] = entries[i];
       if (r.status === "fulfilled" && r.value.length) {
-        byName.set(name, computeReturns(r.value, nowT));
+        byName.set(name, { ...computeReturns(r.value, nowT), spark: sparkline(r.value) });
         covered.push(sym);
       } else {
         missing.push(sym);
@@ -149,7 +172,7 @@ function createIndexReturns({
   return { fetchReturns, computeReturns, PERIODS };
 }
 
-module.exports = { createIndexReturns, computeReturns, normalizeName, PERIODS, YAHOO_INDEX_SYMBOLS };
+module.exports = { createIndexReturns, computeReturns, sparkline, normalizeName, PERIODS, YAHOO_INDEX_SYMBOLS };
 
 // ---------------------------------------------------------------------------
 // Daily history as a wide CSV, for spreadsheets.

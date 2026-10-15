@@ -14,7 +14,8 @@ function backSeries(days, closeAt) {
 }
 
 // ---- PERIODS ----
-check("PERIODS: covers all 13 requested windows", PERIODS.length === 13, String(PERIODS.length));
+check("PERIODS: covers every fixed-day window", PERIODS.length === 14, String(PERIODS.length));
+check("PERIODS: includes the 1-week window the site table shows", PERIODS.some(([l]) => l === "1W"));
 check("PERIODS: 12M and 1Y are the same window by definition",
   PERIODS.find((p) => p[0] === "12M")[1] === PERIODS.find((p) => p[0] === "1Y")[1]);
 check("PERIODS: windows increase in length", PERIODS.every((p, i) => i === 0 || p[1] >= PERIODS[i - 1][1]));
@@ -32,6 +33,31 @@ check("normalizeName: null-safe", normalizeName(null) === "");
   check("computeReturns: a rising series is positive over every window", PERIODS.every(([l]) => r[l] > 0));
   check("computeReturns: longer windows show bigger gains", r["10Y"] > r["5Y"] && r["5Y"] > r["1Y"] && r["1Y"] > r["1M"], `10Y ${r["10Y"].toFixed(1)} > 5Y ${r["5Y"].toFixed(1)} > 1Y ${r["1Y"].toFixed(1)}`);
   check("computeReturns: 12M equals 1Y", r["12M"] === r["1Y"]);
+  check("computeReturns: 1W is a shorter window than 1M", r["1W"] < r["1M"], `1W ${r["1W"].toFixed(2)} vs 1M ${r["1M"].toFixed(2)}`);
+  check("computeReturns: YTD resolves", r.YTD !== null && Number.isFinite(r.YTD), String(r.YTD));
+  check("computeReturns: YTD is smaller than 1Y in a steadily rising series", r.YTD < r["1Y"], `YTD ${r.YTD.toFixed(2)} vs 1Y ${r["1Y"].toFixed(2)}`);
+}
+
+// ---- YTD is measured from last year's close, not a fixed day count ----
+{
+  const jan6 = Math.floor(Date.parse("2026-01-06T00:00:00Z") / 1000);
+  // 400 daily bars ending 6 Jan 2026, so YTD spans only a few days.
+  const s2 = Array.from({ length: 400 }, (_, i) => ({ t: jan6 - (399 - i) * DAY, close: 100 + i * 0.5 }));
+  const r2 = computeReturns(s2, jan6);
+  check("YTD: a window early in January is tiny, not a full year", Math.abs(r2.YTD) < 2, String(r2.YTD));
+  check("YTD: the 1Y window over the same series is far larger", r2["1Y"] > 10 * Math.abs(r2.YTD), `YTD ${r2.YTD.toFixed(2)} vs 1Y ${r2["1Y"].toFixed(2)}`);
+}
+
+// ---- sparkline ----
+{
+  const { sparkline } = require("../index-returns");
+  const s3 = Array.from({ length: 900 }, (_, i) => ({ t: i * DAY, close: 100 + i }));
+  const sp = sparkline(s3);
+  check("sparkline: capped near 52 points", sp.length <= 53, String(sp.length));
+  check("sparkline: ends on the latest close", sp[sp.length - 1] === 100 + 899, String(sp.at(-1)));
+  check("sparkline: samples only the last trading year", sp[0] >= 100 + (900 - 252), String(sp[0]));
+  check("sparkline: too short a series yields null", sparkline([{ t: 1, close: 5 }]) === null);
+  check("sparkline: no series yields null", sparkline(null) === null);
 }
 {
   // Only ~2 years of history: the long windows must be blank, not wrong.

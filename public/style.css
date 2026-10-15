@@ -1892,27 +1892,6 @@ mark {
 .tr-error .k-btn {
   margin-top: 8px;
 }
-.memo-sheet {
-  margin-top: 16px;
-}
-.memo-sheet-frame {
-  margin-top: 8px;
-  border: 1px solid var(--panel-border);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--panel);
-}
-.memo-sheet-frame iframe {
-  display: block;
-  width: 100%;
-  height: 600px;
-  border: 0;
-}
-@media (max-width: 640px) {
-  .memo-sheet-frame iframe {
-    height: 420px;
-  }
-}
 
 /* ---- Fear & Greed tab ---- */
 .fg-hero {
@@ -2122,6 +2101,64 @@ mark {
   .fg-gauge-labels span:not(:first-child):not(:last-child) {
     visibility: hidden;
   }
+}
+
+/* ---- Index returns table (Indices tab) ---- */
+.ix-wrap { margin-bottom: 16px; }
+.ix-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.ix-sub { margin: 4px 0 0; max-width: 70ch; font-size: 0.82rem; }
+.ix-search { flex: 0 0 240px; }
+.ix-search input {
+  width: 100%; padding: 7px 10px; font: inherit; font-size: 0.85rem;
+  color: var(--text-main); background: var(--panel-soft);
+  border: 1px solid var(--panel-border); border-radius: 8px;
+}
+.ix-fam { margin: 12px 0 10px; }
+/* The table is wider than most screens; scroll it rather than shrink the
+   type, and pin the name column so a row stays identifiable while panning. */
+.ix-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ix-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 0.82rem; }
+.ix-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--panel); color: var(--text-muted);
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 8px 10px; white-space: nowrap; cursor: pointer; user-select: none;
+  border-bottom: 1px solid var(--panel-border);
+}
+.ix-table thead th:hover { color: var(--accent); }
+.ix-th-name { text-align: left; }
+.ix-th-spark, .ix-th-fam { text-align: left; cursor: default !important; }
+.ix-th-num { text-align: right; }
+.ix-arrow { font-style: normal; color: var(--accent); }
+.ix-table tbody tr:hover td { background-color: var(--panel-soft); }
+.ix-table td {
+  padding: 7px 10px; border-bottom: 1px solid var(--panel-border); white-space: nowrap;
+}
+.ix-name {
+  position: sticky; left: 0; z-index: 1;
+  background: var(--panel); font-weight: 600; color: var(--text-main);
+  max-width: 300px; overflow: hidden; text-overflow: ellipsis;
+}
+.ix-table tbody tr:hover .ix-name { background: var(--panel-soft); }
+.ix-fam-cell { color: var(--text-muted); font-size: 0.78rem; }
+.ix-num { text-align: right; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-main); }
+.ix-na { text-align: right; color: var(--text-muted); opacity: 0.5; }
+.ix-sparkcell { width: 78px; padding-right: 4px; }
+.ix-spark { width: 70px; height: 22px; display: block; }
+.ix-spark-line { fill: none; stroke: var(--text-muted); stroke-width: 1.2; stroke-linejoin: round; }
+.ix-spark-mid { stroke: var(--panel-border); stroke-width: 1; stroke-dasharray: 2 2; }
+.ix-spark-dot.up { fill: #4678be; }
+.ix-spark-dot.down { fill: #c8503c; }
+.ix-nospark { color: var(--text-muted); opacity: 0.5; }
+.ix-foot { margin: 10px 0 0; font-size: 0.75rem; }
+.ix-loading, .ix-error { text-align: center; color: var(--text-muted); margin-bottom: 16px; }
+.ix-error .k-btn { margin-top: 8px; }
+@media (max-width: 640px) {
+  .ix-search { flex: 1 1 100%; }
+  .ix-name { max-width: 170px; }
 }
 
 /* ---- Mutual Funds tab ---- */
