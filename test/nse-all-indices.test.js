@@ -1,6 +1,11 @@
 // Unit tests for nse-all-indices.js. No real network: fetchImpl is mocked,
 // same pattern as test/nse-announcements.test.js.
 const { createNseAllIndices, toCsv, csvCell, num, text, weekPct, FIELDS } = require("../nse-all-indices");
+const { PERIODS } = require("../index-returns");
+
+// Keeps the NSE-feed tests focused: no Yahoo history, so every long window
+// is blank and only NSE's own figures appear.
+const noReturns = { fetchReturns: async () => ({ byName: new Map(), covered: [], missing: [] }) };
 
 let fails = 0;
 const check = (n, ok, x = "") => { if (!ok) fails++; console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  -> " + x : "")); };
@@ -38,12 +43,13 @@ check("weekPct: null when the base is zero (no divide-by-zero)", weekPct({ last:
   const lines = csv.split("\n");
   check("toCsv: one header plus one line per row", lines.length === 3, String(lines.length));
   check("toCsv: header starts with Index,Group", lines[0].startsWith("Index,Group"), lines[0]);
-  check("toCsv: header ends with the derived and timestamp columns", lines[0].endsWith("7D %,As Of"), lines[0]);
-  check("toCsv: header column count matches FIELDS + 2", lines[0].split(",").length === FIELDS.length + 2);
+  check("toCsv: header ends with the period columns then the timestamp", lines[0].endsWith("10Y %,As Of"), lines[0]);
+  check("toCsv: header carries one column per period", PERIODS.every(([l]) => lines[0].includes(`${l} %`)), lines[0]);
+  check("toCsv: header column count matches FIELDS + periods + 1", lines[0].split(",").length === FIELDS.length + PERIODS.length + 1, String(lines[0].split(",").length));
   check("toCsv: numbers are rounded to 4dp", lines[1].includes("24500.1235"), lines[1]);
   check("toCsv: a name containing a comma is quoted", lines[2].includes('"Nifty Auto, Large"'), lines[2]);
   check("toCsv: NSE's '-' becomes an empty cell, not a zero", lines[2].split(",").slice(-4).join(",").indexOf("0") !== 0);
-  check("toCsv: a null weekPct is an empty cell", lines[2].includes(",,"), lines[2]);
+  check("toCsv: a row with no history leaves the long windows blank", lines[2].includes(",,"), lines[2]);
   check("toCsv: every row carries the timestamp", lines[1].includes("15-Oct-2026 15:30") && lines[2].includes("15-Oct-2026 15:30"));
 }
 
@@ -75,9 +81,10 @@ check("weekPct: null when the base is zero (no divide-by-zero)", weekPct({ last:
 
   {
     const { impl, calls } = mockFetch(payload);
-    const h = createNseAllIndices({ fetchImpl: impl });
+    const h = createNseAllIndices({ fetchImpl: impl, indexReturns: noReturns });
     const r = await h.get();
     check("get(): primes cookies before hitting the API", calls.length === 2 && calls[0].url.endsWith("/"), JSON.stringify(calls.map((c) => c.url)));
+    check("get(): reports which symbols the history layer covered", Array.isArray(r.coverage.covered) && Array.isArray(r.coverage.missing));
     check("get(): replays the cookie on the API call", /nsit=abc123/.test(calls[1].init.headers.Cookie || ""), String(calls[1].init.headers.Cookie));
     check("get(): sends a browser-like User-Agent", /Mozilla/.test(calls[1].init.headers["User-Agent"]));
     check("get(): drops rows with no index name", r.count === 2, String(r.count));
@@ -93,7 +100,7 @@ check("weekPct: null when the base is zero (no divide-by-zero)", weekPct({ last:
   // Blocked / rate-limited / unreadable all fail closed with typed errors.
   for (const [status, code] of [[403, "blocked"], [401, "blocked"], [429, "rate_limited"], [500, "upstream"]]) {
     const { impl } = mockFetch(payload, { status });
-    const h = createNseAllIndices({ fetchImpl: impl });
+    const h = createNseAllIndices({ fetchImpl: impl, indexReturns: noReturns });
     try {
       await h.get();
       check(`get(): HTTP ${status} rejects`, false);
@@ -104,7 +111,7 @@ check("weekPct: null when the base is zero (no divide-by-zero)", weekPct({ last:
 
   {
     const { impl } = mockFetch({ notData: true });
-    const h = createNseAllIndices({ fetchImpl: impl });
+    const h = createNseAllIndices({ fetchImpl: impl, indexReturns: noReturns });
     try {
       await h.get();
       check("get(): an unreadable payload rejects", false);
@@ -116,7 +123,7 @@ check("weekPct: null when the base is zero (no divide-by-zero)", weekPct({ last:
   // CSV handler shape.
   {
     const { impl } = mockFetch(payload);
-    const h = createNseAllIndices({ fetchImpl: impl });
+    const h = createNseAllIndices({ fetchImpl: impl, indexReturns: noReturns });
     let body = null, headers = {}, status = 200;
     const res = {
       set(k, v) { if (typeof k === "object") Object.assign(headers, k); else headers[k] = v; return this; },
@@ -133,7 +140,7 @@ check("weekPct: null when the base is zero (no divide-by-zero)", weekPct({ last:
   // An upstream failure still returns readable CSV, not a parse error.
   {
     const { impl } = mockFetch(payload, { status: 403 });
-    const h = createNseAllIndices({ fetchImpl: impl });
+    const h = createNseAllIndices({ fetchImpl: impl, indexReturns: noReturns });
     let body = null, headers = {}, status = 200;
     const res = {
       set(k, v) { headers[k] = v; return this; },

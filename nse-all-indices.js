@@ -29,6 +29,8 @@
 // tried per field and anything unparseable becomes an empty cell rather
 // than a crash.
 
+const { createIndexReturns, normalizeName, PERIODS } = require("./index-returns");
+
 const WWW = "https://www.nseindia.com";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
@@ -45,8 +47,6 @@ const FIELDS = [
   ["Prev Close", ["previousClose", "prevClose", "previousDay"]],
   ["52W High", ["yearHigh", "high52"]],
   ["52W Low", ["yearLow", "low52"]],
-  ["30D %", ["perChange30d", "percentChange30d"]],
-  ["365D %", ["perChange365d", "percentChange365d"]],
   ["P/E", ["pe"]],
   ["P/B", ["pb"]],
   ["Div Yield", ["dy", "divYield"]],
@@ -93,25 +93,50 @@ function csvCell(v) {
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
+const round4 = (n) => (n === null || n === undefined || !Number.isFinite(n) ? "" : Math.round(n * 10000) / 10000);
+
+// NSE's own figures are authoritative for the windows it publishes, so they
+// win for 1D / 1M / 12M / 1Y; the computed history only fills what NSE
+// doesn't carry. Anything with no backing data stays blank.
+function periodCells(row, computed) {
+  const nseByPeriod = {
+    "1D": num(pick(row, ["percentChange", "perChange", "pChange"])),
+    "1M": num(pick(row, ["perChange30d", "percentChange30d"])),
+    "12M": num(pick(row, ["perChange365d", "percentChange365d"])),
+    "1Y": num(pick(row, ["perChange365d", "percentChange365d"])),
+  };
+  return PERIODS.map(([label]) => {
+    const fromNse = nseByPeriod[label];
+    if (fromNse !== undefined && fromNse !== null) return round4(fromNse);
+    return round4(computed ? computed[label] : null);
+  });
+}
+
 function toCsv(rows) {
-  const header = FIELDS.map((f) => f[0]).concat(["7D %", "As Of"]);
+  const header = FIELDS.map((f) => f[0])
+    .concat(PERIODS.map(([label]) => `${label} %`))
+    .concat(["As Of"]);
   const lines = [header.map(csvCell).join(",")];
   for (const r of rows) {
     const cells = FIELDS.map(([label, keys]) => {
       const raw = pick(r.raw, keys);
       // Index and Group stay text; everything else is numeric or blank.
       if (label === "Index" || label === "Group") return text(raw);
-      const n = num(raw);
-      return n === null ? "" : Math.round(n * 10000) / 10000;
+      return round4(num(raw));
     });
-    cells.push(r.weekPct === null ? "" : Math.round(r.weekPct * 10000) / 10000);
+    cells.push(...periodCells(r.raw, r.returns));
     cells.push(r.asOf);
     lines.push(cells.map(csvCell).join(","));
   }
   return lines.join("\n");
 }
 
-function createNseAllIndices({ fetchImpl = fetch, wwwBase = WWW, cacheMs = 60_000 } = {}) {
+function createNseAllIndices({
+  fetchImpl = fetch,
+  wwwBase = WWW,
+  cacheMs = 60_000,
+  indexReturns = createIndexReturns({ fetchImpl }),
+} = {}) {
   let cookieJar = null;
   let cookieAt = 0;
   const COOKIE_TTL = 10 * 60 * 1000;
@@ -149,11 +174,24 @@ function createNseAllIndices({ fetchImpl = fetch, wwwBase = WWW, cacheMs = 60_00
     if (!raw) throw Object.assign(new Error("NSE returned a payload this app couldn't read."), { status: 502, code: "unreadable" });
 
     const asOf = text(json.timestamp) || new Date().toISOString();
+
+    // Historical returns are a bonus layer: if Yahoo is unreachable the feed
+    // still ships with NSE's own 1D/1M/1Y and blanks in the longer windows.
+    let byName = new Map(), covered = [], missing = [];
+    try {
+      ({ byName, covered, missing } = await indexReturns.fetchReturns());
+    } catch {
+      /* leave the long windows blank */
+    }
+
     const rows = raw
       .filter((r) => text(pick(r, ["index", "indexSymbol", "indexName"])) !== "")
-      .map((r) => ({ raw: r, weekPct: weekPct(r), asOf }));
+      .map((r) => {
+        const name = normalizeName(pick(r, ["index", "indexSymbol", "indexName"]));
+        return { raw: r, weekPct: weekPct(r), returns: byName.get(name) || null, asOf };
+      });
 
-    const result = { asOf, count: rows.length, rows };
+    const result = { asOf, count: rows.length, rows, coverage: { covered, missing } };
     cached = result;
     cachedAt = Date.now();
     return result;
