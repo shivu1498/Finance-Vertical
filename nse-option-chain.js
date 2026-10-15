@@ -198,8 +198,11 @@ function createNseOptionChain({ fetchImpl = fetch, wwwBase = WWW, cacheMs = 60_0
       res.set("Access-Control-Allow-Origin", "*");
       res.send(toCsv(chain));
     } catch (err) {
-      res.status(err.status || 502);
+      // Deliberately 200: IMPORTDATA discards the body of any non-200 and
+      // shows a bare #N/A, so an error status hides the reason from the one
+      // place that needs it. The row itself says something went wrong.
       res.set("Content-Type", "text/csv; charset=utf-8");
+      res.set("Cache-Control", "no-store");
       res.send(`Error,Message\n${err.code || "oc_error"},"${String(err.message).replace(/"/g, '""')}"`);
     }
   }

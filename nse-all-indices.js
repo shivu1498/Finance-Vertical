@@ -208,9 +208,10 @@ function createNseAllIndices({
       res.set("Access-Control-Allow-Origin", "*");
       res.send(toCsv(rows));
     } catch (err) {
-      // CSV-shaped error so a sheet shows a readable cell, not a parse failure.
-      res.status(err.status || 502);
+      // 200 on purpose — see nse-option-chain.js: IMPORTDATA throws away the
+      // body of a non-200, so an error status would hide this message.
       res.set("Content-Type", "text/csv; charset=utf-8");
+      res.set("Cache-Control", "no-store");
       res.send(`Error,Message\n${csvCell(err.code || "nse_error")},${csvCell(err.message)}`);
     }
   }

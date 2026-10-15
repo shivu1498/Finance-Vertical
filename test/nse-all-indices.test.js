@@ -149,7 +149,7 @@ check("weekPct: null when the base is zero (no divide-by-zero)", weekPct({ last:
     };
     await h({ query: {} }, res);
     check("handler: an upstream block returns CSV-shaped error text", String(body).startsWith("Error,Message"), String(body));
-    check("handler: an upstream block sets a non-200 status", status === 502, String(status));
+    check("handler: an upstream block still answers 200, so IMPORTDATA shows the reason", status === 200, String(status));
   }
 
   console.log(fails === 0 ? "\nall passed" : `\n${fails} FAILED`);

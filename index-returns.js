@@ -269,8 +269,9 @@ function createHistoryCsv({
       res.set("Access-Control-Allow-Origin", "*");
       res.send(csv);
     } catch (err) {
-      res.status(err.status || 502);
+      // 200 on purpose — see nse-option-chain.js.
       res.set("Content-Type", "text/csv; charset=utf-8");
+      res.set("Cache-Control", "no-store");
       res.send(`Error,Message\n${err.code || "history_error"},"${String(err.message).replace(/"/g, '""')}"`);
     }
   }
