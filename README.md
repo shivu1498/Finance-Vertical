@@ -546,6 +546,48 @@ copying their (undisclosed) methodology.
   undisclosed) models, and GOLDBEES.NS's own listing history caps how far
   back the composite's "own history" can reach.
 
+## Pulling NSE data into Google Sheets
+
+Google Sheets cannot read `https://www.nseindia.com/market-data/live-market-indices`
+directly, for two independent reasons:
+
+1. That page is a JavaScript app — the served HTML contains no table, so
+   `IMPORTHTML` finds nothing even on a clean fetch.
+2. NSE's JSON API behind it sits behind the same anti-bot layer every NSE
+   integration here deals with: a homepage cookie has to be replayed on the
+   API call. Google's import functions send a plain, cookie-less request
+   from a Google IP and get 401/403 back.
+
+This server already does the cookie priming, so the working path is
+**Sheets → this app → NSE**:
+
+- `nse-all-indices.js` — fetches `https://www.nseindia.com/api/allIndices`
+  (the same endpoint `nse-sector-indices.js` uses, and the one backing NSE's
+  own live-indices pages) and hands back **every** index — broad market,
+  sectoral, thematic and strategy — rather than narrowing to the ~22 mapped
+  sector labels the heatmap needs. Fails closed with typed errors
+  (`blocked` / `rate_limited` / `upstream` / `unreadable`), and on failure
+  still returns *CSV-shaped* error text so a spreadsheet shows a readable
+  cell instead of a parse error. Unit-tested in `test/nse-all-indices.test.js`
+  with a mocked `fetchImpl` — cookie priming, caching, every error path, and
+  CSV quoting of index names containing commas.
+- `GET /api/sheets/indices.csv` — plain CSV for `IMPORTDATA`. Columns:
+  Index, Group, Last, Change, Change %, Open, High, Low, Prev Close, 52W
+  High, 52W Low, 30D %, 365D %, P/E, P/B, Div Yield, Advances, Declines,
+  Unchanged, 7D %, As Of. The 7-day figure is derived from NSE's
+  `oneWeekAgo` where present and left blank where not.
+- `GET /api/indices/all` — the same data as JSON, for the site itself.
+
+Sheet side, the daily-refresh formula is:
+
+```
+=IMPORTDATA("https://<your-domain>/api/sheets/indices.csv?d=" & TEXT(TODAY(),"yyyymmdd"))
+```
+
+The `?d=` parameter is ignored by the server; it exists only to make the URL
+change at midnight, which is what forces Sheets to genuinely re-fetch rather
+than serve its own cached copy.
+
 ## India Market Breadth (index-universe filter)
 
 The Markets tab's Breadth panel, for India, compares advance/decline

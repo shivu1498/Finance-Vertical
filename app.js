@@ -22,6 +22,7 @@ const { createNseIndexBreadth, INDEX_UNIVERSES } = require("./nse-index-breadth"
 const { createBreadthEngine } = require("./breadth");
 const { createTrendIndia, TREND_MARKETS } = require("./trend-india");
 const { createFearGreedIndia } = require("./fear-greed-india");
+const { createNseAllIndices } = require("./nse-all-indices");
 const tijori = require("./tijori");
 const companies = require("./companies");
 
@@ -240,5 +241,13 @@ app.get("/api/trend/in-markets", (req, res) => {
 // highs), each ranked against its own history. See fear-greed-india.js.
 const fearGreedIndia = createFearGreedIndia();
 app.get("/api/fear-greed/in", fearGreedIndia);
+
+// Every NSE index, for spreadsheets. Google Sheets can't fetch nseindia.com
+// itself (JS-rendered page + cookie-primed anti-bot layer), but it can fetch
+// this, and this server already does the cookie priming. See
+// nse-all-indices.js and the README's "Pulling NSE data into Google Sheets".
+const nseAllIndices = createNseAllIndices();
+app.get("/api/sheets/indices.csv", nseAllIndices);
+app.get("/api/indices/all", nseAllIndices.json);
 
 module.exports = app;
