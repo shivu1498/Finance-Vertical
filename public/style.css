@@ -1892,6 +1892,27 @@ mark {
 .tr-error .k-btn {
   margin-top: 8px;
 }
+.memo-sheet {
+  margin-top: 16px;
+}
+.memo-sheet-frame {
+  margin-top: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.memo-sheet-frame iframe {
+  display: block;
+  width: 100%;
+  height: 600px;
+  border: 0;
+}
+@media (max-width: 640px) {
+  .memo-sheet-frame iframe {
+    height: 420px;
+  }
+}
 
 /* ---- Fear & Greed tab ---- */
 .fg-hero {
