@@ -160,4 +160,21 @@ function parseLongSeries(json, symbol) {
   return out;
 }
 
-module.exports = { parseChart, parsePeriods, parseBreadthSigns, parseLongSeries, BREADTH_LOOKBACKS };
+// Builds a DAILY chart URL for a multi-year window.
+//
+// Yahoo's `range=max` silently coarsens granularity on long histories: a
+// decades-deep request on ^NSEI comes back as MONTHLY bars even with
+// interval=1d. That is quietly catastrophic for anything here that counts
+// bars — a "200-day moving average" computed on monthly bars is really a
+// 200-MONTH average, and a "daily closes" count in the UI is a plain
+// falsehood. An explicit period1/period2 window keeps the bars daily.
+//
+// 11 years covers the longest window this app computes (10Y returns) with
+// room to spare, and is short enough that Yahoo keeps daily resolution.
+function dailyChartUrl(base, symbol, years = 11) {
+  const now = Math.floor(Date.now() / 1000);
+  const from = now - Math.round(years * 365.25 * 86400);
+  return `${base}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&period1=${from}&period2=${now}`;
+}
+
+module.exports = { parseChart, parsePeriods, parseBreadthSigns, parseLongSeries, dailyChartUrl, BREADTH_LOOKBACKS };

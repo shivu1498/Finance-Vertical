@@ -9,10 +9,10 @@
 //
 // Data source: Yahoo Finance's public chart endpoint, the same one
 // fetchQuote/fetchPeriods in app.js already use — see quotes.js's
-// parseLongSeries. Requested with range=max (or an explicit `period1`
-// decades back) so the whole available history comes back in one call,
-// unlike NSE's own historical APIs which cap how far back a single request
-// can reach. Yahoo's Indian-index symbols (^NSEI, ^NSEBANK, ^BSESN) are
+// parseLongSeries. Requested over an explicit period1/period2 window (see
+// quotes.js's dailyChartUrl) rather than range=max: Yahoo silently returns
+// MONTHLY bars for a decades-deep max request, which would turn these
+// 20/50/100/200-DAY signals into 20/50/100/200-MONTH ones. Yahoo's Indian-index symbols (^NSEI, ^NSEBANK, ^BSESN) are
 // already used elsewhere in this app (public/data.js), so this reuses
 // symbols already known to work rather than guessing new ones — Nifty 500
 // and the sector indices aren't wired in yet for exactly that reason (no
@@ -29,7 +29,7 @@
 // to 30 (and lasts until it climbs back to 70) — same threshold rule
 // tipsheet.markets' page describes, applied to this app's own score.
 
-const { parseLongSeries } = require("./quotes");
+const { parseLongSeries, dailyChartUrl } = require("./quotes");
 
 const HORIZONS = [20, 50, 100, 200]; // trading-day bars
 
@@ -174,7 +174,7 @@ function createTrendIndia({ fetchImpl = fetch, yahooBase = "https://query1.finan
 
     // period1=0 + range isn't a valid combo on Yahoo's API; `range=max`
     // alone is the documented way to ask for "everything available."
-    const url = `${yahooBase}/v8/finance/chart/${encodeURIComponent(market.symbol)}?interval=1d&range=max`;
+    const url = dailyChartUrl(yahooBase, market.symbol);
     const res = await fetchImpl(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",

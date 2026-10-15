@@ -90,7 +90,8 @@ check("quantile: empty array -> null", quantile([], 0.5) === null);
   const close = bigSeries.map((p) => p.close);
   const fetchImpl = async (url) => {
     calls++;
-    check("request: asks Yahoo for the full-history range", String(url).includes("range=max"), String(url));
+    check("request: asks Yahoo for DAILY bars over an explicit window (never range=max, which returns monthly)",
+      String(url).includes("interval=1d") && String(url).includes("period1=") && !String(url).includes("range=max"), String(url));
     return { ok: true, json: async () => ({ chart: { result: [{ timestamp, indicators: { quote: [{ close }] } }] } }) };
   };
   const trend = createTrendIndia({ fetchImpl });

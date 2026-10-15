@@ -171,3 +171,19 @@ is("BREADTH_LOOKBACKS: the six windows the breadth panel compares", BREADTH_LOOK
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);
+
+// ---- dailyChartUrl: the guard against Yahoo's monthly downgrade ----
+{
+  const { dailyChartUrl } = require("../quotes");
+  const u = dailyChartUrl("https://x", "^NSEI");
+  check("dailyChartUrl: requests daily bars", u.includes("interval=1d"), u);
+  check("dailyChartUrl: never uses range=max, which silently returns monthly bars", !u.includes("range=max"), u);
+  check("dailyChartUrl: bounds the window with period1 and period2", /period1=\d+/.test(u) && /period2=\d+/.test(u), u);
+  check("dailyChartUrl: url-encodes the caret in index symbols", u.includes("%5ENSEI"), u);
+  const m = u.match(/period1=(\d+)&period2=(\d+)/);
+  const years = (Number(m[2]) - Number(m[1])) / (365.25 * 86400);
+  check("dailyChartUrl: default window is ~11 years, covering the 10Y return", Math.abs(years - 11) < 0.1, years.toFixed(2));
+  const short = dailyChartUrl("https://x", "^NSEI", 2);
+  const m2 = short.match(/period1=(\d+)&period2=(\d+)/);
+  check("dailyChartUrl: window length is configurable", Math.abs((Number(m2[2]) - Number(m2[1])) / (365.25 * 86400) - 2) < 0.1);
+}

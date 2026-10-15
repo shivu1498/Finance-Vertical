@@ -167,7 +167,8 @@ check("zoneOf: null -> null", zoneOf(null) === null);
   const fetchImpl = async (url) => {
     calls++;
     const u = String(url);
-    check(`request ${calls}: asks Yahoo for the full-history range`, u.includes("range=max"), u);
+    check(`request ${calls}: asks Yahoo for DAILY bars over an explicit window`,
+      u.includes("interval=1d") && u.includes("period1=") && !u.includes("range=max"), u);
     if (u.includes(encodeURIComponent(NIFTY_SYMBOL))) return { ok: true, json: async () => ({ chart: { result: [toChart(nifty)] } }) };
     if (u.includes(encodeURIComponent(GOLD_SYMBOL))) return { ok: true, json: async () => ({ chart: { result: [toChart(gold)] } }) };
     throw new Error("unexpected symbol in " + u);

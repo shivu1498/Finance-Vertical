@@ -20,7 +20,7 @@
 // independent and a failure just means blanks for that index. Adding a
 // symbol here is the only step needed to extend coverage.
 
-const { parseLongSeries } = require("./quotes");
+const { parseLongSeries, dailyChartUrl } = require("./quotes");
 
 // [label, calendar days back]. 12M and 1Y are the same window by
 // definition; both are emitted because both were asked for.
@@ -107,7 +107,7 @@ function createIndexReturns({
   let cachedAt = 0;
 
   async function fetchOne(symbol) {
-    const url = `${yahooBase}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=max`;
+    const url = dailyChartUrl(yahooBase, symbol);
     const res = await fetchImpl(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
@@ -213,7 +213,7 @@ function createHistoryCsv({
     const entries = Object.entries(symbols);
     const settled = await Promise.allSettled(
       entries.map(async ([, sym]) => {
-        const url = `${yahooBase}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=max`;
+        const url = dailyChartUrl(yahooBase, sym);
         const res = await fetchImpl(url, {
           headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",

@@ -28,14 +28,15 @@
 //                        close so far (reuses the same running-high/offHigh
 //                        idea as trend-india.js's drawdown figure).
 //
-// Data source: Yahoo Finance's public chart endpoint, range=max, via the
+// Data source: Yahoo Finance's public chart endpoint, over an explicit
+// daily window (quotes.js's dailyChartUrl, never range=max), via the
 // same parseLongSeries this app's Trend & Momentum dashboard already uses
 // in production (trend-india.js) — ^NSEI is already confirmed working
 // there. GOLDBEES.NS uses the same ".NS" Yahoo convention this app's
 // breadth engine already fetches at scale (app.js's /api/breadth route), so
 // it isn't a new, unverified kind of symbol — just a new one.
 
-const { parseLongSeries } = require("./quotes");
+const { parseLongSeries, dailyChartUrl } = require("./quotes");
 const { percentileOf } = require("./trend-india");
 
 const NIFTY_SYMBOL = "^NSEI";
@@ -262,7 +263,7 @@ function createFearGreedIndia({ fetchImpl = fetch, yahooBase = "https://query1.f
   let cached = null; // { at, result }
 
   async function fetchSeries(symbol) {
-    const url = `${yahooBase}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=max`;
+    const url = dailyChartUrl(yahooBase, symbol);
     const res = await fetchImpl(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
