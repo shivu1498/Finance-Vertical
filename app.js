@@ -24,6 +24,7 @@ const { createTrendIndia, TREND_MARKETS } = require("./trend-india");
 const { createFearGreedIndia } = require("./fear-greed-india");
 const { createNseAllIndices } = require("./nse-all-indices");
 const { createHistoryCsv } = require("./index-returns");
+const { createNseOptionChain } = require("./nse-option-chain");
 const tijori = require("./tijori");
 const companies = require("./companies");
 
@@ -255,5 +256,12 @@ app.get("/api/indices/all", nseAllIndices.json);
 // feed above says where things are now; this says where they have been, which
 // is what a rolling window in a spreadsheet needs. See index-returns.js.
 app.get("/api/sheets/history.csv", createHistoryCsv());
+
+// Live option chain. Derived columns (REF / intrinsic / time value / LTP
+// total) reproduce the LTP Calculator tool exactly — see nse-option-chain.js
+// for what was reverse-engineered and, importantly, what was not.
+const nseOptionChain = createNseOptionChain();
+app.get("/api/sheets/option-chain.csv", nseOptionChain);
+app.get("/api/option-chain/summary", nseOptionChain.summary);
 
 module.exports = app;

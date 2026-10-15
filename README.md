@@ -551,6 +551,44 @@ copying their (undisclosed) methodology.
   undisclosed) models, and GOLDBEES.NS's own listing history caps how far
   back the composite's "own history" can reach.
 
+## Option chain (and what REVERSAL is not)
+
+`nse-option-chain.js` serves NIFTY's live option chain from NSE's own
+`/api/option-chain-indices`, behind the usual cookie priming, at
+`/api/sheets/option-chain.csv` (plus a JSON summary at
+`/api/option-chain/summary`).
+
+Several derived columns were **reverse-engineered from a screenshot of the
+LTP Calculator tool** and verified to the paisa against nine of its strikes,
+so this code reproduces that tool exactly:
+
+- **REF** — the ATM strike, taken from the synthetic future implied by
+  put-call parity (`K + C - P`, consistent to ~±5 points across the chain),
+  rounded to the nearest strike. **Not the spot.** In the sample, spot was
+  22997.35 but the future was ~22951, so REF was 22950; using spot would put
+  every intrinsic value one strike out.
+- **INTRINSIC** — `REF - K`, *signed* for calls (a 23000 call shows -50) and
+  *floored at zero* for puts. The asymmetry is the tool's; both halves were
+  verified against its output, so don't "fix" it.
+- **TIME VAL** — `LTP - INTRINSIC`, which is why deep-ITM puts show negative
+  time value there.
+- **LTP TOTAL** — the sum of LTP across three consecutive strikes either side
+  of REF. The screenshot's 215.60 / 286.60 reproduce exactly.
+
+**REVERSAL was not cracked, and nothing here guesses at it.** It is not
+`K ± premium`, not an IV/time expected-move, not put-call parity, and not any
+cumulative-premium variant: across the 29 strikes carrying a value, the best
+fit from every field NSE publishes reached only R² 0.77 (calls) / 0.92 (puts)
+with no coherent financial reading. Its inputs are very likely intraday state
+the snapshot doesn't contain — the option's traded path, average price or
+prior close — which fits a tool named "LTP Calculator". The chain therefore
+ships **BREAKEVEN** (`K + call premium` / `K - put premium`), which is the
+standard, disclosed calculation and is labelled as such rather than being
+passed off as the same thing.
+
+`test/nse-option-chain.test.js` asserts the reproduction against the
+screenshot's own figures, so a shape change at NSE fails loudly.
+
 ## Pulling NSE data into Google Sheets
 
 Google Sheets cannot read `https://www.nseindia.com/market-data/live-market-indices`
